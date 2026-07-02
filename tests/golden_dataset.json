@@ -1,0 +1,44 @@
+{
+  "_meta": {
+    "description": "Golden dataset for release-gate validation. Ground-truth labels: is_buyer + type. Service context = a marketing agency selling into local businesses. Buyers = real customers; everything else must be rejected/isolated (competitor, agency, freelancer, consultant, software vendor, marketplace, directory, government, university, irrelevant).",
+    "service": "social media marketing agency"
+  },
+  "records": [
+    {"name": "Bright Smile Dental Clinic", "category": "dental clinic", "location": "Dubai", "rating": 4.2, "review_count": 623, "website": "brightsmile.ae", "phone": "+97141234567", "is_buyer": true, "type": "buyer"},
+    {"name": "FitZone Gym", "category": "gym", "location": "Dubai", "rating": 4.0, "review_count": 210, "website": "fitzone.ae", "phone": "+97142223333", "is_buyer": true, "type": "buyer"},
+    {"name": "Sunrise Restaurant", "category": "restaurant", "location": "Abu Dhabi", "rating": 3.7, "review_count": 88, "website": "", "phone": "+97125556666", "is_buyer": true, "type": "buyer"},
+    {"name": "Green Leaf Cafe", "category": "cafe", "location": "Sharjah", "rating": 4.4, "review_count": 145, "website": "greenleaf.ae", "phone": "+97165551212", "is_buyer": true, "type": "buyer"},
+    {"name": "Elegance Beauty Salon", "category": "salon", "location": "Dubai", "rating": 4.1, "review_count": 302, "website": "", "phone": "+97143334444", "is_buyer": true, "type": "buyer"},
+    {"name": "Prime Real Estate Agency", "category": "real estate agency", "location": "Dubai", "rating": 4.3, "review_count": 190, "website": "primerealty.ae", "phone": "+97144445555", "is_buyer": true, "type": "buyer"},
+    {"name": "Al Noor Medical Center", "category": "medical center", "location": "Dubai", "rating": 3.9, "review_count": 410, "website": "alnoor.ae", "phone": "+97147778888", "is_buyer": true, "type": "buyer"},
+    {"name": "Falcon Law Firm", "category": "law firm", "location": "Abu Dhabi", "rating": 4.6, "review_count": 75, "website": "falconlaw.ae", "phone": "+97126667777", "is_buyer": true, "type": "buyer"},
+    {"name": "City Physiotherapy", "category": "physiotherapy clinic", "location": "Dubai", "rating": 4.0, "review_count": 130, "website": "", "phone": "+97148889999", "is_buyer": true, "type": "buyer"},
+    {"name": "Grand Furniture Store", "category": "furniture store", "location": "Sharjah", "rating": 3.8, "review_count": 260, "website": "grandfurniture.ae", "phone": "+97165552323", "is_buyer": true, "type": "buyer"},
+    {"name": "Oasis Travel Agency", "category": "travel agency", "location": "Dubai", "rating": 4.2, "review_count": 165, "website": "oasistravel.ae", "phone": "+97143331122", "is_buyer": true, "type": "buyer"},
+    {"name": "Royal Veterinary Clinic", "category": "veterinary clinic", "location": "Dubai", "rating": 4.5, "review_count": 220, "website": "royalvet.ae", "phone": "+97144442211", "is_buyer": true, "type": "buyer"},
+    {"name": "Sunset Boutique Hotel", "category": "hotel", "location": "Ras Al Khaimah", "rating": 4.1, "review_count": 540, "website": "sunsethotel.ae", "phone": "+97172223344", "is_buyer": true, "type": "buyer"},
+    {"name": "Precision Accounting Services", "category": "accounting firm", "location": "Dubai", "rating": 4.4, "review_count": 60, "website": "precisionaccounts.ae", "phone": "+97144445566", "is_buyer": true, "type": "buyer"},
+    {"name": "Urban Barber Shop", "category": "barber shop", "location": "Dubai", "rating": 4.0, "review_count": 95, "website": "", "phone": "+97143332211", "is_buyer": true, "type": "buyer"},
+
+    {"name": "Peak Digital Marketing Agency", "category": "marketing agency", "location": "Dubai", "rating": 4.8, "review_count": 120, "website": "peakdigital.ae", "phone": "+97144440000", "is_buyer": false, "type": "competitor"},
+    {"name": "Elite SEO Agency", "category": "seo agency", "location": "Dubai", "rating": 4.9, "review_count": 2000, "website": "eliteseo.ae", "phone": "+97144441111", "is_buyer": false, "type": "competitor"},
+    {"name": "Creative Branding Studio", "category": "branding agency", "location": "Abu Dhabi", "rating": 4.7, "review_count": 88, "website": "creativebrand.ae", "phone": "+97126662222", "is_buyer": false, "type": "competitor"},
+    {"name": "AdBoost Advertising Agency", "category": "advertising agency", "location": "Dubai", "rating": 4.5, "review_count": 150, "website": "adboost.ae", "phone": "+97144443333", "is_buyer": false, "type": "competitor"},
+    {"name": "SocialGrow Social Media Agency", "category": "social media agency", "location": "Sharjah", "rating": 4.6, "review_count": 210, "website": "socialgrow.ae", "phone": "+97165554444", "is_buyer": false, "type": "competitor"},
+    {"name": "John Doe Freelance Marketer", "category": "freelancer", "location": "Dubai", "rating": 5.0, "review_count": 12, "website": "johndoe.me", "phone": "", "is_buyer": false, "type": "freelancer"},
+    {"name": "Growth Consulting Partners", "category": "marketing consultant", "location": "Dubai", "rating": 4.4, "review_count": 40, "website": "growthconsult.ae", "phone": "+97144445544", "is_buyer": false, "type": "consultant"},
+    {"name": "CloudCRM Software Inc", "category": "software company", "location": "Dubai", "rating": 4.3, "review_count": 320, "website": "cloudcrm.io", "phone": "+97144446677", "is_buyer": false, "type": "software"},
+    {"name": "LeadGen SaaS Platform", "category": "saas", "location": "Remote", "rating": 4.2, "review_count": 500, "website": "leadgensaas.com", "phone": "", "is_buyer": false, "type": "software"},
+    {"name": "Dubizzle Listings", "category": "marketplace", "location": "Dubai", "rating": 3.9, "review_count": 15000, "website": "dubizzle.com", "phone": "", "is_buyer": false, "type": "marketplace"},
+    {"name": "Amazon UAE", "category": "marketplace", "location": "Dubai", "rating": 4.1, "review_count": 90000, "website": "amazon.ae", "phone": "", "is_buyer": false, "type": "marketplace"},
+    {"name": "Yellow Pages UAE", "category": "business directory", "location": "Dubai", "rating": 3.5, "review_count": 40, "website": "yellowpages.ae", "phone": "", "is_buyer": false, "type": "directory"},
+    {"name": "TripAdvisor Reviews", "category": "review site", "location": "Global", "rating": 4.0, "review_count": 200000, "website": "tripadvisor.com", "phone": "", "is_buyer": false, "type": "directory"},
+    {"name": "Ministry of Health", "category": "government authority", "location": "Abu Dhabi", "rating": 3.2, "review_count": 25, "website": "moh.gov.ae", "phone": "+97128889999", "is_buyer": false, "type": "government"},
+    {"name": "Dubai Municipality", "category": "government municipality", "location": "Dubai", "rating": 3.6, "review_count": 60, "website": "dm.gov.ae", "phone": "+97148001234", "is_buyer": false, "type": "government"},
+    {"name": "American University of Dubai", "category": "university", "location": "Dubai", "rating": 4.3, "review_count": 800, "website": "aud.edu", "phone": "+97143999999", "is_buyer": false, "type": "university"},
+    {"name": "Heriot-Watt University Dubai", "category": "university", "location": "Dubai", "rating": 4.2, "review_count": 650, "website": "hw.ac.uk", "phone": "+97143611000", "is_buyer": false, "type": "university"},
+    {"name": "White Label Reseller Co", "category": "white label agency", "location": "Dubai", "rating": 4.0, "review_count": 30, "website": "whitelabelco.ae", "phone": "+97144447788", "is_buyer": false, "type": "competitor"},
+    {"name": "PR Masters Agency", "category": "pr agency", "location": "Abu Dhabi", "rating": 4.5, "review_count": 70, "website": "prmasters.ae", "phone": "+97126663333", "is_buyer": false, "type": "competitor"},
+    {"name": "Web Design Studio Pro", "category": "web design agency", "location": "Dubai", "rating": 4.6, "review_count": 110, "website": "webdesignpro.ae", "phone": "+97144448899", "is_buyer": false, "type": "competitor"}
+  ]
+}

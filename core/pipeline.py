@@ -612,7 +612,30 @@ class DataPipeline:
         # 6. self-learning: record query/source outcomes for the next run
         stages["learning"] = self._learn(scored)
 
+        # 7. Lead Explanation — attach the evidence-backed answer set every
+        # qualified lead must carry before entering the CRM (deterministic).
+        stages["explanation"] = self._explain_leads(scored)
+
         return {"summary": summary, "records": scored, "stages": stages}
+
+    def _explain_leads(self, scored: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Compose the CRM answer set for each qualified lead from frozen-module
+        outputs (qualification + ticket + enrichment). No LLM required."""
+        try:
+            from core import lead_explanation
+        except Exception as exc:
+            return {"active": False, "reason": str(exc)}
+        n = 0
+        for s in scored:
+            od = s.get("original_data") or s
+            md = od.get("metadata") or {}
+            if md.get("type") != "lead" or not md.get("qualification"):
+                continue
+            expl = lead_explanation.explain(od)
+            md["explanation"] = expl
+            s.setdefault("explanation", expl)
+            n += 1
+        return {"active": True, "explained": n}
 
 
 def _to_opportunity(od: Dict[str, Any], cat: str) -> Dict[str, Any]:
