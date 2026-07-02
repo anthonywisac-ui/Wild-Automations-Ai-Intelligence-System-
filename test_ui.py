@@ -24,7 +24,7 @@ except ImportError:
     pass
 
 try:
-    from fastapi import FastAPI
+    from fastapi import FastAPI, Request
     from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
     import uvicorn
 except ImportError:
@@ -546,14 +546,57 @@ async def crm_insights():
     """Learning transparency: outcome attribution + event/registry/feature stats."""
     try:
         from core import (learning_engine, event_timeline, canonical_store,
-                          enrichment_cache, feature_store)
+                          enrichment_cache, feature_store, rejection_store)
         return JSONResponse({
             "attribution": learning_engine.attribution_summary(),
             "events": event_timeline.stats(),
             "canonical_registry": canonical_store.stats(),
             "enrichment_cache": enrichment_cache.stats(),
             "feature_store": feature_store.stats(),
+            "rejections": rejection_store.stats(),
         })
+    except Exception as exc:
+        return JSONResponse({"error": f"{type(exc).__name__}: {exc}"}, status_code=500)
+
+
+@app.post("/api/qualification/audit")
+async def qualification_audit(request: Request):
+    """Qualification Audit — deterministically explain the qualify/reject decision
+    for one business. Body: {name/title, category, location, rating, review_count,
+    website, phone, service}. Returns every dimension (score/confidence/evidence/
+    explanation), the overall score, and the enrichment decision."""
+    try:
+        from core import qualification_engine as qe
+        body = await request.json()
+        service = body.get("service", "")
+        record = {
+            "title": body.get("name") or body.get("title", ""),
+            "description": body.get("description", ""),
+            "metadata": {
+                "type": "lead",
+                "category": body.get("category", ""),
+                "location": body.get("location", ""),
+                "rating": body.get("rating"),
+                "review_count": body.get("review_count"),
+                "website": body.get("website"),
+                "phone": body.get("phone"),
+                "email": body.get("email"),
+                "post_text": body.get("post_text", ""),
+            },
+        }
+        result = qe.qualify(record, service=service)
+        return JSONResponse(result.as_dict())
+    except Exception as exc:
+        return JSONResponse({"error": f"{type(exc).__name__}: {exc}"}, status_code=500)
+
+
+@app.get("/api/qualification/rejected")
+async def qualification_rejected(limit: int = 50, decision: str = ""):
+    """List persisted rejected/blacklisted businesses with structured reasons."""
+    try:
+        from core import rejection_store
+        return JSONResponse({"rejected": rejection_store.recent(limit=limit, decision=decision),
+                             "stats": rejection_store.stats()})
     except Exception as exc:
         return JSONResponse({"error": f"{type(exc).__name__}: {exc}"}, status_code=500)
 

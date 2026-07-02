@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -178,6 +178,49 @@ class DataPipeline:
                         pass
         return {"matched": matched, "delivered": delivered, "active": True}
 
+    # ── Stage 2.35: Qualification Engine (gatekeeper, BEFORE any crawl) ────────
+    def _qualify_leads(self, records: List[Dict[str, Any]], service: str = ""
+                       ) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
+        """Deterministically qualify each lead on pre-crawl signals, BEFORE the
+        expensive enrichment crawl. Survivors are tagged with a decision + depth;
+        rejected/blacklisted businesses are persisted (never dropped) and removed
+        from the pipeline so no crawl is wasted on them. Non-lead records pass
+        through untouched."""
+        try:
+            from core import qualification_engine as qe, rejection_store, ticket_segmentation
+        except Exception as exc:
+            return records, {"active": False, "reason": str(exc)}
+
+        kept: List[Dict[str, Any]] = []
+        rejected = 0
+        by_decision: Dict[str, int] = {}
+        for r in records:
+            md = r.get("metadata") or {}
+            if md.get("type") != "lead":
+                kept.append(r)
+                continue
+            svc = service or md.get("_service") or md.get("service") or ""
+            result = qe.qualify(r, service=svc)
+            by_decision[result.decision] = by_decision.get(result.decision, 0) + 1
+            # attach ticket profile for survivors + audit
+            ticket_segmentation.enrich_record(r)
+            md = r.setdefault("metadata", {})
+            md["qualification"] = result.as_dict()
+            md["qualification_score"] = result.overall
+            md["qualification_depth"] = result.depth
+            if result.qualified:
+                kept.append(r)
+            else:
+                rejection_store.record(r, result.as_dict())
+                rejected += 1
+        total_leads = sum(by_decision.values())
+        return kept, {
+            "active": True, "leads_evaluated": total_leads,
+            "qualified": total_leads - rejected, "rejected": rejected,
+            "by_decision": by_decision,
+            "crawl_reduction_pct": round(100.0 * rejected / total_leads, 1) if total_leads else 0.0,
+        }
+
     # ── Stage 2.4: Data Enrichment (leads only) ───────────────────────────────
     async def _enrich_data(self, records: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Enrich lead businesses with website/contact/tech/social/pain signals
@@ -197,7 +240,8 @@ class DataPipeline:
         except Exception as exc:
             logger.warning("pipeline: enrichment timeout/err: %s", exc)
             enriched = sum(1 for r in leads if (r.get("metadata") or {}).get("enriched"))
-        # Ticket segmentation: classify High/Mid/Low now that review signals exist.
+        # Ticket segmentation already ran in the Qualification stage; refresh here
+        # in case enrichment revealed stronger review signals (idempotent).
         try:
             from core import ticket_segmentation
             for r in leads:
@@ -523,9 +567,14 @@ class DataPipeline:
             logger.warning("pipeline: persist failed: %s", exc)
             stages["persist"] = {"active": False, "error": str(exc)}
 
+        # 2.35 QUALIFICATION ENGINE — the gatekeeper. Deterministically qualify
+        # leads on pre-crawl signals and REJECT weak ones BEFORE any crawl runs.
+        # Rejected businesses are persisted with structured reasons, never dropped.
+        unique, qstats = self._qualify_leads(unique)
+        stages["qualification"] = qstats
+
         # 2.4 DATA ENRICHMENT — collect website/contact/tech/social/SEO/pain signals
-        # for lead businesses BEFORE entity resolution, so the Evidence Graph +
-        # Recommendation + Learning consume real data (never data-starved).
+        # for QUALIFIED lead businesses only, so no crawl is wasted on weak leads.
         stages["enrichment"] = await self._enrich_data(unique)
 
         # 2.5 buying-signal analysis on Leads (GROQ) — feeds scoring + matching
