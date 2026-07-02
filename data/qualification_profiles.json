@@ -1,0 +1,33 @@
+{
+  "_meta": {
+    "description": "Service-specific lead qualification profiles. The Qualification Engine loads a profile by service name (falls back to 'default'). Nothing is hardcoded in code — target industries, weights, and thresholds live here so the engine is reusable per niche.",
+    "dimensions": ["buyer", "service", "business", "digital", "marketing", "commercial", "geographic", "contact", "risk"],
+    "thresholds_meaning": "overall >= full -> Full enrichment; >= standard -> Standard; >= minimal -> Minimal; < reject -> Reject; < blacklist -> Blacklist"
+  },
+
+  "default": {
+    "target_industries": [],
+    "excluded_industries": ["marketing agency", "seo agency", "advertising agency", "consultant", "consulting", "freelancer", "software company", "saas", "marketplace", "directory", "review site"],
+    "preferred_company_size": {"min_employees": 1, "max_employees": 500},
+    "preferred_ticket_size": ["Low", "Mid", "High"],
+    "buying_indicators": ["hiring", "looking for", "need", "poor reviews", "no website", "expanding", "new branch"],
+    "rejection_indicators": ["agency", "consultant", "freelancer", "marketplace", "directory", "wikipedia", "software vendor"],
+    "service_area": {"countries": [], "cities": []},
+    "weights": {"buyer": 0.20, "service": 0.20, "business": 0.10, "digital": 0.12, "marketing": 0.10, "commercial": 0.12, "geographic": 0.08, "contact": 0.08},
+    "risk_penalty": 0.6,
+    "thresholds": {"full": 80, "standard": 60, "minimal": 40, "reject": 40, "blacklist": 20}
+  },
+
+  "marketing_agency": {
+    "target_industries": ["dentist", "dental clinic", "clinic", "medical center", "restaurant", "cafe", "gym", "fitness", "salon", "spa", "real estate agency", "law firm", "accounting firm", "hotel", "car dealership", "retail", "boutique", "veterinary", "physiotherapy", "travel agency", "furniture store", "construction", "beauty", "wellness"],
+    "excluded_industries": ["marketing agency", "seo agency", "digital agency", "advertising agency", "social media agency", "branding agency", "pr agency", "web design agency", "consultant", "consulting", "freelancer", "software company", "saas", "crm software", "marketplace", "directory", "review site", "lead generation company"],
+    "preferred_company_size": {"min_employees": 3, "max_employees": 300},
+    "preferred_ticket_size": ["Mid", "High"],
+    "buying_indicators": ["no website", "outdated website", "no meta pixel", "instagram inactive", "poor reviews", "low rating", "hiring", "no chatbot", "no booking", "weak seo", "few reviews", "expanding", "new branch", "no facebook"],
+    "rejection_indicators": ["agency", "agencies", "consultant", "consulting", "freelancer", "marketplace", "directory", "software", "saas", "review site", "yellow pages", "yelp", "tripadvisor"],
+    "service_area": {"countries": [], "cities": []},
+    "weights": {"buyer": 0.22, "service": 0.20, "business": 0.10, "digital": 0.14, "marketing": 0.12, "commercial": 0.10, "geographic": 0.06, "contact": 0.06},
+    "risk_penalty": 0.7,
+    "thresholds": {"full": 80, "standard": 60, "minimal": 40, "reject": 40, "blacklist": 20}
+  }
+}
