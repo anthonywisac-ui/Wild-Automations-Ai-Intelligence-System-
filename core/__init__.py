@@ -1,0 +1,1 @@
+"""WildAutomations core package."""

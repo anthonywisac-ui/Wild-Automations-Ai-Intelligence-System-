@@ -1,0 +1,65 @@
+{
+  "goals": {
+    "be2ce682b3ef": {
+      "goal": "clients for my social media marketing agency",
+      "queries": {
+        "looking for a marketing agency": {
+          "runs": 2,
+          "leads": 8,
+          "sum_appeal": 2.9,
+          "gems": 0
+        },
+        "marketing not working": {
+          "runs": 2,
+          "leads": 8,
+          "sum_appeal": 2.822,
+          "gems": 0
+        },
+        "struggling with social media": {
+          "runs": 2,
+          "leads": 7,
+          "sum_appeal": 1.531,
+          "gems": 0
+        },
+        "ad account keeps getting banned": {
+          "runs": 2,
+          "leads": 8,
+          "sum_appeal": 3.017,
+          "gems": 0
+        },
+        "no leads from instagram": {
+          "runs": 2,
+          "leads": 8,
+          "sum_appeal": 2.842,
+          "gems": 0
+        },
+        "alternative to my marketing agency": {
+          "runs": 2,
+          "leads": 8,
+          "sum_appeal": 2.3,
+          "gems": 0
+        },
+        "\"law firm\" \"Sales\"": {
+          "runs": 2,
+          "leads": 8,
+          "sum_appeal": 3.293,
+          "gems": 0
+        }
+      },
+      "sources": {
+        "instagram": {
+          "runs": 7,
+          "leads": 27,
+          "sum_appeal": 9.618,
+          "gems": 0
+        },
+        "google_maps": {
+          "runs": 7,
+          "leads": 28,
+          "sum_appeal": 9.087,
+          "gems": 0
+        }
+      }
+    }
+  }
+}

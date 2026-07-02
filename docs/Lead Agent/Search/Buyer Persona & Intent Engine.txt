@@ -1,0 +1,705 @@
+# Buyer Persona & Intent Engine
+## AI Search Strategy & Intent Planning (Production Architecture v1)
+
+Author: WildAutomations.io
+Purpose:
+This module becomes the intelligence layer before any scraper runs.
+
+The current system flow is:
+
+Keyword
+    ↓
+Google Search / Google Maps
+    ↓
+Scraper
+    ↓
+GROQ
+    ↓
+Lead Score
+
+This is incorrect because the system searches first and thinks later.
+
+The new architecture must think first and search second.
+
+──────────────────────────────────────────────
+
+# NEW FLOW
+
+Business Goal
+        ↓
+Buyer Persona Engine
+        ↓
+Pain Point Engine
+        ↓
+Intent Query Generator
+        ↓
+Source Planner
+        ↓
+Search Execution
+        ↓
+Scrapers
+        ↓
+AI Analysis (GROQ)
+        ↓
+Lead Scoring
+        ↓
+CRM
+
+──────────────────────────────────────────────
+
+# STEP 1
+Buyer Persona Engine
+
+Purpose
+
+Every service has different buyers.
+
+Instead of asking
+
+"Where do I search?"
+
+The AI first asks
+
+"Who actually buys this service?"
+
+Example
+
+INPUT
+
+Service
+
+AI WhatsApp Bot
+
+OUTPUT
+
+Buyer Personas
+
+Dental Clinics
+
+Aesthetic Clinics
+
+Travel Agencies
+
+Immigration Consultants
+
+Real Estate Agencies
+
+Car Dealers
+
+Universities
+
+Restaurants
+
+Hotels
+
+Retail Stores
+
+Gyms
+
+Medical Centers
+
+Accounting Firms
+
+Law Firms
+
+Construction Companies
+
+Insurance Companies
+
+Automobile Showrooms
+
+Educational Consultants
+
+Recruitment Agencies
+
+Small Businesses
+
+The output of this step is ONLY the buyer list.
+
+Nothing else.
+
+──────────────────────────────────────────────
+
+# STEP 2
+Pain Point Engine
+
+Purpose
+
+Every buyer has different business problems.
+
+The AI generates all common pain points.
+
+Example
+
+Buyer
+
+Dental Clinic
+
+Output
+
+Missed Calls
+
+Reception Busy
+
+Appointment Booking Problems
+
+Manual Follow Up
+
+Patients Not Responding
+
+No WhatsApp Automation
+
+No Online Booking
+
+Poor Customer Support
+
+Lost Leads
+
+Slow Response Time
+
+Reception Overload
+
+No AI Receptionist
+
+No Appointment Reminder
+
+No Lead Tracking
+
+No CRM
+
+The output is a complete pain-point profile.
+
+──────────────────────────────────────────────
+
+# STEP 3
+Intent Query Generator
+
+Purpose
+
+Convert business pain into buyer-intent searches.
+
+Never search
+
+"dental clinic Dubai"
+
+Instead search
+
+people expressing a need.
+
+Example
+
+Pain Point
+
+Appointment Problems
+
+Generated Queries
+
+looking for appointment software
+
+need appointment booking software
+
+best clinic management software
+
+recommend patient management system
+
+need receptionist software
+
+looking for healthcare CRM
+
+patient booking automation
+
+appointment reminder software
+
+clinic automation
+
+need WhatsApp appointment booking
+
+Generate
+
+100+
+
+buyer-intent queries.
+
+Categories
+
+Hot Intent
+
+Warm Intent
+
+Problem Queries
+
+Recommendation Queries
+
+Hiring Queries
+
+Budget Queries
+
+Comparison Queries
+
+Competitor Switch Queries
+
+Frustration Queries
+
+Community Questions
+
+The query generator outputs
+
+JSON
+
+Example
+
+{
+  "hot": [],
+  "warm": [],
+  "problem": [],
+  "comparison": [],
+  "recommendation": [],
+  "hiring": []
+}
+
+──────────────────────────────────────────────
+
+# STEP 4
+Source Planner
+
+Purpose
+
+Different queries belong to different platforms.
+
+The AI chooses the best source.
+
+Example
+
+Query
+
+need receptionist software
+
+Sources
+
+Google
+
+LinkedIn
+
+Facebook
+
+Reddit
+
+Indeed
+
+Google Jobs
+
+Example
+
+Query
+
+looking for marketing agency
+
+Sources
+
+Facebook Groups
+
+LinkedIn Posts
+
+Instagram
+
+Google
+
+Reddit
+
+Google Discussions
+
+Example
+
+Query
+
+appointment software
+
+Sources
+
+Google
+
+Maps
+
+LinkedIn
+
+Communities
+
+Blogs
+
+Forums
+
+Output
+
+Priority Sources
+
+Google Search
+
+Google Maps
+
+LinkedIn
+
+Facebook
+
+Instagram
+
+Reddit
+
+Quora
+
+Twitter/X
+
+YouTube
+
+Company Websites
+
+News
+
+Google Jobs
+
+Indeed
+
+Glassdoor
+
+GitHub
+
+Directories
+
+Forums
+
+RSS
+
+Government Data
+
+The planner decides
+
+what source is worth searching.
+
+──────────────────────────────────────────────
+
+# STEP 5
+Search Execution
+
+Only now do scrapers execute.
+
+Planner Output
+
+↓
+
+Google Search Plugin
+
+↓
+
+Google Maps Plugin
+
+↓
+
+LinkedIn Plugin
+
+↓
+
+Facebook Plugin
+
+↓
+
+Instagram Plugin
+
+↓
+
+Website Plugin
+
+↓
+
+Review Plugin
+
+↓
+
+Job Plugin
+
+↓
+
+News Plugin
+
+Each plugin receives
+
+optimized intent queries
+
+instead of generic keywords.
+
+──────────────────────────────────────────────
+
+# STEP 6
+AI Analysis
+
+Current GROQ pipeline remains.
+
+Input
+
+Scraped Content
+
+↓
+
+Intent Classification
+
+↓
+
+Sentiment
+
+↓
+
+Buying Signals
+
+↓
+
+Actionability
+
+↓
+
+Reasoning
+
+↓
+
+Summary
+
+Output
+
+Interested
+
+Undecided
+
+Not Interested
+
+Confidence
+
+Buying Signals
+
+Recommended Service
+
+Evidence
+
+──────────────────────────────────────────────
+
+# STEP 7
+Lead Scoring
+
+Current scoring remains.
+
+Scoring Factors
+
+Intent
+
+Pain Match
+
+Reach
+
+Contactability
+
+ICP Match
+
+Business Size
+
+Buying Signals
+
+Sentiment
+
+Phone
+
+Website
+
+Email
+
+Reviews
+
+Growth
+
+Hiring
+
+Output
+
+Hidden Gem
+
+Good Deal
+
+Average
+
+Low Priority
+
+──────────────────────────────────────────────
+
+# STEP 8
+CRM
+
+Store
+
+Lead
+
+Signals
+
+History
+
+Evidence
+
+Queries Used
+
+Sources
+
+Score
+
+Status
+
+Owner
+
+Follow-up
+
+Tasks
+
+Messages
+
+──────────────────────────────────────────────
+
+# MODULE STRUCTURE
+
+buyer_persona_intent_engine/
+
+buyer_persona.py
+
+Generates target buyer personas.
+
+pain_points.py
+
+Generates business pain points.
+
+intent_queries.py
+
+Generates buyer-intent search phrases.
+
+source_planner.py
+
+Maps every query to the best search platform.
+
+planner.py
+
+Coordinates the complete planning process.
+
+schemas.py
+
+Shared Pydantic models.
+
+config.py
+
+Configuration.
+
+prompts.py
+
+All AI prompts.
+
+cache.py
+
+Caches generated personas and queries.
+
+utils.py
+
+Shared helper functions.
+
+tests/
+
+Unit tests.
+
+──────────────────────────────────────────────
+
+# INPUT
+
+Service
+
+↓
+
+AI WhatsApp Bot
+
+──────────────────────────────────────────────
+
+# OUTPUT
+
+{
+  "buyer_personas": [
+    "Dental Clinics",
+    "Aesthetic Clinics",
+    "Travel Agencies",
+    "Immigration Consultants"
+  ],
+
+  "pain_points": [
+    "Missed Calls",
+    "Appointment Booking",
+    "Reception Overload",
+    "Manual Follow Ups"
+  ],
+
+  "intent_queries": [
+    "looking for appointment software",
+    "need clinic management software",
+    "recommend healthcare CRM",
+    "need receptionist software",
+    "looking for patient management system"
+  ],
+
+  "priority_sources": [
+    "Google",
+    "Google Maps",
+    "LinkedIn",
+    "Facebook",
+    "Instagram",
+    "Reddit",
+    "Quora"
+  ]
+}
+
+──────────────────────────────────────────────
+
+# DESIGN PRINCIPLES
+
+1. Think before searching.
+
+2. Search buyers, not sellers.
+
+3. Search pain, not businesses.
+
+4. Generate platform-specific queries.
+
+5. Use AI only for planning.
+
+6. Keep scrapers dumb.
+
+7. Keep planner smart.
+
+8. Every search must have a business objective.
+
+9. Every result must contain evidence explaining why it is a good lead.
+
+10. Query quality determines lead quality.
+
+──────────────────────────────────────────────
+
+# FUTURE EXTENSIONS
+
+Phase 2
+
+Intent Learning Engine
+
+Learns which search queries produce the best leads.
+
+Phase 3
+
+Query Rotation Engine
+
+Rotates buyer-intent phrases to reduce CAPTCHA risk.
+
+Phase 4
+
+Campaign Planner
+
+Creates different search strategies based on niche, geography, and service.
+
+Phase 5
+
+Self-Learning AI
+
+Continuously improves buyer personas, pain points, query generation, and source planning using historical lead conversion data.

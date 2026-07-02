@@ -1,0 +1,100 @@
+{
+  "scraper_project_name": "Multi-Platform Global Scraping Engine (2026 Specification)",
+  "global_configurations": {
+    "supported_regions": ["US", "UK", "Canada", "Europe", "UAE", "GCC"],
+    "advanced_capabilities": ["Data Export (JSON/CSV/Excel)", "API Triggering", "Cron Scheduling", "Webhook Integration", "Live Monitoring"]
+  },
+  "platforms": [
+    {
+      "platform_name": "GovDeals & Government Surplus Auctions",
+      "business_model": "B2G/G2C Asset Auction Scraping",
+      "target_regions": ["US", "Canada"],
+      "scraping_architecture": "Two-Step Deep Scraping (Listings Grid Extract -> Item Detail Deep Scrape)",
+      "pagination_type": "Query Parameter (`pn=N` or `startBy=N`)",
+      "target_patterns": {
+        "govdeals": {
+          "base_category_example": "https://www.govdeals.com/en/medical-dental-and-veterinary-equipment-and-supplies",
+          "filtered_paginated_example": "https://www.govdeals.com/en/construction-equipment/filters?condition=all&so=desc&pn=1&sf=latest&ps=24"
+        },
+        "public_surplus": {
+          "base_category_example": "https://www.publicsurplus.com/sms/browse/categ?cats=X",
+          "offset_paginated_example": "https://www.publicsurplus.com/sms/browse/categ?cats=1&startBy=0"
+        },
+        "gsa_auctions": {
+          "paginated_example": "https://ppms.gov/auctions/auctions-list?category=Computer%20Equipment%20and%20Accessories&page=1"
+        },
+        "municibid": {
+          "filtered_example": "https://municibid.com/Browse/C112328/Automobiles?page=1&sort=EndingSoon"
+        }
+      },
+      "extraction_fields": ["Asset ID", "Title", "Current Bid", "Remaining Time", "Item Description", "Seller Details", "Location"]
+    },
+    {
+      "platform_name": "Google SERP API Engine",
+      "business_model": "Global Search Intelligence & AI Overview Tracking",
+      "target_regions": ["Global", "US", "UK", "CA", "EU", "UAE", "GCC"],
+      "scraping_architecture": "Headless Browser (Playwright/Puppeteer) for JS Rendering & AI Overviews",
+      "anti_blocking_requirements": ["Residential/Mobile Proxies", "TLS Fingerprinting Mimicking (JA3/JA4)", "User-Agent Rotation"],
+      "url_structure": {
+        "base_url": "https://www.google.com/search",
+        "parameters": {
+          "query": "q={keyword}",
+          "country": "gl={country_code} (e.g., gl=us, gl=ae, gl=gb)",
+          "language": "hl={language_code} (e.g., hl=en, hl=ar)",
+          "device_mode": "User-Agent Dependent (Desktop vs Mobile layout)"
+        }
+      },
+      "extraction_targets": {
+        "paid_results": ["Ads Top/Bottom", "Sitelinks", "Display URL", "Destination URL"],
+        "organic_results": ["Titles", "Snippets", "URLs", "Rich Snippets (Ratings/Prices/Stock)"],
+        "ai_features": ["AI Overviews (SGE Text Summary)", "Source Links/Cards", "AI Mode Context"],
+        "serp_features": ["People Also Ask (PAA Accordion Questions/Answers)", "Local Pack / Maps (Price, Reviews, Address)", "Shopping Results (Image, Price, Store, Delivery)"]
+      }
+    },
+    {
+      "platform_name": "Facebook Marketplace Scraper",
+      "business_model": "C2C/B2C Classifieds & Lead Generation",
+      "target_regions": ["US", "UK", "Canada", "Europe", "UAE"],
+      "scraping_architecture": "Hybrid Script-Tag Extraction (Bypassing DOM Changes)",
+      "technical_hacks": {
+        "data_extraction_hack": "Extract data from <script type='application/json'> tags using GraphQL recursive search for __typename: 'MarketplaceProductItem' or 'GroupCommerceProductItem'",
+        "login_wall_bypass": "Execute automated click on Close button `div[aria-label='Close']` to scrap publicly without real account login",
+        "infinite_scroll_logic": "Trigger virtual scrolls via window.scrollBy(0, 1000) with 1.5s delay for hydration"
+      },
+      "anti_blocking_requirements": ["4G/5G Mobile Proxies", "playwright-extra-stealth patch"],
+      "geo_targeted_url_examples": {
+        "europe_prague_home_improvement": "https://www.facebook.com/marketplace/prague/home-improvements",
+        "europe_prague_search": "https://www.facebook.com/marketplace/prague/search/?query=apartment",
+        "uae_dubai_search": "https://www.facebook.com/marketplace/dubai/search/?query=cars",
+        "us_ny_search_with_filters": "https://www.facebook.com/marketplace/search/?query=iphone&exact=false&radius=20&minPrice=100&maxPrice=1000&itemCondition=excellent"
+      },
+      "output_json_schema": {
+        "listing_id": "string",
+        "title": "string",
+        "price": { "amount": "number", "currency": "string", "formatted": "string" },
+        "location": { "city": "string", "state": "string", "coordinates": { "lat": "number", "lng": "number" } },
+        "images": ["string"],
+        "seller": { "id": "string", "name": "string", "is_verified": "boolean" },
+        "date_posted": "ISO-TIMESTAMP",
+        "is_sold": "boolean"
+      }
+    },
+    {
+      "platform_name": "Dubizzle Scraper (UAE & GCC Specialist)",
+      "business_model": "Real Estate, Motors & Classifieds Monitoring",
+      "target_regions": ["UAE (Dubai, Abu Dhabi, Sharjah, Ajman, etc.)", "GCC Countries"],
+      "scraping_architecture": "Structured Query URL Crawling & Continuous Updates Monitoring",
+      "pricing_benchmark": "$0.90 per 1,000 results",
+      "geo_targeted_url_examples": {
+        "uae_dubai_residential_property_sale": "https://dubai.dubizzle.com/property-for-sale/residential/?neighborhood=60154",
+        "uae_sharjah_motors": "https://sharjah.dubizzle.com/motors/used-cars/",
+        "uae_abu_dhabi_classifieds": "https://abudhabi.dubizzle.com/classified/"
+      },
+      "extraction_fields": {
+        "property": ["Price", "Beds", "Baths", "Size (SqFt)", "Location/Neighborhood", "Developer", "Listing Date"],
+        "motors": ["Make/Model", "Year", "Kilometers", "Specs (Regional/Imported)", "Price"],
+        "classifieds": ["Item Name", "Price", "Condition", "Seller Type", "Contact Options"]
+      }
+    }
+  ]
+}

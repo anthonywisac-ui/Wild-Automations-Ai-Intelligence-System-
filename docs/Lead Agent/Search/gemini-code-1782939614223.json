@@ -1,0 +1,72 @@
+{
+  "engine_metadata": {
+    "version": "1.0.0",
+    "architecture": "Think-First-Search-Second",
+    "framework": "Search Intelligence Expansion"
+  },
+  "niche_blueprints": {
+    "healthcare_wellness": {
+      "target_personas": ["Cosmetic Dentists", "Orthodontists", "Dermatology Centers", "Medical Spas"],
+      "core_departments": ["Front Desk", "Patient Coordination", "Reception", "Aftercare Support"],
+      "platforms": {
+        "primary_listings": ["google_maps", "zochdoc", "realself"],
+        "social_discovery": ["instagram", "tiktok", "facebook"]
+      },
+      "intent_dorks": {
+        "pain_points": [
+          "\"long hold time\" OR \"no one answers\"",
+          "\"lost my appointment\"",
+          "\"rude receptionist\"",
+          "\"sent a WhatsApp message no reply\""
+        ],
+        "buyer_intent": [
+          "site:linkedin.com \"hiring\" AND (\"dental receptionist\" OR \"clinic coordinator\")",
+          "\"online booking down\""
+        ],
+        "comment_mining": [
+          "site:instagram.com \"check your DMs\"",
+          "site:google.com/maps \"waited hours for a response\""
+        ]
+      },
+      "lead_scoring_triggers": {
+        "max_rating_threshold": 4.1,
+        "min_review_count": 100,
+        "critical_keywords": ["front desk", "communication", "phone", "unanswered"]
+      }
+    },
+    "professional_services": {
+      "target_personas": ["Personal Injury Attorneys", "Immigration Law Firms", "Fractional CFO Agencies"],
+      "core_departments": ["Intake Desk", "Case Management", "Client Relations", "Billing"],
+      "platforms": {
+        "primary_listings": ["google_maps", "avvo", "martindale", "crunchbase"],
+        "social_discovery": ["linkedin", "facebook_groups", "reddit"]
+      },
+      "intent_dorks": {
+        "pain_points": [
+          "\"never called back\"",
+          "\"no follow up on my case\"",
+          "\"ghosted after consultation\""
+        ],
+        "buyer_intent": [
+          "\"looking for a legal intake software\"",
+          "\"alternative to Clio\"",
+          "\"how to automate law firm onboarding\""
+        ],
+        "comment_mining": [
+          "site:reddit.com/r/lawfirm \"intake bottleneck\"",
+          "site:google.com/maps \"left three messages with the front desk\""
+        ]
+      },
+      "lead_scoring_triggers": {
+        "max_rating_threshold": 4.3,
+        "min_review_count": 30,
+        "critical_keywords": ["callback", "messages", "consultation", "ignored"]
+      }
+    }
+  },
+  "extraction_rules": {
+    "review_buckets": ["Missed calls", "Slow response", "Booking issues", "Staff behavior"],
+    "priority_sentiments": ["Negative", "Frustrated"],
+    "target_star_ratings": [1, 2, 3]
+  }
+}

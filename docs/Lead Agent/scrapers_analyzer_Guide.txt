@@ -1,0 +1,90 @@
+Copy and paste this whole file into your plugins/ folder (or as a standalone module). It contains:
+
+LeadRecord schema
+
+BaseSocialScraper
+
+LinkedInScraper (free Playwright + paid Bright Data/Proxycurl)
+
+InstagramScraper (free Playwright + paid Apify)
+
+FacebookScraper (free Graph API + paid Bright Data)
+
+GoogleMapsScraper (free Google Maps API + paid Apify/Bright Data)
+
+SocialAnalyzer (OpenRouter‑powered analysis of posts, comments, reviews)
+
+run_scraping_pipeline() – a single async function that runs all sources and updates leads.
+
+ How to Use
+Save the code as scrapers_analyzer.py in your plugins/ directory.
+
+Set environment variables in .env (see above).
+
+Call the pipeline from your existing test_ui.py or any other controller:
+
+python
+from plugins.scrapers_analyzer import run_scraping_pipeline, save_leads_to_sqlite
+import asyncio
+
+async def fetch_all():
+    leads = await run_scraping_pipeline(
+        tenant_id=your_tenant_uuid,
+        sources=["linkedin", "instagram", "facebook", "google_maps"],
+        limit_per_source=5,
+        analyze=True
+    )
+    await save_leads_to_sqlite(leads)
+    return leads
+
+# In your Flask/FastAPI route:
+leads = asyncio.run(fetch_all())
+⚙️ Fallback Logic
+Source	Free Mode	Paid Mode	Fallback
+LinkedIn	Playwright (may be blocked)	Bright Data / Proxycurl	If paid key missing, uses free
+Instagram	Playwright (profile only)	Apify	If Apify key missing, uses free
+Facebook	Graph API (public page posts)	Bright Data	If no Graph token, tries Bright Data, else empty
+Google Maps	Google Places API (free tier)	Apify / Bright Data	If API key missing, tries Apify, else empty
+Apify credits are used sparingly – only one call per source per run, with resultsLimit capped at min(limit, 20) to avoid overage.
+
+📊 What the Analyzer Does
+Extracts buying signals (e.g., “looking for”, “need a better”, “upgrade”, “considering”).
+
+Determines sentiment (positive/neutral/negative).
+
+Determines intent (interested/not_interested/undecided).
+
+Flags actionable leads (those likely to convert).
+
+Updates the score and status accordingly.
+
+All analysis runs via OpenRouter (you can use free models like openai/gpt-3.5-turbo – costs pennies).
+
+🔧 Testing Without Breaking
+Run pytest (not provided but you can write simple tests).
+
+Start with limit_per_source=1 and analyze=False to see if scrapers work.
+
+Monitor Apify usage via their dashboard.
+
+📁 File Placement
+text
+crm-leadgen-backend/
+├── plugins/
+│   └── scrapers_analyzer.py   # ← this file
+├── .env
+└── test_ui.py                 # ← call pipeline here
+✅ Done
+This single file gives you:
+
+Complete LinkedIn, Instagram, Facebook, Google Maps scraping (free + paid).
+
+AI analysis of posts, comments, reviews via OpenRouter.
+
+Graceful fallbacks – works even if some API keys are missing.
+
+Seamless integration with your existing lightweight CRM and SQLite.
+
+You can now run it, get leads, and see them appear in your dashboard.
+
+

@@ -1,0 +1,32 @@
+| Repository                                    | URL    | License                         | Stars                               | Maintenance Signal                                                                                                                                          | Architecture                                                                 | Reusable Modules                                                                 | Production Suitability                                                         |
+| --------------------------------------------- | ------ | ------------------------------- | ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| JustAnotherArchivist/snscrape                 | GitHub | GPL-3.0 github                  | 5.3k github                         | Repo is mature, widely used, and still discoverable through GitHub topic listings; current issue/activity state should be checked before adoption. github+1 | Python scraper framework with service-specific scraper classes. github       | Service adapters, search/query abstractions, result models, parser layer. github | Yes for backend reuse, but GPL means separate it from proprietary core. github |
+| Datalux/Osintgram                             | GitHub | MIT osintgram                   | Not verified in the fetched snippet | Strong Instagram OSINT visibility; current activity must still be checked in repo UI before use. osintgram                                                  | Interactive CLI OSINT tool. osintgram                                        | Instagram profile collection, analysis commands, public-data probes. osintgram   | Yes as a reference module, not as a production core. osintgram                 |
+| sc1341/InstagramOSINT                         | GitHub | MIT github                      | 1.4k github                         | Archived repo, so maintenance signal is poor despite star count. github                                                                                     | Module-oriented OSINT tool with CLI entrypoint and importable module. github | InstagramOSINT.py import module, CLI runner, JSON-ish output writer. github      | No for production core; yes for historical code reference. github              |
+| JavideSs/insta-extract                        | GitHub | Unlicense github                | 23 github                           | Very low stars; not a production candidate. github                                                                                                          | Small CLI scraper. github                                                    | Simple scrape workflow, command-line parsing. github                             | No. github                                                                     |
+| Hotmansifu/SocialMediaScraper                 | GitHub | Not clearly verified in snippet | 11 github                           | Low signal, low stars, likely hobby project. github                                                                                                         | Script/tool style with interactive shell and shell scripts. github           | Platform switcher, CSV export, shell launcher. github                            | No for production core. github                                                 |
+| cporter202/social-media-scraping-apis         | GitHub | Not verified                    | Not verified                        | Curated index rather than implementation repo. github                                                                                                       | Collection/index repo. github                                                | Tool catalog, platform mapping, integration references. github                   | Useful as research map, not reusable code. github                              |
+| makeuseofcode/Instagram-Data-Extractor-Python | GitHub | MIT github                      | 0 github                            | No maintenance/star signal. github                                                                                                                          | Small Python scraper. github                                                 | Basic scraping script. github                                                    | No. github                                                                     |
+
+Best fit for your platform
+For your AI Sales Intelligence Platform, the only repo in this set that is genuinely reusable at backend scale is snscrape, because it already covers multiple social services and exposes a scraper framework pattern rather than a one-off script. The Instagram-specific repos are more useful as code references for profile/public-data extraction, not as core production dependencies.
+
+Facebook coverage
+Facebook is explicitly supported by snscrape for user profiles, groups, and communities, which makes it the cleanest verified backend option in this pass. That is much more production-relevant than small script repos, because it gives you a multi-service abstraction you can wrap inside your CRM ingestion pipeline.
+
+Instagram coverage
+For Instagram, Osintgram is the most useful reference for public-profile OSINT workflows, while InstagramOSINT is the better archival module-style repo because it has an importable Python module and a CLI split. Both should be treated as reference code unless you verify current maintenance state directly in the repo.
+
+What to reuse
+The reusable backend pieces you can extract are:
+
+service-specific scraper classes and query abstractions from snscrape.
+
+command/action-driven public profile probes from Osintgram.
+
+importable module boundary and JSON-like output flow from InstagramOSINT.
+
+CSV export and multi-platform dispatch patterns from SocialMediaScraper.
+
+Technical caution
+SNScrape is GPL, so do not merge its code directly into closed-source CRM backend modules unless your licensing strategy allows it. For production, the safer pattern is to isolate GPL scrapers as separate services or workers and only pass normalized output across a service boundary.

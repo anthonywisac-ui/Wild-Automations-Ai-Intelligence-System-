@@ -1,0 +1,232 @@
+{
+  "_meta": {
+    "purpose": "Platform-specific query templates for the Intent Query Generator. {q}=intent phrase, {service}=service, {role}=job role, {category}=business category, {location}=geo, {pain}=pain phrase, {tech}=technology, {signal}=growth signal. Data-driven — add platforms/tiers without code changes.",
+    "version": "1.0.0"
+  },
+  "platforms": {
+    "google": {
+      "hot": [
+        "looking for {q}",
+        "need {q}",
+        "recommend {q}"
+      ],
+      "warm": [
+        "{q} not working",
+        "struggling with {q}",
+        "better {q}"
+      ],
+      "problem": [
+        "{pain} solution",
+        "fix {pain}"
+      ],
+      "hiring": [
+        "hiring {role}"
+      ],
+      "comparison": [
+        "best {q}",
+        "alternative to {q}",
+        "{q} vs"
+      ]
+    },
+    "google_maps": {
+      "hot": [
+        "{category} in {location}"
+      ],
+      "problem": [
+        "{category} {location} reviews"
+      ],
+      "comparison": [
+        "{category} near {location}"
+      ]
+    },
+    "linkedin": {
+      "hiring": [
+        "site:linkedin.com \"hiring\" {role}",
+        "site:linkedin.com \"we're hiring\" {q}"
+      ],
+      "hot": [
+        "site:linkedin.com \"looking for\" {q}"
+      ],
+      "problem": [
+        "site:linkedin.com \"struggling with\" {pain}"
+      ]
+    },
+    "facebook": {
+      "hot": [
+        "site:facebook.com \"looking for {q}\""
+      ],
+      "problem": [
+        "site:facebook.com \"{pain}\""
+      ],
+      "comparison": [
+        "site:facebook.com \"recommend {q}\""
+      ]
+    },
+    "instagram": {
+      "hot": [
+        "site:instagram.com \"{q}\""
+      ],
+      "problem": [
+        "site:instagram.com \"{pain}\""
+      ]
+    },
+    "reddit": {
+      "problem": [
+        "site:reddit.com \"{pain}\"",
+        "site:reddit.com \"anyone else {pain}\""
+      ],
+      "comparison": [
+        "site:reddit.com \"recommend {q}\"",
+        "site:reddit.com \"{q} alternative\""
+      ],
+      "hot": [
+        "site:reddit.com \"looking for {q}\""
+      ]
+    },
+    "x": {
+      "hot": [
+        "site:twitter.com \"looking for {q}\""
+      ],
+      "problem": [
+        "site:twitter.com \"{pain}\""
+      ]
+    },
+    "github": {
+      "hiring": [
+        "site:github.com {tech}"
+      ],
+      "hot": [
+        "site:github.com \"{tech}\" hiring"
+      ]
+    },
+    "news": {
+      "hiring": [
+        "\"{q}\" funding OR expansion OR hiring"
+      ],
+      "problem": [
+        "\"{signal}\""
+      ]
+    },
+    "rss": {
+      "hot": [
+        "{q} news"
+      ],
+      "problem": [
+        "{pain} update"
+      ]
+    },
+    "government": {
+      "hot": [
+        "{q} official",
+        "{q} gov"
+      ],
+      "problem": [
+        "{q} policy update"
+      ]
+    },
+    "marketplace": {
+      "comparison": [
+        "{category} for sale {location}"
+      ]
+    }
+  },
+  "template_groups": {
+    "business_target": {
+      "google_maps": {
+        "hot": [
+          "{business} in {location}"
+        ],
+        "problem": [
+          "{business} {location} reviews"
+        ]
+      },
+      "google": {
+        "hot": [
+          "{business} {location}"
+        ]
+      },
+      "marketplace": {
+        "hot": [
+          "{business} {location}"
+        ]
+      }
+    },
+    "buyer_intent": {
+      "reddit": {
+        "problem": [
+          "site:reddit.com \"our {business}\" {pain}",
+          "site:reddit.com \"{pain}\" {business}"
+        ],
+        "hot": [
+          "site:reddit.com \"anyone recommend\" {business} {pain}"
+        ]
+      },
+      "facebook": {
+        "problem": [
+          "site:facebook.com \"need help\" {business} {pain}"
+        ],
+        "hot": [
+          "site:facebook.com \"looking for help\" {business}"
+        ]
+      },
+      "instagram": {
+        "problem": [
+          "site:instagram.com \"{business}\" {pain}"
+        ]
+      },
+      "x": {
+        "problem": [
+          "site:twitter.com \"our {business}\" {pain}"
+        ]
+      },
+      "google": {
+        "problem": [
+          "\"{business}\" \"{pain}\""
+        ]
+      }
+    },
+    "opportunity": {
+      "google_maps": {
+        "problem": [
+          "{business} {location} 1 star reviews",
+          "{business} {location} unanswered reviews"
+        ]
+      },
+      "news": {
+        "hiring": [
+          "\"{business}\" {location} funding OR expansion OR \"new branch\""
+        ]
+      },
+      "linkedin": {
+        "hiring": [
+          "site:linkedin.com \"{business}\" hiring"
+        ]
+      },
+      "reddit": {
+        "problem": [
+          "site:reddit.com \"{business}\" \"{pain}\""
+        ]
+      }
+    },
+    "competitor": {
+      "google": {
+        "hot": [
+          "{service} in {location}"
+        ],
+        "comparison": [
+          "best {service} {location}"
+        ]
+      },
+      "google_maps": {
+        "hot": [
+          "{service} in {location}"
+        ]
+      },
+      "linkedin": {
+        "hot": [
+          "site:linkedin.com {service} {location}"
+        ]
+      }
+    }
+  }
+}

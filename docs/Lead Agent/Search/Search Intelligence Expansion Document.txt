@@ -1,0 +1,439 @@
+Search Intelligence Expansion Document
+Purpose
+Yeh document current Buyer Persona & Intent Engine ko expand karta hai taa-ke aapka system sirf business names na dhoonde, balkay listings, categories, departments, aur public comments se real buying signals bhi nikaale. Iska goal lead discovery ko zyada precise, zyada scalable, aur zyada automation-friendly banana hai.
+
+Core Search Layers
+1) Business listings
+Listings woh jagah hain jahan business already structured form mein milta hai, jaise Google Maps, local directories, niche directories, marketplace listings, aur industry association pages. In sources se business name, category, location, contact details, reviews, aur sometimes website ya WhatsApp bhi mil jata hai.
+
+2) Business categories
+Categories ko sirf broad level par na dekho, balkay multiple layers mein search karo. Broad category, sub-category, service-line category, city-specific category, aur platform-specific category — yeh sab alag intent signal dete hain.
+
+3) Departments
+Departments search karna bohat useful hai kyun ke yahan operational pain zyada clearly nazar aata hai. Front desk, reception, sales, marketing, HR, operations, finance, customer support, admissions, reservations, procurement, aur business development jaise departments direct workflows aur pain points reveal karte hain.
+
+4) Comments and reviews
+Comments aur reviews sab se strong signal ho sakte hain kyun ke yeh frustration, delay, missed calls, booking issues, aur service gaps ko expose karte hain. Especially 1-star se 3-star reviews, repeated complaint themes, aur business owner replies ko analyze karna chahiye.
+
+Search Term Framework
+Listings search terms
+business listing.
+
+company directory.
+
+local directory.
+
+[category] near me.
+
+[category] [city] reviews.
+
+[category] contact number.
+
+[category] WhatsApp.
+
+[category] booking.
+
+[category] location.
+
+Category search terms
+dental clinic appointment booking.
+
+aesthetic clinic WhatsApp.
+
+restaurant reservation system.
+
+car dealer lead management.
+
+school admission inquiries.
+
+travel agency customer support.
+
+real estate office missed calls.
+
+salon online booking.
+
+law firm inquiry handling.
+
+Department search terms
+front desk busy.
+
+reception overloaded.
+
+sales follow-up issues.
+
+HR hiring backlog.
+
+admissions inquiry management.
+
+support inbox overload.
+
+finance approval delay.
+
+operations manual reporting.
+
+procurement vendor follow up.
+
+business development lead tracking.
+
+Comment and review search terms
+Google reviews missed calls.
+
+late reply reviews.
+
+no WhatsApp response.
+
+appointment delay complaints.
+
+booking problem reviews.
+
+staff rude reviews.
+
+no follow up complaints.
+
+customer service complaints.
+
+callback requested in reviews.
+
+repeated complaint themes.
+
+Deep Search Pinpoints
+Search ko sirf business name tak limit na karo. Har result se yeh fields nikaalni chahiye:
+
+Business name.
+
+Category and sub-category.
+
+Branch count.
+
+City and area.
+
+Review count.
+
+Rating.
+
+Recent review date.
+
+Common complaint theme.
+
+Common praise theme.
+
+Contact channels.
+
+WhatsApp presence.
+
+Booking system presence.
+
+Website presence.
+
+Social profile presence.
+
+Hiring activity.
+
+Growth or expansion signals.
+
+Decision-maker hints.
+
+Competitor mentions.
+
+Operational pain hints.
+
+Department mentions.
+
+Comment Extraction Method
+Comments ko raw text ki tarah store na karo; structured format mein extract karo.
+
+Extract these fields
+Source platform.
+
+Business name.
+
+Reviewer date.
+
+Star rating.
+
+Review text.
+
+Sentiment.
+
+Pain category.
+
+Intent level.
+
+Mentioned department.
+
+Mentioned service.
+
+Mentioned staff role.
+
+Mentioned channel.
+
+Mentioned urgency.
+
+Suggested follow-up action.
+
+Comment buckets
+Missed calls.
+
+Slow response.
+
+Booking issues.
+
+Billing issues.
+
+Customer service issues.
+
+Staff behavior.
+
+No follow-up.
+
+WhatsApp issues.
+
+Website issues.
+
+Queue or waiting time.
+
+Quality complaints.
+
+Pricing complaints.
+
+Availability complaints.
+
+Extraction rules
+Recent reviews ko priority do.
+
+1-star se 3-star reviews ko pain discovery ke liye prioritize karo.
+
+4-star aur 5-star reviews ko trust aur strengths ke liye use karo.
+
+Repeated phrases ko identify karo.
+
+Owner replies ko detect karo.
+
+Questions aur callback requests ko intent signals samjho.
+
+Additional Search Signals
+Buyer-intent phrases
+looking for.
+
+need.
+
+best.
+
+recommend.
+
+compare.
+
+alternative to.
+
+switch from.
+
+software for.
+
+automation for.
+
+solution for.
+
+Frustration phrases
+tired of.
+
+fed up with.
+
+not getting.
+
+missing calls.
+
+losing leads.
+
+too many messages.
+
+hard to manage.
+
+manually handling.
+
+slow response.
+
+no system.
+
+Operational phrases
+appointment handling.
+
+lead routing.
+
+enquiry management.
+
+follow-up system.
+
+customer support workflow.
+
+booking workflow.
+
+reminder workflow.
+
+inbox management.
+
+front desk automation.
+
+CRM workflow.
+
+Expansion signals
+hiring receptionist.
+
+hiring sales executive.
+
+opening new branch.
+
+expanding team.
+
+launching new service.
+
+franchise opening.
+
+high demand.
+
+delayed response.
+
+growing inquiries.
+
+new location.
+
+Query Templates
+Listings templates
+[category] [city] listing.
+
+[category] directory [city].
+
+[category] Google Maps.
+
+[category] contact number.
+
+[category] WhatsApp number.
+
+[category] reviews [city].
+
+Pain templates
+[category] missed calls.
+
+[category] slow response.
+
+[category] appointment problems.
+
+[category] customer complaints.
+
+[category] no follow up.
+
+[category] booking issue.
+
+Department templates
+front desk problems [category].
+
+reception overload [category].
+
+sales follow-up issues [industry].
+
+HR hiring workflow problems.
+
+support inbox overload.
+
+Review templates
+site:google.com/maps [category] reviews.
+
+site:facebook.com [category] reviews.
+
+site:trustpilot.com [category] reviews.
+
+site:reviews.io [category] complaints.
+
+site:reddit.com [category] complaint.
+
+Recommended Data Fields
+Har discovered lead ke saath yeh fields save karna useful hoga:
+
+Source type.
+
+Query used.
+
+Business name.
+
+Category.
+
+Department mentioned.
+
+City.
+
+Area.
+
+Contact info.
+
+Website.
+
+WhatsApp.
+
+Reviews count.
+
+Average rating.
+
+Complaints.
+
+Buying signals.
+
+Hiring signals.
+
+Growth signals.
+
+Decision-maker clue.
+
+Recommended offer.
+
+Confidence score.
+
+Suggested Engine Upgrades
+Search term generator ko separate layers mein split karo: listings, categories, departments, aur comments.
+
+Review miner add karo jo pain themes aur owner replies nikaale.
+
+Entity normalizer use karo taake business names, categories, aur branches consistent rahen.
+
+Intent ranking add karo taake keyword match se zyada business objective ke hisaab se ranking ho.
+
+Signal memory maintain karo jo bataye kaun se queries best leads la rahi hain.
+
+Query rotation use karo taake repeated patterns kam hon aur coverage zyada ho.
+
+Department mapper banayo jo industry ke hisaab se relevant departments suggest kare.
+
+Pain library maintain karo jo har niche ke common problems store kare.
+
+Practical Examples
+Dental clinic campaign mein yeh four-layer search use karo:
+
+Listings: dental clinic Abu Dhabi reviews.
+
+Categories: cosmetic dentistry clinic.
+
+Departments: front desk busy dental clinic.
+
+Comments: dental clinic slow response reviews.
+
+Restaurant campaign mein:
+
+Listings: restaurant near me reviews.
+
+Categories: family restaurant booking.
+
+Departments: reservation team overload.
+
+Comments: restaurant late reply review.
+
+Real estate campaign mein:
+
+Listings: real estate agency listing.
+
+Categories: property consultant.
+
+Departments: sales follow up real estate.
+
+Comments: real estate no callback reviews.
+
+Final Direction
+Best system woh hoga jo four layers mein search kare: business listings, business categories, internal departments, aur public comments. Is structure se aap business bhi dhoondh sakte ho aur pain bhi — aur yehi combination actual high-quality lead banata hai.
+

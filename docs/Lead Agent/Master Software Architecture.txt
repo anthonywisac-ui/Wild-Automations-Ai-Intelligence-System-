@@ -1,0 +1,181 @@
+1. System Architecture Overview
+To achieve horizontal scaling, maximum resilience against bot-blocking, and decoupling of long-running operations (like crawling), a Microservices Architecture paired with Event-Driven Communication is recommended.  
+TXT
++ 4
+
+
+Communication Protocol: Internal services communicate asynchronously via a message broker for heavy data pipelines, and synchronously via gRPC for low-latency internal orchestration.  
+TXT
++ 4
+
+
+Decoupling Strategy: Scraping and enrichment pipelines operate completely independently from the real-time conversation and agent engines to ensure web rate-limiting or heavy LLM processing times never drop active messaging webhooks.  
+TXT
++ 1
+
+2. Component & Agent Architecture
+The system core is split into stateless functional workers and an intelligent orchestration layer.  
+TXT
++ 1
+
+┌────────────────────────────────────────────────────────────────────────┐
+│                        AGENT ORCHESTRATION LAYER                       │
+│  ┌──────────────────────┐                       ┌───────────────────┐  │
+│  │ Multi-Tenant Router  │◄─────────────────────►│  Dialogue Manager │  │
+│  └──────────┬───────────┘                       └─────────┬─────────┘  │
+└─────────────┼─────────────────────────────────────────────┼────────────┘
+              ▼                                             ▼
+┌─────────────────────────┐                       ┌───────────────────┐
+│     CRON / SCHEDULER    │                       │  CHANNEL ADAPTERS │
+│ (Temporal / Periodic)   │                       │ (WA, TG, IG, API) │
+└─────────────┬───────────┘                       └─────────┬─────────┘
+              │                                             │
+              ▼                                             ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│                         EVENT BUS / MESSAGE QUEUE                      │
+└──────┬──────────────────────┬──────────────────────┬──────────────┬────┘
+       ▼                      ▼                      ▼              ▼
+┌──────────────┐       ┌──────────────┐       ┌──────────────┐┌───────────┐
+│ Scraping Core│       │  Enrichment  │       │ Contact Extr.││    MCP    │
+│  (Firecrawl) │       │(LinkedIn/Soc)│       │(Regex/Parser)││Server Bot │
+└──────────────┘       └──────────────┘       └──────────────┘└───────────┘
+Agent Architecture (LangGraph + CrewAI + MCP)
+
+Orchestrator Pattern (LangGraph): Handles the core state machine for conversations, multi-tenant bot routing, and multi-step tasks (e.g., Discover -> Enrich -> Score -> Outreach). This guarantees deterministic paths where needed (like compliance and BANT qualification sales scripts).  
+TXT
++ 4
+
+
+Execution Layer (CrewAI): Dispatches non-deterministic research or copywriting tasks to specialized role-based agents (e.g., a "Researcher" agent utilizing tools, and a "Sales Writer" agent customizing templates).  
+TXT
++ 1
+
+
+Tool Interface (Model Context Protocol - MCP): Bridges agents to web capabilities. Specialized tools like Firecrawl are hosted via an MCP Tool Server, enabling standard JSON-RPC protocol communication for web search, crawling, and structure mapping.  
+TXT
++ 3
+
+3. Modular Plugin Architecture
+To effortlessly support platform adapters (Instagram, TikTok, WhatsApp)  and various scrapers without modifying core business logic, a Strategy/Provider Pattern is enforced through Python ABCs (Abstract Base Classes).  
+TXT
+
+Scraper Plugin Core Example
+Python
+from abc import ABC, abstractmethod
+from typing import Dict, Any
+
+class BaseScraperPlugin(ABC):
+    @property
+    def plugin_name(self) -> str:
+        pass
+
+    @abstractmethod
+    async def extract(self, url: str, **kwargs) -> Dict[str, Any]:
+        """Returns unified raw metadata or markdown output."""
+        pass
+
+class BaseChannelAdapter(ABC):
+    @abstractmethod
+    async def normalize_incoming(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """Converts platform payload into unified platform message schema."""
+        pass
+
+    @abstractmethod
+    async def send_message(self, recipient_id: str, text: str) -> bool:
+        pass
+New modules are registered via dynamic entry-points (importlib.metadata) or a central configuration registry, keeping the main platform completely decoupled.
+
+4. Directory & Folder Structure
+A clean Python monorepo split by services and libraries satisfies the requirements.  
+TXT
++ 1
+
+Plaintext
+crm-leadgen-backend/
+├── apps/                          # Deployable Microservices
+│   ├── agent_orchestrator/       # LangGraph routing, channel webhooks, SalesGPT core
+│   │   ├── src/
+│   │   │   ├── graphs/            # LangGraph DAGs (qualification, sales script)
+│   │   │   └── channels/          # Active message channel controllers
+│   │   └── Dockerfile
+│   ├── scraping_service/         # Firecrawl / Crawl4AI distributed worker instance
+│   ├── enrichment_worker/        # LinkedIn, social APIs and scoring tasks
+│   └── mcp_server/               # Firecrawl MCP Server wrapper
+├── libs/                          # Shared Internal Reusable Domain Modules
+│   ├── core_plugin_spec/         # Shared Abstract Base Classes & Interfaces
+│   └── shared_schemas/           # Unified Data Model, Pydantic structs (Leads, Logs)
+├── plugins/                       # Pluggable Strategies 
+│   ├── scrapers/                 # firecrawl, crawl4ai, scrap_browser
+│   ├── channels/                 # whatsapp, telegram, instagram, email
+│   └── enrichers/                # linkedin_http, social_media_apis
+├── docker-compose.yml
+└── README.md
+5. Architectural Infrastructure Choices
+Database Design
+A hybrid database setup ensures maximum scale across transactional operations and deep data mining:  
+TXT
+
+
+PostgreSQL (Primary / OLTP): Stores tenant data, configurations, multi-tenant agent states, conversation histories, and core lead operational pipelines.  
+TXT
++ 4
+
+
+Scale Trick: Partition tables by tenant_id. Use JSONB data types for storing raw unstructured data dumps or platform-specific metadata alongside structured records.  
+TXT
++ 2
+
+
+Elasticsearch (Analytics / Vector Search): Ingests raw data from scraping targets, HTML-to-Markdown conversions, and social data profiles for full-text semantic search, grouping, and duplicate matching.  
+TXT
++ 3
+
+Message Queue
+
+Apache Kafka: Ideal for the distributed web scraping data flow. Large web-crawl dumps emit data to a web-content-raw topic. LLM data parsing engines pull, clean, process into markdown, and forward to an enriched-leads topic asynchronously.  
+TXT
++ 3
+
+
+Alternative: RabbitMQ or Redis Streams if deployment overhead must be lowered in early phases.  
+TXT
++ 1
+
+Caching
+
+Redis: Crucial for caching heavy HTTP requests, avoiding redundant crawling of static targets within a specific TTL window, managing active browser automation session allocations, rate-limiting tenant APIs, and caching short-lived LLM agent session states.  
+TXT
++ 3
+
+Distributed Scheduler
+
+Temporal.io or Celery (with Redis/RabbitMQ backend): For robust long-running job distributions. Temporal is highly recommended for complex, long-running operational workflows that might span days (e.g., cron-scheduling daily lead lookups, pacing automated CRM enrichment routines, or executing multi-day email follow-up cooling cycles).  
+TXT
++ 4
+
+6. Target Unified Lead Data Schema
+Enforced cross-service validation is executed using this structure:  
+TXT
+
+JSON
+{
+  "lead_id": "uuid-v4",
+  "tenant_id": "tenant-string",
+  "source": "linkedin|web|google_maps",
+  "name": "John Doe",
+  "email": "john@company.com",
+  "phone": "+1234567890",
+  "company": "Acme Inc.",
+  "title": "CTO",
+  "score": 85,
+  "enrichment_data": {
+    "linkedin_profile": { "work_history": [], "skills": [] },
+    "social_posts": [],
+    "scraped_site_metadata": {}
+  },
+  "status": "new|contacted|qualified|lost",
+  "created_at": "2026-07-01T15:44:59Z",
+  "updated_at": "2026-07-01T15:44:59Z"
+}
+This layout gives your platform an abstract, reliable foundation to build, adjust, and deploy modules without causing cascading breakages.  
+TXT

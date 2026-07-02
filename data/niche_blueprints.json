@@ -1,0 +1,486 @@
+{
+  "_meta": {
+    "version": "1.0.0",
+    "architecture": "Think-First-Search-Second",
+    "purpose": "Instant persona/pain/query/scoring cache per niche. If a niche matches, the Intent Planner skips the LLM call and uses this directly."
+  },
+  "blueprints": {
+    "marketing_agency": {
+      "match": [
+        "marketing",
+        "digital marketing",
+        "social media agency",
+        "seo agency",
+        "ad agency",
+        "smma"
+      ],
+      "target_personas": [
+        "E-commerce brands",
+        "Local businesses",
+        "Clinics",
+        "Real estate agencies",
+        "Restaurants",
+        "Coaches & consultants",
+        "Startups"
+      ],
+      "core_departments": [
+        "Sales",
+        "Founder/Owner",
+        "Marketing"
+      ],
+      "priority_sources": [
+        "facebook",
+        "instagram",
+        "reddit",
+        "google",
+        "linkedin"
+      ],
+      "intent_queries": {
+        "hot": [
+          "looking for a marketing agency",
+          "need a social media manager",
+          "hiring a marketing agency",
+          "recommend a digital marketing agency"
+        ],
+        "warm": [
+          "marketing not working",
+          "not getting leads from ads",
+          "struggling with social media",
+          "wasted money on marketing"
+        ],
+        "problem": [
+          "ad account keeps getting banned",
+          "low roas facebook ads",
+          "no leads from instagram"
+        ],
+        "hiring": [
+          "hiring social media manager",
+          "hiring marketing manager",
+          "looking to outsource marketing"
+        ],
+        "comparison": [
+          "alternative to my marketing agency",
+          "switching marketing agency",
+          "best marketing agency for small business"
+        ]
+      },
+      "lead_scoring_triggers": {
+        "max_rating_threshold": 4.2,
+        "min_review_count": 20,
+        "critical_keywords": [
+          "leads",
+          "roi",
+          "ads",
+          "conversion",
+          "growth"
+        ]
+      },
+      "target_business_categories": [
+        "dentist",
+        "dental clinic",
+        "restaurant",
+        "cafe",
+        "real estate agency",
+        "law firm",
+        "gym",
+        "fitness studio",
+        "salon",
+        "spa",
+        "beauty clinic",
+        "construction company",
+        "ecommerce store",
+        "medical clinic",
+        "car dealership",
+        "accounting firm",
+        "travel agency"
+      ],
+      "buyer_pain_signals": [
+        "weak social media",
+        "poor reviews",
+        "outdated website",
+        "no whatsapp",
+        "low engagement",
+        "no online booking",
+        "hiring a marketer",
+        "asking for marketing recommendations",
+        "complaints about marketing",
+        "inactive instagram"
+      ],
+      "negative_keywords": [
+        "agency",
+        "agencies",
+        "smma",
+        "marketing company",
+        "marketing services",
+        "vendor",
+        "consultant",
+        "freelancer",
+        "we offer",
+        "our services",
+        "hire us",
+        "get a quote"
+      ]
+    },
+    "healthcare_wellness": {
+      "match": [
+        "dental",
+        "dentist",
+        "clinic",
+        "aesthetic",
+        "dermatology",
+        "medical spa",
+        "orthodontist",
+        "physio",
+        "wellness"
+      ],
+      "target_personas": [
+        "Cosmetic Dentists",
+        "Orthodontists",
+        "Dermatology Centers",
+        "Medical Spas",
+        "Aesthetic Clinics"
+      ],
+      "core_departments": [
+        "Front Desk",
+        "Patient Coordination",
+        "Reception",
+        "Aftercare Support"
+      ],
+      "priority_sources": [
+        "google_maps",
+        "instagram",
+        "tiktok",
+        "facebook"
+      ],
+      "intent_queries": {
+        "hot": [
+          "looking for clinic management software",
+          "need appointment booking system",
+          "recommend patient management system",
+          "need whatsapp appointment booking"
+        ],
+        "warm": [
+          "reception overloaded",
+          "missing patient calls",
+          "no online booking",
+          "patients not responding"
+        ],
+        "problem": [
+          "long hold time no one answers",
+          "lost my appointment",
+          "sent a whatsapp message no reply",
+          "rude receptionist"
+        ],
+        "hiring": [
+          "hiring dental receptionist",
+          "hiring clinic coordinator",
+          "hiring front desk clinic"
+        ],
+        "comparison": [
+          "best clinic booking software",
+          "alternative to my clinic crm"
+        ]
+      },
+      "lead_scoring_triggers": {
+        "max_rating_threshold": 4.1,
+        "min_review_count": 100,
+        "critical_keywords": [
+          "front desk",
+          "communication",
+          "phone",
+          "unanswered",
+          "booking"
+        ]
+      },
+      "target_business_categories": [
+        "dental clinic",
+        "dermatology clinic",
+        "medical spa",
+        "orthodontist",
+        "cosmetic dentist",
+        "aesthetic clinic",
+        "physiotherapy clinic",
+        "wellness center"
+      ],
+      "buyer_pain_signals": [
+        "missed patient calls",
+        "no online booking",
+        "reception overload",
+        "poor reviews",
+        "hiring receptionist",
+        "slow whatsapp response",
+        "appointment no-shows"
+      ],
+      "negative_keywords": [
+        "software company",
+        "saas vendor",
+        "we provide",
+        "our platform",
+        "book a demo",
+        "crm vendor"
+      ]
+    },
+    "professional_services": {
+      "match": [
+        "law firm",
+        "lawyer",
+        "attorney",
+        "accounting",
+        "cfo",
+        "immigration consultant",
+        "legal"
+      ],
+      "target_personas": [
+        "Personal Injury Attorneys",
+        "Immigration Law Firms",
+        "Fractional CFO Agencies",
+        "Accounting Firms"
+      ],
+      "core_departments": [
+        "Intake Desk",
+        "Case Management",
+        "Client Relations",
+        "Billing"
+      ],
+      "priority_sources": [
+        "google_maps",
+        "linkedin",
+        "facebook",
+        "reddit"
+      ],
+      "intent_queries": {
+        "hot": [
+          "looking for legal intake software",
+          "need case management system",
+          "recommend law firm crm"
+        ],
+        "warm": [
+          "never called back",
+          "no follow up on my case",
+          "ghosted after consultation"
+        ],
+        "problem": [
+          "intake bottleneck",
+          "left three messages front desk",
+          "missed client calls"
+        ],
+        "hiring": [
+          "hiring legal intake specialist",
+          "hiring case manager",
+          "hiring receptionist law firm"
+        ],
+        "comparison": [
+          "alternative to clio",
+          "how to automate law firm onboarding"
+        ]
+      },
+      "lead_scoring_triggers": {
+        "max_rating_threshold": 4.3,
+        "min_review_count": 30,
+        "critical_keywords": [
+          "callback",
+          "messages",
+          "consultation",
+          "ignored",
+          "intake"
+        ]
+      },
+      "target_business_categories": [
+        "law firm",
+        "immigration law firm",
+        "personal injury attorney",
+        "accounting firm",
+        "cfo agency",
+        "tax consultant",
+        "legal practice"
+      ],
+      "buyer_pain_signals": [
+        "never called back",
+        "no case follow-up",
+        "intake bottleneck",
+        "poor reviews",
+        "hiring intake staff",
+        "missed client calls"
+      ],
+      "negative_keywords": [
+        "legal software",
+        "case management vendor",
+        "we offer",
+        "our software",
+        "book a demo"
+      ]
+    },
+    "real_estate": {
+      "match": [
+        "real estate",
+        "property",
+        "realtor",
+        "broker",
+        "property consultant"
+      ],
+      "target_personas": [
+        "Real estate agencies",
+        "Property developers",
+        "Brokers",
+        "Property management firms"
+      ],
+      "core_departments": [
+        "Sales",
+        "Front Desk",
+        "Lead Management"
+      ],
+      "priority_sources": [
+        "google_maps",
+        "facebook",
+        "instagram",
+        "linkedin"
+      ],
+      "intent_queries": {
+        "hot": [
+          "looking for real estate crm",
+          "need lead management for property",
+          "recommend real estate follow up software"
+        ],
+        "warm": [
+          "losing property leads",
+          "no callback to buyers",
+          "too many enquiries to handle"
+        ],
+        "problem": [
+          "missed calls real estate",
+          "no follow up property enquiry",
+          "leads going cold"
+        ],
+        "hiring": [
+          "hiring real estate sales agent",
+          "hiring property consultant",
+          "hiring telecaller real estate"
+        ],
+        "comparison": [
+          "best real estate crm",
+          "switching real estate lead tool"
+        ]
+      },
+      "lead_scoring_triggers": {
+        "max_rating_threshold": 4.2,
+        "min_review_count": 15,
+        "critical_keywords": [
+          "callback",
+          "follow up",
+          "leads",
+          "enquiry",
+          "response"
+        ]
+      },
+      "target_business_categories": [
+        "real estate agency",
+        "property developer",
+        "property management firm",
+        "real estate broker",
+        "property consultant"
+      ],
+      "buyer_pain_signals": [
+        "losing property leads",
+        "no callback to buyers",
+        "too many enquiries",
+        "missed calls",
+        "hiring telecaller",
+        "leads going cold"
+      ],
+      "negative_keywords": [
+        "real estate crm",
+        "proptech vendor",
+        "we provide",
+        "our software",
+        "book a demo"
+      ]
+    },
+    "restaurant_hospitality": {
+      "match": [
+        "restaurant",
+        "cafe",
+        "hotel",
+        "catering",
+        "food",
+        "hospitality"
+      ],
+      "target_personas": [
+        "Restaurants",
+        "Cafes",
+        "Hotels",
+        "Cloud kitchens",
+        "Catering services"
+      ],
+      "core_departments": [
+        "Reservations",
+        "Front Desk",
+        "Customer Support"
+      ],
+      "priority_sources": [
+        "google_maps",
+        "instagram",
+        "facebook"
+      ],
+      "intent_queries": {
+        "hot": [
+          "looking for restaurant reservation system",
+          "need whatsapp ordering",
+          "recommend table booking software"
+        ],
+        "warm": [
+          "missing reservation calls",
+          "no online booking restaurant",
+          "reservation team overload"
+        ],
+        "problem": [
+          "restaurant late reply",
+          "booking problem review",
+          "no answer to reservation"
+        ],
+        "hiring": [
+          "hiring restaurant host",
+          "hiring reservation staff"
+        ],
+        "comparison": [
+          "best restaurant booking system",
+          "alternative to my reservation tool"
+        ]
+      },
+      "lead_scoring_triggers": {
+        "max_rating_threshold": 4.2,
+        "min_review_count": 50,
+        "critical_keywords": [
+          "reservation",
+          "booking",
+          "response",
+          "wait",
+          "phone"
+        ]
+      },
+      "target_business_categories": [
+        "restaurant",
+        "cafe",
+        "cloud kitchen",
+        "catering service",
+        "hotel",
+        "fine dining restaurant",
+        "fast food restaurant"
+      ],
+      "buyer_pain_signals": [
+        "missed reservation calls",
+        "no online booking",
+        "reservation overload",
+        "poor reviews",
+        "late reply",
+        "no whatsapp ordering"
+      ],
+      "negative_keywords": [
+        "reservation software",
+        "pos vendor",
+        "we offer",
+        "our platform",
+        "book a demo"
+      ]
+    }
+  }
+}

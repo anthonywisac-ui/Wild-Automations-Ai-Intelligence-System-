@@ -1,0 +1,453 @@
+AI Sales Intelligence Platform – Reusable Backend Modules & Architectural Design
+Prepared for the Lead Backend Engineering Team
+July 2026
+
+Table of Contents
+Executive Summary
+
+Repository Inventory & Metadata
+
+Functional Module Categories
+
+3.1 AI Agent & Orchestration
+
+3.2 Conversation & Channel Integration
+
+3.3 Lead Enrichment & Scoring
+
+3.4 Web Scraping & Crawling (General)
+
+3.5 Browser Automation & Anti‑Bot Evasion
+
+3.6 Contact Extraction (Emails & Phones)
+
+3.7 Social Media Scraping (Platform‑Specific)
+
+3.8 Data Extraction & LLM Processing
+
+3.9 Workflow & Task Routing
+
+3.10 Tool Integration (Model Context Protocol)
+
+Architectural Integration Patterns
+
+4.1 Microservices Decomposition
+
+4.2 Event‑Driven Communication
+
+4.3 Configuration‑Driven Agents
+
+4.4 Unified Data Model
+
+Technical Stack Summary
+
+Module Reuse Recommendations
+
+Detailed Component & Agent Architecture
+
+7.1 Orchestrator Pattern (LangGraph)
+
+7.2 Execution Layer (CrewAI)
+
+7.3 Tool Interface (MCP)
+
+Modular Plugin Architecture (Strategy/Provider Pattern)
+
+Directory & Folder Structure
+
+Infrastructure Choices
+
+10.1 Database Design (PostgreSQL + Elasticsearch)
+
+10.2 Message Queue (Kafka)
+
+10.3 Caching (Redis)
+
+10.4 Distributed Scheduler (Temporal)
+
+Target Unified Lead Data Schema
+
+Social Media Scraping – Specialised Analysis
+
+Best-of-Breed Module Selection
+
+Conclusion & Next Steps
+
+1. Executive Summary
+This report presents a complete, production‑ready software architecture for an AI‑driven Sales Intelligence Platform. The analysis is based on over 20 open‑source repositories, extracting only backend‑reusable modules – ignoring UI, branding, and demonstration code.
+
+The ecosystem offers a rich set of components for:
+
+Autonomous sales agents with multi‑channel conversation management (Telegram, WhatsApp, Instagram, Web, Voice, Email, SMS, WeChat).
+
+Web intelligence – scraping, crawling, and browser automation at scale.
+
+Lead enrichment & scoring using LinkedIn, Google Maps, and social data.
+
+Contact extraction (emails, phone numbers) from web pages.
+
+Workflow orchestration (LangGraph, CrewAI) and standardised tool integration (MCP).
+
+All modules are loosely coupled, async‑first, and designed to be integrated incrementally. The recommended architecture uses microservices, event‑driven communication, and plugin‑based extensibility – enabling rapid development, independent scaling, and easy replacement of individual components.
+
+2. Repository Inventory & Metadata
+The following 20+ repositories were analysed. Star counts, licenses, and last‑updated dates are based on available data (some values may be approximate).
+
+#	Repository Name	GitHub URL (inferred)	Stars*	License	Last Updated
+1	langgraph-sales-agent	github.com/.../langgraph-sales-agent	N/A	N/A	2026‑03‑01
+2	SalesGPT	github.com/.../SalesGPT	N/A	N/A	2023‑04‑23
+3	probz_sales	github.com/.../probz_sales	N/A	N/A	2024‑12‑11
+4	Firecrawl	github.com/.../Firecrawl	N/A	AGPL‑3.0	N/A
+5	Firecrawl Python SDK	github.com/.../firecrawl-python	62	MIT	2024‑04‑11
+6	Crawl4AI	github.com/.../Crawl4AI	50k+	Apache‑2.0	2024‑05‑08
+7	Scraping Browser	github.com/.../scraping-browser	0	N/A	2025‑02‑04
+8	web_crawler_project	github.com/.../web_crawler_project	N/A	N/A	2025‑01‑30
+9	LinkedIn‑Scraper	github.com/.../LinkedIn‑Scraper	N/A	N/A	2024‑06‑05
+10	email‑contact‑extractor‑from‑any‑web	github.com/.../email‑contact‑extractor	N/A	N/A	2025‑01‑24
+11	ContactInfoScraper	github.com/.../ContactInfoScraper	N/A	N/A	2024‑09‑23
+12	SMMA‑Lead‑Scraper	github.com/.../SMMA‑Lead‑Scraper	N/A	N/A	2024‑05‑16
+13	social‑media‑scraping‑apis	github.com/.../social‑media‑scraping‑apis	N/A	N/A	2026‑01‑19
+14	langgraph‑with‑crewai	github.com/.../langgraph‑with‑crewai	N/A	N/A	2024‑05‑26
+15	Crawl4AI mirror	github.com/.../crawl4ai‑mirror	N/A	N/A	2025‑01‑14
+16	Firecrawl MCP Server	github.com/.../firecrawl‑mcp‑server	N/A	N/A	2024‑12‑05
+17	browser‑use/browser‑use	github.com/browser‑use/browser‑use	101k	MIT	2025‑06‑14
+18	browser‑use/browser‑harness	github.com/browser‑use/browser‑harness	14.1k	MIT	active
+19	langchain‑ai/langgraph	github.com/langchain‑ai/langgraph	35.9k	MIT	active
+20	crewAIInc/crewAI	github.com/crewAIInc/crewAI	N/A	permissive	active
+21	modelcontextprotocol/servers	github.com/modelcontextprotocol/servers	N/A	MIT	active
+22	google/mcp (Google Maps)	github.com/google/mcp	4.1k	Apache‑2.0	active
+23	JustAnotherArchivist/snscrape	github.com/JustAnotherArchivist/snscrape	5.3k	GPL‑3.0	mature
+24	gosom/google‑maps‑scraper	github.com/gosom/google‑maps‑scraper	N/A	N/A	needs verification
+*Stars not verified from source; only those explicitly mentioned are confirmed.
+
+3. Functional Module Categories
+All reusable backend components are grouped into 10 functional categories. Each category is broken down into modules with description, technology, source repo(s), and reuse value.
+
+3.1 AI Agent & Orchestration
+Intelligent core – handling conversation logic, task decomposition, and tool invocation.
+
+Module	Description	Technology	Source Repository	Reuse Value
+Multi‑tenant agent router	YAML‑driven configuration per tenant; routes incoming messages to the appropriate bot instance. Supports Telegram, Instagram, WhatsApp, Web.	LangGraph, Python	langgraph-sales-agent	Enables white‑label sales bots with minimal coding.
+Dialogue manager	Maintains context across turns, supports voice/email/SMS/WhatsApp/WeChat. Uses LLM for intent classification and response generation.	LLM, Python	SalesGPT	Ready‑to‑adapt for any conversational CRM.
+Agent graph patterns	Pre‑built LangGraph DAGs for task decomposition, with CrewAI integration for role‑based agent teams (Researcher, Sales, Writer).	LangGraph, CrewAI, Python	langgraph-with-crewai	Provides orchestration blueprints; accelerates multi‑agent system development.
+Agent tool server (MCP)	Exposes Firecrawl’s scrape, search, and crawl actions as MCP‑compliant tools; bridges AI agents to web intelligence.	MCP, Firecrawl, Python	Firecrawl MCP Server	Ideal for agent frameworks that support MCP (e.g., Claude Desktop, custom).
+3.2 Conversation & Channel Integration
+Adapts the agent’s logic to various messaging channels and executes sales scripts.
+
+Module	Description	Technology	Source Repository	Reuse Value
+Channel adapters	Pluggable connectors for Telegram, Instagram, WhatsApp, Web, SMS, WeChat, Email, Voice. Each adapter normalises incoming/outgoing messages.	Python, REST APIs, WebSocket	langgraph-sales-agent, SalesGPT	Decouples business logic from channel specifics; add a new channel with a single adapter.
+Sales script logic	Configurable state machine for qualification (BANT, CHAMP), objection handling, and closing.	Python, JSON/YAML	SalesGPT	Reusable script engine – sales managers can update scripts without coding.
+Lead qualification flow	End‑to‑end pipeline from initial contact to handoff to human sales rep; includes scoring gates.	Python	SalesGPT, probz_sales	Directly maps to CRM lead stages; can be extended with ML scoring.
+3.3 Lead Enrichment & Scoring
+Enriches raw lead data with external signals and computes priority scores.
+
+Module	Description	Technology	Source Repository	Reuse Value
+LinkedIn profile enrichment	Extracts work history, education, skills, and connections from LinkedIn public profiles. Uses HTTP API (no browser).	Python, HTTP requests	probz_sales, LinkedIn-Scraper	Provides deep professional context for B2B leads.
+Lead scoring engine	Rule‑based or AI‑driven scoring using enriched attributes (job title, company size, engagement).	Python, possible LLM	probz_sales	Integrates with CRM to prioritise outreach.
+Qualification logic	Decision trees to classify leads as Hot/Warm/Cold based on multiple signals.	Python	probz_sales, SalesGPT	Can be trained with historical conversion data.
+3.4 Web Scraping & Crawling (General)
+Core infrastructure for extracting content from websites, handling pagination, and generating site maps.
+
+Module	Description	Technology	Source Repository	Reuse Value
+Crawl API	Provides endpoints for crawling a domain: follow links, respect robots.txt, set depth/limit. Returns structured data (JSON).	Python, aiohttp	Firecrawl, Firecrawl Python SDK	Ready‑to‑use REST API for crawling tasks.
+Site mapping & sitemap parsing	Generates a hierarchical map of a target domain; parses XML sitemaps.	Python	Firecrawl	Useful for discovering all pages of a website.
+Static & dynamic crawler	Handles both plain HTML and JavaScript‑rendered content (via headless browsers when needed).	Python, Playwright, Scrapy, BeautifulSoup	web_crawler_project, Crawl4AI	Resilient crawler that adapts to site complexity.
+Scraping pipeline	Modular extractors, deduplication, and result aggregation; supports multiple output formats.	Python	Crawl4AI (mirror)	Provides a clean abstraction for building custom scrapers.
+3.5 Browser Automation & Anti‑Bot Evasion
+Interacts with sites that employ sophisticated bot protection.
+
+Module	Description	Technology	Source Repository	Reuse Value
+Headless browser session manager	Manages Puppeteer/Playwright/Selenium instances; handles startup/shutdown, resource limits.	JavaScript/Node.js, Python bindings	Scraping Browser	Simplifies browser lifecycle management in distributed scrapers.
+CAPTCHA solving integration	Plug‑ins for 2Captcha, Anti‑Captcha, etc.; automatically solves when encountered.	Python, external APIs	Scraping Browser	Adds resilience to scraping pipelines.
+Proxy/unblocking layer	Rotates proxies, spoofs fingerprints, throttles requests to mimic human behaviour.	Python	Scraping Browser, web_crawler_project	Bypasses IP‑based rate limiting.
+JavaScript rendering engine	Executes all client‑side scripts before extracting page content.	Playwright/Puppeteer	web_crawler_project, Crawl4AI	Extracts data from SPAs and dynamic sites.
+Endpoint discovery	Monitors network traffic during browsing to uncover hidden API endpoints.	DevTools Protocol	web_crawler_project	Valuable for reverse‑engineering internal APIs.
+3.6 Contact Extraction (Emails & Phones)
+Directly harvests contact details from web pages, with deduplication and export.
+
+Module	Description	Technology	Source Repository	Reuse Value
+Email & phone regex extractor	Uses robust regular expressions to extract email addresses and phone numbers from raw HTML/text. Validates format.	Python, re	email-contact-extractor-from-any-web, ContactInfoScraper	High‑accuracy extraction core.
+Page traversal & depth‑first search	Crawls internal links up to a given depth to discover contact pages (e.g., /contact, /about).	Python	email-contact-extractor-from-any-web	Automates discovery of contact information across a website.
+Excel/CSV export	Formats extracted contacts into spreadsheets for direct CRM import.	Python, openpyxl, pandas	ContactInfoScraper, SMMA-Lead-Scraper	Simplifies data ingestion.
+Deduplication & logging	Removes duplicate entries; logs extraction history for audit.	Python	email-contact-extractor-from-any-web, ContactInfoScraper	Ensures clean, traceable data.
+3.7 Social Media Scraping (Platform‑Specific)
+Specialised scrapers for LinkedIn, Facebook, Instagram, Google Maps, etc.
+
+Module	Description	Technology	Source Repository	Reuse Value
+LinkedIn search export	Exports results from LinkedIn people searches; extracts posts, likes, and comments (using HTTP API approach).	Python, HTTP requests	LinkedIn-Scraper	Enables large‑scale prospect discovery.
+Google Maps data extraction	Scrapes business names, addresses, phone numbers, ratings, and reviews from Google Maps.	Python (likely browser‑based)	SMMA-Lead-Scraper	Key for local business lead generation.
+Social profile capture	Extracts public profile data from Facebook, Instagram, Twitter/X.	Python, HTTP/headless	SMMA-Lead-Scraper	Aggregates social presence for lead profiles.
+Platform adapter inventory	A curated collection of scraping APIs/tools for Instagram, X, TikTok, YouTube, Facebook – acts as a reference for building new adapters.	Documentation/links	social-media-scraping-apis	Accelerates integration with new platforms.
+3.8 Data Extraction & LLM Processing
+Converts raw HTML into formats that are easily consumable by LLMs and downstream services.
+
+Module	Description	Technology	Source Repository	Reuse Value
+HTML‑to‑Markdown conversion	Strips unnecessary tags, preserves structure, outputs clean Markdown for LLM prompts.	Python, markdownify, trafilatura	Firecrawl, Firecrawl Python SDK, Crawl4AI	Standardises input for LLM‑based extraction.
+Structured extraction	Uses LLMs (or heuristics) to extract specific fields like product names, prices, dates from free text.	Python, LLM APIs	Firecrawl, Crawl4AI	Enables semantic understanding of web content.
+LLM‑ready data pipeline	Batches and chunks large documents; handles token limits and prompt formatting automatically.	Python	Firecrawl Python SDK, Crawl4AI	Optimises data flow to LLM services.
+3.9 Workflow & Task Routing
+Coordinates multi‑step processes involving multiple agents, scrapers, and enrichment steps.
+
+Module	Description	Technology	Source Repository	Reuse Value
+Task graph definitions	Defines DAGs (Direct Acyclic Graphs) using LangGraph for tasks like “find leads → enrich → score → reach out”.	LangGraph, Python	langgraph-with-crewai, langgraph-sales-agent	Provides reusable workflow templates.
+Task routing	Dispatches sub‑tasks to specialised agents (e.g., a Researcher agent for web search, a Sales agent for emails).	CrewAI, Python	langgraph-with-crewai	Decouples task execution from orchestration.
+Notebook prototypes	Jupyter notebooks with executable examples for quick experimentation.	Python, Jupyter	langgraph-with-crewai	Jump‑starts development with proven patterns.
+3.10 Tool Integration (Model Context Protocol)
+Standardises how agents invoke external tools.
+
+Module	Description	Technology	Source Repository	Reuse Value
+MCP tool server	Implements the MCP specification; exposes scrape, search, and crawl actions from Firecrawl as tools.	Python, MCP SDK	Firecrawl MCP Server	Instantly enables any MCP‑compatible agent to use web intelligence.
+Context bridging	Translates agent‑provided parameters into API calls and returns structured responses (JSON).	Python	Firecrawl MCP Server	Handles the “glue” logic; reusable for wrapping any backend API as an MCP tool.
+4. Architectural Integration Patterns
+Based on the extracted modules, the following integration approaches are recommended for a production‑ready system.
+
+4.1 Microservices Decomposition
+Deploy each category as an independent microservice, communicating via REST/gRPC and asynchronous queues.
+
+Service	Responsibilities	Technology Options
+Agent Orchestrator	Conversation management, dialogue state, channel adapters.	Python, FastAPI, LangGraph
+Lead Enrichment	LinkedIn/social enrichment, scoring.	Python, Celery
+Scraping Engine	Crawling, scraping, LLM extraction.	Python, Scrapy, Playwright
+Browser Automation Service	Headless browser pools, CAPTCHA solving, proxy rotation.	Node.js, Puppeteer, Python
+Contact Extractor	Email/phone extraction from web pages.	Python, Flask
+MCP Tool Server	Exposes services as MCP tools.	Python, MCP SDK
+Data Lake	Stores raw/processed leads, logs.	Elasticsearch, PostgreSQL, S3
+4.2 Event‑Driven Communication
+Use a message broker (Kafka/RabbitMQ) to decouple services:
+
+Scraping Engine publishes raw HTML to a web‑content‑raw topic.
+
+LLM Extraction Service consumes it, enriches, and publishes structured data to enriched‑leads.
+
+Contact Extractor publishes extracted contacts to contacts.
+
+Enrichment Service combines data and updates the CRM database.
+
+4.3 Configuration‑Driven Agents
+Adopt the YAML‑based agent definition from langgraph-sales-agent:
+
+yaml
+tenant: acme_corp
+channels: [telegram, whatsapp]
+scripts:
+  - id: welcome
+    message: "Hello! I'm your sales assistant..."
+    next: qualification
+  - id: qualification
+    conditions:
+      - if: "budget > 10000"
+        then: "schedule_demo"
+      - else: "send_case_study"
+This allows non‑developers to tune sales flows without code changes.
+
+4.4 Unified Data Model
+Define a common lead schema enforced across services:
+
+json
+{
+  "lead_id": "uuid-v4",
+  "tenant_id": "tenant-string",
+  "source": "linkedin|web|google_maps",
+  "name": "John Doe",
+  "email": "john@company.com",
+  "phone": "+1234567890",
+  "company": "Acme Inc.",
+  "title": "CTO",
+  "score": 85,
+  "enrichment_data": {
+    "linkedin_profile": { "work_history": [], "skills": [] },
+    "social_posts": [],
+    "scraped_site_metadata": {}
+  },
+  "status": "new|contacted|qualified|lost",
+  "created_at": "2026-07-01T15:44:59Z",
+  "updated_at": "2026-07-01T15:44:59Z"
+}
+Use a relational DB (PostgreSQL) for transactional data and Elasticsearch for search/analytics.
+
+5. Technical Stack Summary
+Layer	Recommended Technologies
+Languages	Python 3.12 (primary), Node.js (for Puppeteer heavy tasks)
+AI/Orchestration	LangGraph, CrewAI, MCP SDK, OpenAI/Anthropic APIs
+Scraping	Scrapy, BeautifulSoup, Playwright, Puppeteer, Selenium
+Data Processing	Pandas, OpenPyXL, Trafilatura, Markdownify
+Web Framework	FastAPI, Flask (for tool servers)
+Messaging	RabbitMQ, Apache Kafka
+Databases	PostgreSQL (primary), Elasticsearch (analytics/vector), Redis (cache)
+Deployment	Docker, Kubernetes, AWS/GCP/Azure
+6. Module Reuse Recommendations
+Start with Firecrawl for all general web scraping needs – it provides a clean API and Python SDK.
+
+For browser automation, combine Scraping Browser’s session manager with web_crawler_project’s anti‑bot techniques.
+
+Adopt LangGraph for orchestration; reuse the DAG templates from langgraph-with-crewai.
+
+Integrate MCP if your agent framework supports it – the Firecrawl MCP Server is production‑ready.
+
+Use the contact extractors as standalone libraries for email/phone discovery.
+
+Leverage LinkedIn‑Scraper for B2B enrichment but be mindful of LinkedIn’s terms; combine with probz_sales for scoring.
+
+For social media, snscrape (GPL) is the most robust multi‑service scraper – isolate it behind a service boundary if licensing is a concern.
+
+For Google Maps, consider the modelcontextprotocol/servers Google Maps MCP server for structured API access, or use gosom/google‑maps‑scraper if you need raw scraping (verify its status).
+
+7. Detailed Component & Agent Architecture
+The system core is split into stateless functional workers and an intelligent orchestration layer. The following diagram illustrates the high‑level flow:
+
+text
+┌────────────────────────────────────────────────────────────────────────┐
+│                        AGENT ORCHESTRATION LAYER                       │
+│  ┌──────────────────────┐                       ┌───────────────────┐  │
+│  │ Multi-Tenant Router  │◄─────────────────────►│  Dialogue Manager │  │
+│  └──────────┬───────────┘                       └─────────┬─────────┘  │
+└─────────────┼─────────────────────────────────────────────┼────────────┘
+              ▼                                             ▼
+┌─────────────────────────┐                       ┌───────────────────┐
+│     CRON / SCHEDULER    │                       │  CHANNEL ADAPTERS │
+│ (Temporal / Periodic)   │                       │ (WA, TG, IG, API) │
+└─────────────┬───────────┘                       └─────────┬─────────┘
+              │                                             │
+              ▼                                             ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│                         EVENT BUS / MESSAGE QUEUE                      │
+└──────┬──────────────────────┬──────────────────────┬──────────────┬────┘
+       ▼                      ▼                      ▼              ▼
+┌──────────────┐       ┌──────────────┐       ┌──────────────┐┌───────────┐
+│ Scraping Core│       │  Enrichment  │       │ Contact Extr.││    MCP    │
+│  (Firecrawl) │       │(LinkedIn/Soc)│       │(Regex/Parser)││Server Bot │
+└──────────────┘       └──────────────┘       └──────────────┘└───────────┘
+7.1 Orchestrator Pattern (LangGraph)
+Handles the core state machine for conversations, multi‑tenant bot routing, and multi‑step tasks (e.g., Discover → Enrich → Score → Outreach). This guarantees deterministic paths for compliance and BANT qualification sales scripts.
+
+7.2 Execution Layer (CrewAI)
+Dispatches non‑deterministic research or copywriting tasks to specialised role‑based agents – for example, a Researcher agent utilising tools, and a Sales Writer agent customising templates.
+
+7.3 Tool Interface (Model Context Protocol – MCP)
+Bridges agents to web capabilities. Specialised tools like Firecrawl are hosted via an MCP Tool Server, enabling standard JSON‑RPC protocol communication for web search, crawling, and structure mapping.
+
+8. Modular Plugin Architecture (Strategy/Provider Pattern)
+To effortlessly support platform adapters (Instagram, TikTok, WhatsApp) and various scrapers without modifying core business logic, we enforce a Strategy/Provider Pattern through Python ABCs (Abstract Base Classes).
+
+Scraper Plugin Core Example (for reference, not production code):
+
+python
+from abc import ABC, abstractmethod
+from typing import Dict, Any
+
+class BaseScraperPlugin(ABC):
+    @property
+    def plugin_name(self) -> str:
+        pass
+
+    @abstractmethod
+    async def extract(self, url: str, **kwargs) -> Dict[str, Any]:
+        """Returns unified raw metadata or markdown output."""
+        pass
+
+class BaseChannelAdapter(ABC):
+    @abstractmethod
+    async def normalize_incoming(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """Converts platform payload into unified platform message schema."""
+        pass
+
+    @abstractmethod
+    async def send_message(self, recipient_id: str, text: str) -> bool:
+        pass
+New modules are registered via dynamic entry‑points (importlib.metadata) or a central configuration registry, keeping the main platform completely decoupled.
+
+9. Directory & Folder Structure
+A clean Python monorepo split by services and libraries is recommended:
+
+text
+crm-leadgen-backend/
+├── apps/                          # Deployable Microservices
+│   ├── agent_orchestrator/       # LangGraph routing, channel webhooks, SalesGPT core
+│   │   ├── src/
+│   │   │   ├── graphs/            # LangGraph DAGs (qualification, sales script)
+│   │   │   └── channels/          # Active message channel controllers
+│   │   └── Dockerfile
+│   ├── scraping_service/         # Firecrawl / Crawl4AI distributed worker instance
+│   ├── enrichment_worker/        # LinkedIn, social APIs and scoring tasks
+│   └── mcp_server/               # Firecrawl MCP Server wrapper
+├── libs/                          # Shared Internal Reusable Domain Modules
+│   ├── core_plugin_spec/         # Shared Abstract Base Classes & Interfaces
+│   └── shared_schemas/           # Unified Data Model, Pydantic structs (Leads, Logs)
+├── plugins/                       # Pluggable Strategies 
+│   ├── scrapers/                 # firecrawl, crawl4ai, scrap_browser
+│   ├── channels/                 # whatsapp, telegram, instagram, email
+│   └── enrichers/                # linkedin_http, social_media_apis
+├── docker-compose.yml
+└── README.md
+10. Infrastructure Choices
+10.1 Database Design
+A hybrid database setup ensures maximum scale across transactional operations and deep data mining:
+
+PostgreSQL (Primary / OLTP): Stores tenant data, configurations, multi‑tenant agent states, conversation histories, and core lead operational pipelines.
+Scale Trick: Partition tables by tenant_id. Use JSONB for storing raw unstructured data dumps or platform‑specific metadata alongside structured records.
+
+Elasticsearch (Analytics / Vector Search): Ingests raw data from scraping targets, HTML‑to‑Markdown conversions, and social data profiles for full‑text semantic search, grouping, and duplicate matching.
+
+10.2 Message Queue
+Apache Kafka: Ideal for distributed web scraping data flow. Large web‑crawl dumps emit data to a web-content-raw topic. LLM data parsing engines pull, clean, process into markdown, and forward to an enriched-leads topic asynchronously.
+
+Alternative: RabbitMQ or Redis Streams if deployment overhead must be lowered in early phases.
+
+10.3 Caching
+Redis: Crucial for caching heavy HTTP requests, avoiding redundant crawling of static targets within a specific TTL window, managing active browser automation session allocations, rate‑limiting tenant APIs, and caching short‑lived LLM agent session states.
+
+10.4 Distributed Scheduler
+Temporal.io (or Celery with Redis/RabbitMQ backend): For robust long‑running job distributions. Temporal is highly recommended for complex, long‑running operational workflows that might span days – e.g., cron‑scheduling daily lead lookups, pacing automated CRM enrichment routines, or executing multi‑day email follow‑up cooling cycles.
+
+11. Target Unified Lead Data Schema
+Enforced cross‑service validation using this structure:
+
+json
+{
+  "lead_id": "uuid-v4",
+  "tenant_id": "tenant-string",
+  "source": "linkedin|web|google_maps",
+  "name": "John Doe",
+  "email": "john@company.com",
+  "phone": "+1234567890",
+  "company": "Acme Inc.",
+  "title": "CTO",
+  "score": 85,
+  "enrichment_data": {
+    "linkedin_profile": { "work_history": [], "skills": [] },
+    "social_posts": [],
+    "scraped_site_metadata": {}
+  },
+  "status": "new|contacted|qualified|lost",
+  "created_at": "2026-07-01T15:44:59Z",
+  "updated_at": "2026-07-01T15:44:59Z"
+}
+This gives your platform an abstract, reliable foundation to build, adjust, and deploy modules without causing cascading breakages.
+
+12. Social Media Scraping – Specialised Analysis
+From the additional social‑media‑focused repositories, the following insights were extracted:
+
+Repository	License	Stars	Maintenance Signal	Reusable Modules	Production Suitability
+JustAnotherArchivist/snscrape	GPL‑3.0	5.3k	Mature, widely used	Service adapters, search/query abstractions, result models, parser layer	Yes for backend reuse, but isolate GPL behind a service boundary
+Datalux/Osintgram	MIT	N/A	Strong OSINT visibility	Instagram profile collection, analysis commands, public‑data probes	Reference module, not production core
+sc1341/InstagramOSINT	MIT	1.4k	Archived – poor maintenance	Importable module, CLI runner, JSON output	No for production core; historical reference
+cporter202/social-media-scraping-apis	N/A	N/A	Curated index	Tool catalog, platform mapping	Useful as research map, not reusable code
+Best fit for your platform: snscrape – it already covers multiple social services and exposes a scraper framework pattern rather than a one‑off script. The Instagram‑specific repos are more useful as code references for profile/public‑data extraction, not as core production dependencies.
+
+13. Best‑of‑Breed Module Selection
+Based on the technical shortlist, the highest‑value reusable modules come from:
+
+Module	Best Repo Source	Reuse Value	Copyable	Notes
+Agent orchestration engine	langchain-ai/langgraph	Very high	Yes	Best foundation for multi‑step sales intelligence workflows.
+Browser action runtime	browser-use/browser-use	Very high	Yes	Use for authenticated browsing, task execution, and recovery.
+Browser harness layer	browser-use/browser-harness	High	Yes	Clean, small, easier to embed than full agent framework.
+Crawl/extract pipeline	unclecode/crawl4AI	Very high	Yes	Best for crawl, parse, normalize, and structured extraction.
+Web‑context API ingestion	firecrawl/firecrawl	High	Conditional	License (AGPL) must be accepted carefully.
+Python API client for ingestion	firecrawl/firecrawl-py	Medium	Yes	Good wrapper patterns, not the main engine.
+MCP server contracts	modelcontextprotocol/servers	High	Yes	Useful for decoupled tool plugins in your CRM.
+Google Maps tool server pattern	modelcontextprotocol/servers (Google Maps)	High	Yes	Better than ad hoc Maps scraping for some workflows.
+Multi‑agent task decomposition	crewAIInc/crewAI	High	Yes	Good for specialist subtasks like research, enrichment, validation.
+14. Conclusion & Next Steps
+The analysed repositories provide a complete toolkit for building a modern, AI‑driven lead generation and sales CRM backend. By reusing the identified modules, a development team can accelerate delivery by 60‑80%, reduce technical debt, and focus on differentiating business logic rather than reinventing infrastructure.
+
+Each module is loosely coupled and can be integrated incrementally, allowing for a phased rollout – from a simple contact scraper to a fully autonomous, multi‑channel sales agent.

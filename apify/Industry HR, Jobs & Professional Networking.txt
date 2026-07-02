@@ -1,0 +1,88 @@
+[
+  {
+    "actor_id": "misceres/indeed-scraper",
+    "console_url": "http://console.apify.com/actors/hMvNSpz3JnHgl5jkh/input",
+    "name": "Indeed Scraper",
+    "description": "Scrapes job listings posted on Indeed (saved and sponsored). Tailored by location filters.",
+    "pricing": "$6.00 per 1,000 job listings",
+    "input_parameters": [
+      "Location",
+      "Search Term"
+    ],
+    "extracted_fields": [
+      "position",
+      "location",
+      "description"
+    ]
+  },
+  {
+    "actor_id": "harvestapi/linkedin-profile-search",
+    "console_url": "https://console.com/actors/M2FMdjRVeF1HPGFcc",
+    "name": "LinkedIn Profile Search Scraper No Cookies",
+    "description": "Searches for LinkedIn profiles using filters and extracts detailed profile maps without needing cookies or accounts.",
+    "pricing": "Pay per event",
+    "input_parameters": [
+      "Search Filters"
+    ],
+    "extracted_fields": [
+      "work experience",
+      "education history",
+      "location"
+    ]
+  },
+  {
+    "actor_id": "apimaestro/linkedin-profile-detail",
+    "console_url": "https://console.apify.com/actors/VhxlqQXRwhW8H5hNV",
+    "name": "Profile Details Scraper for LinkedIn + EMAIL (No Cookies)",
+    "description": "Scrapes public LinkedIn profile targets via their username to extract comprehensive background metadata and associated email addresses.",
+    "pricing": "$5.00 per 1,000 profile details + email searches",
+    "input_parameters": [
+      "Username"
+    ],
+    "extracted_fields": [
+      "work experience",
+      "education history",
+      "certifications",
+      "location details",
+      "email"
+    ]
+  },
+  {
+    "actor_id": "apimaestro/linkedin-posts-search-scraper-no-cookies",
+    "console_url": "http://console.apify.com/actors/5QnEH5N71IK2mFLrP",
+    "name": "Posts Search Scraper for LinkedIn | No Cookies",
+    "description": "Scrapes LinkedIn posts by keyword without an active login session. Sortable by relevance or date.",
+    "pricing": "$5.00 per 1,000 results",
+    "input_parameters": [
+      "Keyword",
+      "Sort By (Relevance or Date)"
+    ],
+    "extracted_fields": [
+      "post content",
+      "reactions",
+      "author details",
+      "media"
+    ]
+  },
+  {
+    "actor_id": "harvestapi/linkedin-profile-scraper",
+    "console_url": "https://console.apify.com/actors/LpVuK3Zozwuipa5bp",
+    "name": "LinkedIn Profile Scraper + Email ✅ No Cookies",
+    "description": "Bulk extracts deep dataset histories from LinkedIn profiles without cookie requirements.",
+    "pricing": "Pay per event",
+    "input_parameters": [],
+    "extracted_fields": [
+      "complete work experience",
+      "education history",
+      "skills"
+    ]
+  },
+  {
+    "actor_id": "apimaestro/linkedin-company-detail",
+    "console_url": "https://console.apify.com/actors/ipHw77V2NMJPy8sbS/",
+    "name": "Company Detail Scraper for LinkedIn (No Cookies)",
+    "description": "Scrapes structured company profile pages on LinkedIn without account cookies.",
+    "pricing": "$5.00 per 1,000 results (Platform usage included free)",
+    "input_parameters": []
+  }
+]

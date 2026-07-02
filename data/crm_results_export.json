@@ -1,0 +1,1399 @@
+{
+  "generated_at": "2026-07-01T22:58:09.154417+00:00",
+  "summary": {
+    "total": 95,
+    "hidden_gems": 2,
+    "good_deals": 6,
+    "average": 45,
+    "overpriced": 42,
+    "avg_appeal": 0.452,
+    "generated_at": "2026-07-01T22:49:02.707064+00:00"
+  },
+  "pipeline_stages": [
+    "dedupe",
+    "persist",
+    "lead_analysis",
+    "domain_intel",
+    "score",
+    "ai_enrich",
+    "match_deliver",
+    "learning"
+  ],
+  "categories": {
+    "Jobs": {
+      "how_it_works": {
+        "sources": "The Muse API + Arbeitnow (live), Remotive, Greenhouse/WWR/RemoteOK ATS, gov.uk sponsor register",
+        "fetch_logic": "JobSpy binary crashes on Windows (OpenSSL) -> routed to free live APIs. Search term 'software engineer' in Dubai/remote. UK scraper pulls the licensed-sponsor register (companies, not postings).",
+        "scoring_logic": "Net Purchasing Power (salary - local tax / cost-of-living) + Visa Probability (keyword 'sponsor/visa/relocation' = 100) + Job-Age freshness. Tax-free (UAE) + fresh + high-pay = Hot Lead.",
+        "scrapers_and_search_terms": [
+          {
+            "name": "Indeed UAE (JobSpy)",
+            "bot": "JobSpy Engine",
+            "mode": "API Gateway",
+            "module": "core.jobspy_client.fetch_jobspy",
+            "search_terms": {
+              "jobspy_params": {
+                "site_names": [
+                  "indeed"
+                ],
+                "search_term": "software engineer",
+                "location": "Dubai",
+                "country_indeed": "united arab emirates",
+                "results_wanted": 5
+              }
+            }
+          },
+          {
+            "name": "GulfTalent · Remotive",
+            "bot": "Remotive API",
+            "mode": "API Gateway",
+            "module": "core.gulftalent_client.fetch_gulftalent",
+            "search_terms": {
+              "gulftalent_params": {
+                "category": "software-dev",
+                "results_wanted": 5
+              }
+            }
+          },
+          {
+            "name": "Greenhouse · WWR · RemoteOK",
+            "bot": "ATS Aggregator",
+            "mode": "ATS APIs",
+            "module": "core.ats_client.fetch_ats_jobs",
+            "search_terms": {
+              "ats_params": {
+                "source": "all",
+                "companies": [
+                  "airbnb",
+                  "stripe",
+                  "shopify",
+                  "figma",
+                  "notion"
+                ],
+                "limit": 20
+              }
+            }
+          },
+          {
+            "name": "UK Sponsored Jobs",
+            "bot": "Gov.UK CSV",
+            "mode": "Gov CSV",
+            "module": "core.uk_jobs_client.fetch_uk_sponsored_jobs",
+            "search_terms": {
+              "uk_jobs_params": {
+                "keywords": "software engineer",
+                "max_pages": 1,
+                "results_wanted": 5
+              }
+            }
+          }
+        ]
+      },
+      "result_count": 23,
+      "results": [
+        {
+          "title": "Junior Software Engineer (m/w/d)",
+          "appeal_score": 0.73,
+          "rating": "Good Deal",
+          "why": "mentions visa/sponsorship",
+          "flags": [
+            "Visa Sponsorship Likely"
+          ],
+          "source": "arbeitnow",
+          "source_url": "https://www.arbeitnow.com/jobs/companies/digitale-leute-school/junior-software-engineer-munich-156120",
+          "location": "Munich"
+        },
+        {
+          "title": " Asian African Foods Ltd  — UK Licensed Sponsor",
+          "appeal_score": 0.73,
+          "rating": "Good Deal",
+          "why": "mentions visa/sponsorship",
+          "flags": [
+            "Visa Sponsorship Likely"
+          ],
+          "source": null,
+          "source_url": "https://www.gov.uk/government/publications/register-of-licensed-sponsors-workers",
+          "location": " London  , United Kingdom"
+        },
+        {
+          "title": " BOLTWHIZ LIMITED — UK Licensed Sponsor",
+          "appeal_score": 0.73,
+          "rating": "Good Deal",
+          "why": "mentions visa/sponsorship",
+          "flags": [
+            "Visa Sponsorship Likely"
+          ],
+          "source": null,
+          "source_url": "https://www.gov.uk/government/publications/register-of-licensed-sponsors-workers",
+          "location": "Dunfermline, United Kingdom"
+        },
+        {
+          "title": " Bossmans Retail Abergavenny Ltd — UK Licensed Sponsor",
+          "appeal_score": 0.73,
+          "rating": "Good Deal",
+          "why": "mentions visa/sponsorship",
+          "flags": [
+            "Visa Sponsorship Likely"
+          ],
+          "source": null,
+          "source_url": "https://www.gov.uk/government/publications/register-of-licensed-sponsors-workers",
+          "location": "Abergavenny, United Kingdom"
+        },
+        {
+          "title": " BRANOS OXFORD LTD T/A LILO — UK Licensed Sponsor",
+          "appeal_score": 0.73,
+          "rating": "Good Deal",
+          "why": "mentions visa/sponsorship",
+          "flags": [
+            "Visa Sponsorship Likely"
+          ],
+          "source": null,
+          "source_url": "https://www.gov.uk/government/publications/register-of-licensed-sponsors-workers",
+          "location": "Oxford, United Kingdom"
+        },
+        {
+          "title": "Sr. Embedded Software Engineer, OS/Platform (Starlink)",
+          "appeal_score": 0.555,
+          "rating": "Average",
+          "why": "Limited salary/visa signal",
+          "flags": [],
+          "source": "themuse_live",
+          "source_url": "https://www.themuse.com/jobs/spacex/sr-embedded-software-engineer-osplatform-starlink",
+          "location": "Lockhart, TX"
+        },
+        {
+          "title": "Supplier Development Engineer, Mechanical (Starship)",
+          "appeal_score": 0.555,
+          "rating": "Average",
+          "why": "Limited salary/visa signal",
+          "flags": [],
+          "source": "themuse_live",
+          "source_url": "https://www.themuse.com/jobs/spacex/supplier-development-engineer-mechanical-starship-c2f42a",
+          "location": "El Segundo, CA"
+        },
+        {
+          "title": "Test Engineer, Propulsion Components (Starship)",
+          "appeal_score": 0.555,
+          "rating": "Average",
+          "why": "Limited salary/visa signal",
+          "flags": [],
+          "source": "themuse_live",
+          "source_url": "https://www.themuse.com/jobs/spacex/test-engineer-propulsion-components-starship-451667",
+          "location": "El Segundo, CA"
+        },
+        {
+          "title": "Sr. Software Engineer (Platform Team)",
+          "appeal_score": 0.555,
+          "rating": "Average",
+          "why": "Limited salary/visa signal",
+          "flags": [],
+          "source": "themuse_live",
+          "source_url": "https://www.themuse.com/jobs/spacex/sr-software-engineer-platform-team-511484",
+          "location": "Brownsville, TX, El Segundo, CA, Lockhart, TX, Palo Alto, CA, Redmond, WA, Sunnyvale, CA"
+        },
+        {
+          "title": "Drive with Lyft - Signing up is Easy",
+          "appeal_score": 0.555,
+          "rating": "Average",
+          "why": "Limited salary/visa signal",
+          "flags": [],
+          "source": "themuse_live",
+          "source_url": "https://www.themuse.com/jobs/lyft/drive-with-lyft-signing-up-is-easy-90bfd5",
+          "location": "Las Vegas, NV"
+        },
+        {
+          "title": "Communications Manager",
+          "appeal_score": 0.555,
+          "rating": "Average",
+          "why": "Limited salary/visa signal",
+          "flags": [],
+          "source": "remotive",
+          "source_url": "https://remotive.com/remote-jobs/communications/communications-manager-2090985",
+          "location": "LATAM, Europe"
+        },
+        {
+          "title": "Client Success Coach (CSM)",
+          "appeal_score": 0.555,
+          "rating": "Average",
+          "why": "Limited salary/visa signal",
+          "flags": [],
+          "source": "remotive",
+          "source_url": "https://remotive.com/remote-jobs/customer-service/client-success-coach-csm-2091039",
+          "location": "Northern America, Europe, South Africa"
+        },
+        {
+          "title": "Sales Assistant ",
+          "appeal_score": 0.555,
+          "rating": "Average",
+          "why": "Limited salary/visa signal",
+          "flags": [],
+          "source": "remotive",
+          "source_url": "https://remotive.com/remote-jobs/sales/sales-assistant-2091038",
+          "location": "USA"
+        },
+        {
+          "title": "Mid/Senior AI Cinematic Video Editor",
+          "appeal_score": 0.555,
+          "rating": "Average",
+          "why": "Limited salary/visa signal",
+          "flags": [],
+          "source": "remotive",
+          "source_url": "https://remotive.com/remote-jobs/artificial-intelligence/mid-senior-ai-cinematic-video-editor-2091035",
+          "location": "Worldwide"
+        },
+        {
+          "title": "Senior Product Manager",
+          "appeal_score": 0.555,
+          "rating": "Average",
+          "why": "Limited salary/visa signal",
+          "flags": [],
+          "source": "remotive",
+          "source_url": "https://remotive.com/remote-jobs/product/senior-product-manager-2090984",
+          "location": "Americas, Europe, Asia, Oceania"
+        },
+        {
+          "title": "Acquisition Manager",
+          "appeal_score": 0.555,
+          "rating": "Average",
+          "why": "Limited salary/visa signal",
+          "flags": [],
+          "source": "greenhouse",
+          "source_url": "https://careers.airbnb.com/positions/7995199?gh_jid=7995199",
+          "location": "Paris, France"
+        },
+        {
+          "title": "Acquisition Manager",
+          "appeal_score": 0.555,
+          "rating": "Average",
+          "why": "Limited salary/visa signal",
+          "flags": [],
+          "source": "greenhouse",
+          "source_url": "https://careers.airbnb.com/positions/7996480?gh_jid=7996480",
+          "location": "Milan, Italy"
+        },
+        {
+          "title": "Acquisition Manager",
+          "appeal_score": 0.555,
+          "rating": "Average",
+          "why": "Limited salary/visa signal",
+          "flags": [],
+          "source": "greenhouse",
+          "source_url": "https://careers.airbnb.com/positions/7995153?gh_jid=7995153",
+          "location": "Berlin, Germany "
+        },
+        {
+          "title": "AI Engineer, Community Support Engineering",
+          "appeal_score": 0.555,
+          "rating": "Average",
+          "why": "Limited salary/visa signal",
+          "flags": [],
+          "source": "greenhouse",
+          "source_url": "https://careers.airbnb.com/positions/7946288?gh_jid=7946288",
+          "location": "China - Remote"
+        },
+        {
+          "title": "Account Executive, AI Sales (Grower)",
+          "appeal_score": 0.555,
+          "rating": "Average",
+          "why": "Limited salary/visa signal",
+          "flags": [],
+          "source": "greenhouse",
+          "source_url": "https://stripe.com/jobs/search?gh_jid=7954688",
+          "location": "San Francisco, CA"
+        },
+        {
+          "title": "Account Executive, Cross Border China",
+          "appeal_score": 0.555,
+          "rating": "Average",
+          "why": "Limited salary/visa signal",
+          "flags": [],
+          "source": "greenhouse",
+          "source_url": "https://stripe.com/jobs/search?gh_jid=7893199",
+          "location": "Singapore"
+        },
+        {
+          "title": "Account Executive - Enterprise, Grower",
+          "appeal_score": 0.555,
+          "rating": "Average",
+          "why": "Limited salary/visa signal",
+          "flags": [],
+          "source": "greenhouse",
+          "source_url": "https://stripe.com/jobs/search?gh_jid=7993151",
+          "location": "US-Remote, US-San Francisco, US-Chicago, US-New York, US-Seattle, US-Texas"
+        },
+        {
+          "title": "Account Executive, Enterprise - Grower",
+          "appeal_score": 0.555,
+          "rating": "Average",
+          "why": "Limited salary/visa signal",
+          "flags": [],
+          "source": "greenhouse",
+          "source_url": "https://stripe.com/jobs/search?gh_jid=7997555",
+          "location": "US-New York, US-Chicago, US-Atlanta, US-San Francisco, US-Texas"
+        }
+      ]
+    },
+    "University": {
+      "how_it_works": {
+        "sources": "HIPO Labs API, data.gov College Scorecard, RSS (PIE/ICEF/StudyIntl), static THE/QS rankings, Global Admissions static DB",
+        "fetch_logic": "Query by country/keyword (UAE, 'engineering', MIT/Harvard/Oxford). Global Admissions returns region guides (UK/US/CA/EU/AU/GCC).",
+        "scoring_logic": "Leniency Index (holistic/work-exp = CGPA-friendly) + ROI (grad salary/tuition) + Scholarship density + Deadline urgency. PHASE 3: academic_intel flags late-intake (Clearing/NC-frei/Terzo bando) +0.15 and cash-stipend/free-tuition +0.15.",
+        "scrapers_and_search_terms": [
+          {
+            "name": "HIPO Labs · UAE Universities",
+            "bot": "HIPO API",
+            "mode": "API Gateway",
+            "module": "core.university_client.fetch_university_data",
+            "search_terms": {
+              "university_params": {
+                "source": "hipo",
+                "country": "United Arab Emirates",
+                "limit": 5
+              }
+            }
+          },
+          {
+            "name": "THE World Rankings",
+            "bot": "Wikipedia Mirror",
+            "mode": "Static Data",
+            "module": "core.university_client.fetch_university_data",
+            "search_terms": {
+              "university_params": {
+                "source": "the_rankings",
+                "limit": 5
+              }
+            }
+          },
+          {
+            "name": "QS World Rankings",
+            "bot": "QS Static",
+            "mode": "Static Data",
+            "module": "core.qs_client.fetch_qs_data",
+            "search_terms": {
+              "qs_params": {
+                "source": "world",
+                "limit": 5
+              }
+            }
+          },
+          {
+            "name": "College Scorecard · US",
+            "bot": "data.gov API",
+            "mode": "API Gateway",
+            "module": "core.university_client.fetch_university_data",
+            "search_terms": {
+              "university_params": {
+                "source": "scorecard",
+                "keyword": "engineering",
+                "limit": 5
+              }
+            }
+          },
+          {
+            "name": "University Admissions",
+            "bot": "Scorecard API",
+            "mode": "API Gateway",
+            "module": "core.admissions_client.fetch_admissions_data",
+            "search_terms": {
+              "admissions_params": {
+                "source": "all",
+                "universities": [
+                  "MIT",
+                  "Harvard",
+                  "Oxford"
+                ],
+                "limit": 5
+              }
+            }
+          },
+          {
+            "name": "Admissions News · PIE · ICEF",
+            "bot": "RSS Aggregator",
+            "mode": "RSS Feed",
+            "module": "core.admissions_news_client.fetch_admissions_news",
+            "search_terms": {
+              "news_params": {
+                "sources": [
+                  "pie",
+                  "icef",
+                  "study_intl"
+                ],
+                "limit": 15
+              }
+            }
+          },
+          {
+            "name": "Global Admissions · UK / US / Canada",
+            "bot": "HIPO + Static DB",
+            "mode": "Static DB",
+            "module": "core.global_admissions_client.fetch_global_admissions",
+            "search_terms": {
+              "global_admissions_params": {
+                "regions": [
+                  "uk",
+                  "us",
+                  "canada"
+                ],
+                "limit": 20
+              }
+            }
+          },
+          {
+            "name": "Global Admissions · EU / AU / GCC",
+            "bot": "HIPO + Static DB",
+            "mode": "Static DB",
+            "module": "core.global_admissions_client.fetch_global_admissions",
+            "search_terms": {
+              "global_admissions_params": {
+                "regions": [
+                  "europe",
+                  "ireland",
+                  "australia",
+                  "gcc"
+                ],
+                "limit": 20
+              }
+            }
+          }
+        ]
+      },
+      "result_count": 38,
+      "results": [
+        {
+          "title": "United Kingdom — University Admissions Guide",
+          "appeal_score": 0.606,
+          "rating": "Average",
+          "why": "open-now late intake · accepts average grades",
+          "flags": [
+            "🔓 Late intake (clearing, late application)",
+            "CGPA-Friendly"
+          ],
+          "source": null,
+          "source_url": "https://www.ucas.com/apply",
+          "location": "United Kingdom"
+        },
+        {
+          "title": "United Kingdom — Late Applications Deadline: 30 June",
+          "appeal_score": 0.606,
+          "rating": "Average",
+          "why": "open-now late intake · accepts average grades",
+          "flags": [
+            "🔓 Late intake (late application)",
+            "CGPA-Friendly"
+          ],
+          "source": null,
+          "source_url": "https://www.ucas.com/apply",
+          "location": "United Kingdom"
+        },
+        {
+          "title": "United Kingdom — Clearing Deadline: July – September",
+          "appeal_score": 0.606,
+          "rating": "Average",
+          "why": "open-now late intake · accepts average grades",
+          "flags": [
+            "🔓 Late intake (clearing)",
+            "CGPA-Friendly"
+          ],
+          "source": null,
+          "source_url": "https://www.ucas.com/apply",
+          "location": "United Kingdom"
+        },
+        {
+          "title": "Europe (Germany / Netherlands / France) — University Admissions Guide",
+          "appeal_score": 0.522,
+          "rating": "Average",
+          "why": "accepts average grades · apply within 13 days",
+          "flags": [
+            "CGPA-Friendly",
+            "Funding available",
+            "Deadline in 13d"
+          ],
+          "source": null,
+          "source_url": "https://www.daad.de/en/study-and-research-in-germany/",
+          "location": "Europe (Germany / Netherlands / France)"
+        },
+        {
+          "title": "OECD: International students may be underinformed about job prospects in top destinations",
+          "appeal_score": 0.456,
+          "rating": "Average",
+          "why": "accepts average grades",
+          "flags": [
+            "CGPA-Friendly"
+          ],
+          "source": "ICEF Monitor",
+          "source_url": "https://monitor.icef.com/2026/07/oecd-international-students-may-be-underinformed-about-job-prospects-in-top-destinations/",
+          "location": "Global"
+        },
+        {
+          "title": "United Kingdom — Oxbridge & Medicine Deadline: 15 October",
+          "appeal_score": 0.456,
+          "rating": "Average",
+          "why": "accepts average grades",
+          "flags": [
+            "CGPA-Friendly"
+          ],
+          "source": null,
+          "source_url": "https://www.ucas.com/apply",
+          "location": "United Kingdom"
+        },
+        {
+          "title": "United Kingdom — Standard UCAS Deadline: 29 January",
+          "appeal_score": 0.456,
+          "rating": "Average",
+          "why": "accepts average grades",
+          "flags": [
+            "CGPA-Friendly"
+          ],
+          "source": null,
+          "source_url": "https://www.ucas.com/apply",
+          "location": "United Kingdom"
+        },
+        {
+          "title": "Mohamed bin Zayed University of Artificial Intelligence (MBZUAI)",
+          "appeal_score": 0.455,
+          "rating": "Average",
+          "why": "It offers world-class AI education with full scholarships.",
+          "flags": [
+            "ðµ Cash stipend",
+            "Funding available"
+          ],
+          "source": "hipo_api",
+          "source_url": "https://mbzuai.ac.ae/",
+          "location": "United Arab Emirates, Abu Dhabi"
+        },
+        {
+          "title": "American College Of Dubai",
+          "appeal_score": 0.455,
+          "rating": "Average",
+          "why": "It provides international education in the UAE.",
+          "flags": [
+            "ðµ Cash stipend",
+            "Funding available"
+          ],
+          "source": "hipo_api",
+          "source_url": "http://www.acd.ac.ae/",
+          "location": "United Arab Emirates, None"
+        },
+        {
+          "title": "Abu Dhabi University",
+          "appeal_score": 0.455,
+          "rating": "Average",
+          "why": "It provides international academic exposure.",
+          "flags": [
+            "ðµ Cash stipend",
+            "Funding available"
+          ],
+          "source": "hipo_api",
+          "source_url": "http://www.adu.ac.ae/",
+          "location": "United Arab Emirates, None"
+        },
+        {
+          "title": "Al Ghurair University",
+          "appeal_score": 0.455,
+          "rating": "Average",
+          "why": "It provides access to a unique cultural and academic environment.",
+          "flags": [
+            "ðµ Cash stipend",
+            "Funding available"
+          ],
+          "source": "hipo_api",
+          "source_url": "http://www.agu.ae/",
+          "location": "United Arab Emirates, None"
+        },
+        {
+          "title": "Ajman University",
+          "appeal_score": 0.455,
+          "rating": "Average",
+          "why": "Ajman University offers a unique cultural experience in the United Arab Emirates.",
+          "flags": [
+            "ðµ Cash stipend",
+            "Funding available"
+          ],
+          "source": "hipo_api",
+          "source_url": "http://www.ajman.ac.ae/",
+          "location": "United Arab Emirates, None"
+        },
+        {
+          "title": "Harvard University",
+          "appeal_score": 0.455,
+          "rating": "Average",
+          "why": "Ivy League education",
+          "flags": [
+            "ðµ Cash stipend",
+            "Funding available"
+          ],
+          "source": "college_scorecard_fallback",
+          "source_url": "https://www.harvard.edu",
+          "location": "Cambridge, MA, USA"
+        },
+        {
+          "title": "MIT",
+          "appeal_score": 0.455,
+          "rating": "Average",
+          "why": "It's a prestigious institution.",
+          "flags": [
+            "ðµ Cash stipend",
+            "Funding available"
+          ],
+          "source": "college_scorecard_fallback",
+          "source_url": "https://web.mit.edu",
+          "location": "Cambridge, MA, USA"
+        },
+        {
+          "title": "Stanford University",
+          "appeal_score": 0.455,
+          "rating": "Average",
+          "why": "Highly selective institution with strong academic reputation",
+          "flags": [
+            "ðµ Cash stipend",
+            "Funding available"
+          ],
+          "source": "college_scorecard_fallback",
+          "source_url": "https://www.stanford.edu",
+          "location": "Stanford, CA, USA"
+        },
+        {
+          "title": "Europe (Germany / Netherlands / France) — Winter Semester (main) Deadline: 15 April – 15 July",
+          "appeal_score": 0.385,
+          "rating": "Overpriced",
+          "why": "apply within 13 days",
+          "flags": [
+            "Deadline in 13d"
+          ],
+          "source": null,
+          "source_url": "https://www.daad.de/en/study-and-research-in-germany/",
+          "location": "Europe (Germany / Netherlands / France)"
+        },
+        {
+          "title": "Top Flemish universities hike non-EU tuition fees",
+          "appeal_score": 0.343,
+          "rating": "Overpriced",
+          "why": "Standard admissions profile",
+          "flags": [],
+          "source": "PIE News",
+          "source_url": "https://thepienews.com/top-flemish-universities-hike-non-eu-tuition-fees/",
+          "location": "Global"
+        },
+        {
+          "title": "#1 University of Oxford",
+          "appeal_score": 0.305,
+          "rating": "Overpriced",
+          "why": "Standard admissions profile",
+          "flags": [],
+          "source": "the_rankings_static",
+          "source_url": "https://www.timeshighereducation.com/world-university-rankings",
+          "location": "UK"
+        },
+        {
+          "title": "#1 MIT",
+          "appeal_score": 0.305,
+          "rating": "Overpriced",
+          "why": "Standard admissions profile",
+          "flags": [],
+          "source": "qs_world_static",
+          "source_url": "https://www.topuniversities.com/world-university-rankings",
+          "location": "USA"
+        },
+        {
+          "title": "California Institute of Technology",
+          "appeal_score": 0.305,
+          "rating": "Overpriced",
+          "why": "Standard admissions profile",
+          "flags": [],
+          "source": "college_scorecard_fallback",
+          "source_url": "https://www.caltech.edu",
+          "location": "Pasadena, CA, USA"
+        },
+        {
+          "title": "Princeton University",
+          "appeal_score": 0.305,
+          "rating": "Overpriced",
+          "why": "Standard admissions profile",
+          "flags": [],
+          "source": "college_scorecard_fallback",
+          "source_url": "https://www.princeton.edu",
+          "location": "Princeton, NJ, USA"
+        },
+        {
+          "title": "Akademi Farmasi Mitra Sehat Mandiri Sidoarjo — University Info",
+          "appeal_score": 0.305,
+          "rating": "Overpriced",
+          "why": "Standard admissions profile",
+          "flags": [],
+          "source": "hipo_api",
+          "source_url": "http://www.akfarmitseda.ac.id/",
+          "location": "Indonesia, None"
+        },
+        {
+          "title": "Lalit Narayan Mithila University — University Info",
+          "appeal_score": 0.305,
+          "rating": "Overpriced",
+          "why": "Standard admissions profile",
+          "flags": [],
+          "source": "hipo_api",
+          "source_url": "http://lnmu.bih.nic.in/",
+          "location": "India, None"
+        },
+        {
+          "title": "Netherlands reports first-ever decrease in foreign enrolment for 2025/26",
+          "appeal_score": 0.305,
+          "rating": "Overpriced",
+          "why": "Standard admissions profile",
+          "flags": [],
+          "source": "ICEF Monitor",
+          "source_url": "https://monitor.icef.com/2026/06/netherlands-reports-first-ever-decrease-in-foreign-enrolment-for-2025-26/",
+          "location": "Global"
+        },
+        {
+          "title": "ICEF Podcast: “Good, steady, and disciplined&#8221;: New Zealand&#8217;s plan for sustainable international enrolment growth",
+          "appeal_score": 0.305,
+          "rating": "Overpriced",
+          "why": "Standard admissions profile",
+          "flags": [],
+          "source": "ICEF Monitor",
+          "source_url": "https://monitor.icef.com/2026/07/icef-podcast-good-steady-and-disciplined-new-zealands-plan-for-sustainable-international-enrolment-growth/",
+          "location": "Global"
+        },
+        {
+          "title": "From not liking school to pursuing a Psychology PhD at Stanford University",
+          "appeal_score": 0.305,
+          "rating": "Overpriced",
+          "why": "Standard admissions profile",
+          "flags": [],
+          "source": "Study International",
+          "source_url": "https://studyinternational.com/news/surprising-path-psychology-phd-hating-school/",
+          "location": "Global"
+        },
+        {
+          "title": "University of Guelph: Why the University of Guelph MEng is one of Canada’s smartest career investments",
+          "appeal_score": 0.305,
+          "rating": "Overpriced",
+          "why": "Standard admissions profile",
+          "flags": [],
+          "source": "Study International",
+          "source_url": "https://studyinternational.com/news/university-of-guelph-why-the-university-of-guelph-meng-is-one-of-canadas-smartest-career-investments/",
+          "location": "Global"
+        },
+        {
+          "title": "&#8220;Competitor countries will be celebrating&#8221;: sector bodies slam Australia&#8217;s visa fee hike",
+          "appeal_score": 0.305,
+          "rating": "Overpriced",
+          "why": "Standard admissions profile",
+          "flags": [],
+          "source": "PIE News",
+          "source_url": "https://thepienews.com/competitor-countries-will-be-celebrating-sector-bodies-slam-australias-visa-fee-hike/",
+          "location": "Global"
+        },
+        {
+          "title": "Lewis University: Become a strategic leader in project management",
+          "appeal_score": 0.305,
+          "rating": "Overpriced",
+          "why": "Standard admissions profile",
+          "flags": [],
+          "source": "Study International",
+          "source_url": "https://studyinternational.com/news/lewis-university-become-a-strategic-leader-in-project-management/",
+          "location": "Global"
+        },
+        {
+          "title": "Oxford — United Kingdom",
+          "appeal_score": 0.305,
+          "rating": "Overpriced",
+          "why": "Standard admissions profile",
+          "flags": [],
+          "source": null,
+          "source_url": "https://www.ucas.com/apply",
+          "location": "United Kingdom"
+        },
+        {
+          "title": "Cambridge — United Kingdom",
+          "appeal_score": 0.305,
+          "rating": "Overpriced",
+          "why": "Standard admissions profile",
+          "flags": [],
+          "source": null,
+          "source_url": "https://www.ucas.com/apply",
+          "location": "United Kingdom"
+        },
+        {
+          "title": "Imperial College London — United Kingdom",
+          "appeal_score": 0.305,
+          "rating": "Overpriced",
+          "why": "Standard admissions profile",
+          "flags": [],
+          "source": null,
+          "source_url": "https://www.ucas.com/apply",
+          "location": "United Kingdom"
+        },
+        {
+          "title": "Europe (Germany / Netherlands / France) — Summer Semester Deadline: 15 October – 15 January",
+          "appeal_score": 0.305,
+          "rating": "Overpriced",
+          "why": "Standard admissions profile",
+          "flags": [],
+          "source": null,
+          "source_url": "https://www.daad.de/en/study-and-research-in-germany/",
+          "location": "Europe (Germany / Netherlands / France)"
+        },
+        {
+          "title": "Europe (Germany / Netherlands / France) — Uni-Assist Germany Deadline: Varies per university, submit 6 weeks before deadline",
+          "appeal_score": 0.305,
+          "rating": "Overpriced",
+          "why": "Standard admissions profile",
+          "flags": [],
+          "source": null,
+          "source_url": "https://www.daad.de/en/study-and-research-in-germany/",
+          "location": "Europe (Germany / Netherlands / France)"
+        },
+        {
+          "title": "TU Munich — Europe (Germany / Netherlands / France)",
+          "appeal_score": 0.305,
+          "rating": "Overpriced",
+          "why": "Standard admissions profile",
+          "flags": [],
+          "source": null,
+          "source_url": "https://www.daad.de/en/study-and-research-in-germany/",
+          "location": "Europe (Germany / Netherlands / France)"
+        },
+        {
+          "title": "LMU Munich — Europe (Germany / Netherlands / France)",
+          "appeal_score": 0.305,
+          "rating": "Overpriced",
+          "why": "Standard admissions profile",
+          "flags": [],
+          "source": null,
+          "source_url": "https://www.daad.de/en/study-and-research-in-germany/",
+          "location": "Europe (Germany / Netherlands / France)"
+        },
+        {
+          "title": "Heidelberg — Europe (Germany / Netherlands / France)",
+          "appeal_score": 0.305,
+          "rating": "Overpriced",
+          "why": "Standard admissions profile",
+          "flags": [],
+          "source": null,
+          "source_url": "https://www.daad.de/en/study-and-research-in-germany/",
+          "location": "Europe (Germany / Netherlands / France)"
+        },
+        {
+          "title": "TU Berlin — Europe (Germany / Netherlands / France)",
+          "appeal_score": 0.305,
+          "rating": "Overpriced",
+          "why": "Standard admissions profile",
+          "flags": [],
+          "source": null,
+          "source_url": "https://www.daad.de/en/study-and-research-in-germany/",
+          "location": "Europe (Germany / Netherlands / France)"
+        }
+      ]
+    },
+    "Visa": {
+      "how_it_works": {
+        "sources": "travel.state.gov (US bulletin), IRCC (Canada PR), Passport Index GitHub CSV, EU migration stats API, Wikipedia",
+        "fetch_logic": "Query by passport (Pakistani/Indian/UAE) + source. Returns visa bulletins, PR processing, passport mobility indices.",
+        "scoring_logic": "PHASE 3: visa_intel friction score 0-10 (no job offer + points-based + centralized + fast-track = low friction). Passport-neutral + new-route boosts. Requires-job-offer penalty.",
+        "scrapers_and_search_terms": [
+          {
+            "name": "US Visa Bulletin",
+            "bot": "DOS Website",
+            "mode": "HTML Parse",
+            "module": "core.visa_client.fetch_visa_data",
+            "search_terms": {
+              "visa_params": {
+                "source": "us_bulletin"
+              }
+            }
+          },
+          {
+            "name": "Canada PR Processing",
+            "bot": "IRCC Website",
+            "mode": "HTML Parse",
+            "module": "core.visa_client.fetch_visa_data",
+            "search_terms": {
+              "visa_params": {
+                "source": "canada_pr"
+              }
+            }
+          },
+          {
+            "name": "Visa Requirements Index",
+            "bot": "Passport Index CSV",
+            "mode": "CSV + Fallback",
+            "module": "core.visa_client.fetch_visa_data",
+            "search_terms": {
+              "visa_params": {
+                "passports": [
+                  "pakistani",
+                  "indian"
+                ]
+              }
+            }
+          },
+          {
+            "name": "Passport Index · Henley",
+            "bot": "GitHub CSV",
+            "mode": "GitHub CSV",
+            "module": "core.passport_index_client.fetch_passport_index",
+            "search_terms": {
+              "passport_params": {
+                "passports": [
+                  "Pakistan",
+                  "India",
+                  "United Arab Emirates"
+                ],
+                "limit": 5
+              }
+            }
+          },
+          {
+            "name": "EU Schengen Visa",
+            "bot": "EU Stats API",
+            "mode": "API Gateway",
+            "module": "core.eu_visa_client.fetch_eu_visa_data",
+            "search_terms": {
+              "eu_visa_params": {
+                "source": "stats"
+              }
+            }
+          }
+        ]
+      },
+      "result_count": 16,
+      "results": [
+        {
+          "title": "Visa Requirements — Indian Passport",
+          "appeal_score": 1.0,
+          "rating": "Hidden Gem",
+          "why": "Hassle-free travel to many destinations",
+          "flags": [
+            "ð¢ Low friction (10.0/10)",
+            "Passport-neutral"
+          ],
+          "source": null,
+          "source_url": "https://en.wikipedia.org/wiki/Visa_requirements_for_indian_citizens",
+          "location": "Global"
+        },
+        {
+          "title": "Visa Requirements — Pakistani Passport",
+          "appeal_score": 0.88,
+          "rating": "Hidden Gem",
+          "why": "Visa-on-arrival options simplify travel.",
+          "flags": [
+            "ð¢ Low friction (8.0/10)",
+            "Passport-neutral"
+          ],
+          "source": null,
+          "source_url": "https://en.wikipedia.org/wiki/Visa_requirements_for_pakistani_citizens",
+          "location": "Global"
+        },
+        {
+          "title": "EU Schengen Visa Policy",
+          "appeal_score": 0.68,
+          "rating": "Good Deal",
+          "why": "Centralized processing streamlines applications",
+          "flags": [
+            "Passport-neutral"
+          ],
+          "source": "wikipedia",
+          "source_url": "https://en.wikipedia.org/wiki/Visa_policy_of_the_Schengen_Area",
+          "location": "European Union"
+        },
+        {
+          "title": "US Visa Bulletin — July 2026",
+          "appeal_score": 0.4,
+          "rating": "Overpriced",
+          "why": "no job offer required",
+          "flags": [],
+          "source": null,
+          "source_url": "https://travel.state.gov/content/travel/en/legal/visa-law0/visa-bulletin/2026/visa-bulletin-for-july-2026.html",
+          "location": "United States"
+        },
+        {
+          "title": "Canada PR Processing Time: 24 months",
+          "appeal_score": 0.4,
+          "rating": "Overpriced",
+          "why": "no job offer required",
+          "flags": [],
+          "source": null,
+          "source_url": "https://www.canada.ca/en/immigration-refugees-citizenship/services/application/check-processing-times.html",
+          "location": "Canada"
+        },
+        {
+          "title": "Canada PR Processing Time: 12 months",
+          "appeal_score": 0.4,
+          "rating": "Overpriced",
+          "why": "no job offer required",
+          "flags": [],
+          "source": null,
+          "source_url": "https://www.canada.ca/en/immigration-refugees-citizenship/services/application/check-processing-times.html",
+          "location": "Canada"
+        },
+        {
+          "title": "Passport Index — Pakistan",
+          "appeal_score": 0.4,
+          "rating": "Overpriced",
+          "why": "no job offer required",
+          "flags": [],
+          "source": null,
+          "source_url": "https://github.com/ilyankou/passport-index-dataset",
+          "location": "Pakistan"
+        },
+        {
+          "title": "Schengen Visa — Austria",
+          "appeal_score": 0.4,
+          "rating": "Overpriced",
+          "why": "no job offer required",
+          "flags": [],
+          "source": null,
+          "source_url": "https://en.wikipedia.org/wiki/Visa_policy_of_the_Schengen_Area",
+          "location": "Austria"
+        },
+        {
+          "title": "Schengen Visa — Belgium",
+          "appeal_score": 0.4,
+          "rating": "Overpriced",
+          "why": "no job offer required",
+          "flags": [],
+          "source": null,
+          "source_url": "https://en.wikipedia.org/wiki/Visa_policy_of_the_Schengen_Area",
+          "location": "Belgium"
+        },
+        {
+          "title": "Schengen Visa — Czech Republic",
+          "appeal_score": 0.4,
+          "rating": "Overpriced",
+          "why": "no job offer required",
+          "flags": [],
+          "source": null,
+          "source_url": "https://en.wikipedia.org/wiki/Visa_policy_of_the_Schengen_Area",
+          "location": "Czech Republic"
+        },
+        {
+          "title": "Schengen Visa — Denmark",
+          "appeal_score": 0.4,
+          "rating": "Overpriced",
+          "why": "no job offer required",
+          "flags": [],
+          "source": null,
+          "source_url": "https://en.wikipedia.org/wiki/Visa_policy_of_the_Schengen_Area",
+          "location": "Denmark"
+        },
+        {
+          "title": "Schengen Visa — Estonia",
+          "appeal_score": 0.4,
+          "rating": "Overpriced",
+          "why": "no job offer required",
+          "flags": [],
+          "source": null,
+          "source_url": "https://en.wikipedia.org/wiki/Visa_policy_of_the_Schengen_Area",
+          "location": "Estonia"
+        },
+        {
+          "title": "Schengen Visa — Finland",
+          "appeal_score": 0.4,
+          "rating": "Overpriced",
+          "why": "no job offer required",
+          "flags": [],
+          "source": null,
+          "source_url": "https://en.wikipedia.org/wiki/Visa_policy_of_the_Schengen_Area",
+          "location": "Finland"
+        },
+        {
+          "title": "Schengen Visa — France",
+          "appeal_score": 0.4,
+          "rating": "Overpriced",
+          "why": "no job offer required",
+          "flags": [],
+          "source": null,
+          "source_url": "https://en.wikipedia.org/wiki/Visa_policy_of_the_Schengen_Area",
+          "location": "France"
+        },
+        {
+          "title": "Passport Index — India",
+          "appeal_score": 0.0,
+          "rating": "Overpriced",
+          "why": "None available",
+          "flags": [],
+          "source": null,
+          "source_url": "https://github.com/ilyankou/passport-index-dataset",
+          "location": "India"
+        },
+        {
+          "title": "Passport Index — United Arab Emirates",
+          "appeal_score": 0.0,
+          "rating": "Overpriced",
+          "why": "Centralized processing not available",
+          "flags": [],
+          "source": null,
+          "source_url": "https://github.com/ilyankou/passport-index-dataset",
+          "location": "United Arab Emirates"
+        }
+      ]
+    },
+    "Automobiles": {
+      "how_it_works": {
+        "sources": "NHTSA VPIC API + fueleconomy.gov (EPA specs)",
+        "fetch_logic": "Query by make (Toyota, BMW) + year. Real models + engine/MPG. NOTE: no pricing available from these gov sources.",
+        "scoring_logic": "Deal Z-score = (market_median - price)/std over historical baseline. LIMITATION: NHTSA has no prices -> all cars default to 0.50.",
+        "scrapers_and_search_terms": [
+          {
+            "name": "NHTSA Vehicle DB · Toyota",
+            "bot": "NHTSA API",
+            "mode": "API Gateway",
+            "module": "core.car_auction_client.fetch_car_auction_data",
+            "search_terms": {
+              "car_auction_params": {
+                "source": "nhtsa",
+                "make": "Toyota",
+                "results_wanted": 5
+              }
+            }
+          },
+          {
+            "name": "NHTSA Vehicle DB · BMW",
+            "bot": "NHTSA API",
+            "mode": "API Gateway",
+            "module": "core.car_auction_client.fetch_car_auction_data",
+            "search_terms": {
+              "car_auction_params": {
+                "source": "nhtsa",
+                "make": "BMW",
+                "results_wanted": 5
+              }
+            }
+          }
+        ]
+      },
+      "result_count": 10,
+      "results": [
+        {
+          "title": "2024 Toyota 4Runner 2WD",
+          "appeal_score": 0.5,
+          "rating": "Average",
+          "why": "Priced at market average",
+          "flags": [],
+          "source": "nhtsa_live",
+          "source_url": "https://www.fueleconomy.gov/feg/Find.do?action=sbsSelect&year=2024&make=Toyota&model=4Runner+2WD",
+          "location": "United States (NHTSA/EPA registry)"
+        },
+        {
+          "title": "2024 Toyota 4Runner 4WD",
+          "appeal_score": 0.5,
+          "rating": "Average",
+          "why": "Priced at market average",
+          "flags": [],
+          "source": "nhtsa_live",
+          "source_url": "https://www.fueleconomy.gov/feg/Find.do?action=sbsSelect&year=2024&make=Toyota&model=4Runner+4WD",
+          "location": "United States (NHTSA/EPA registry)"
+        },
+        {
+          "title": "2024 Toyota bZ4X",
+          "appeal_score": 0.5,
+          "rating": "Average",
+          "why": "Priced at market average",
+          "flags": [],
+          "source": "nhtsa_live",
+          "source_url": "https://www.fueleconomy.gov/feg/Find.do?action=sbsSelect&year=2024&make=Toyota&model=bZ4X",
+          "location": "United States (NHTSA/EPA registry)"
+        },
+        {
+          "title": "2024 Toyota bZ4X AWD",
+          "appeal_score": 0.5,
+          "rating": "Average",
+          "why": "Priced at market average",
+          "flags": [],
+          "source": "nhtsa_live",
+          "source_url": "https://www.fueleconomy.gov/feg/Find.do?action=sbsSelect&year=2024&make=Toyota&model=bZ4X+AWD",
+          "location": "United States (NHTSA/EPA registry)"
+        },
+        {
+          "title": "2024 Toyota bZ4X Limited",
+          "appeal_score": 0.5,
+          "rating": "Average",
+          "why": "Priced at market average",
+          "flags": [],
+          "source": "nhtsa_live",
+          "source_url": "https://www.fueleconomy.gov/feg/Find.do?action=sbsSelect&year=2024&make=Toyota&model=bZ4X+Limited",
+          "location": "United States (NHTSA/EPA registry)"
+        },
+        {
+          "title": "2024 BMW 228i Gran Coupe",
+          "appeal_score": 0.5,
+          "rating": "Average",
+          "why": "Priced at market average",
+          "flags": [],
+          "source": "nhtsa_live",
+          "source_url": "https://www.fueleconomy.gov/feg/Find.do?action=sbsSelect&year=2024&make=BMW&model=228i+Gran+Coupe",
+          "location": "United States (NHTSA/EPA registry)"
+        },
+        {
+          "title": "2024 BMW 228i xDrive Gran Coupe",
+          "appeal_score": 0.5,
+          "rating": "Average",
+          "why": "Priced at market average",
+          "flags": [],
+          "source": "nhtsa_live",
+          "source_url": "https://www.fueleconomy.gov/feg/Find.do?action=sbsSelect&year=2024&make=BMW&model=228i+xDrive+Gran+Coupe",
+          "location": "United States (NHTSA/EPA registry)"
+        },
+        {
+          "title": "2024 BMW 230i Coupe",
+          "appeal_score": 0.5,
+          "rating": "Average",
+          "why": "Priced at market average",
+          "flags": [],
+          "source": "nhtsa_live",
+          "source_url": "https://www.fueleconomy.gov/feg/Find.do?action=sbsSelect&year=2024&make=BMW&model=230i+Coupe",
+          "location": "United States (NHTSA/EPA registry)"
+        },
+        {
+          "title": "2024 BMW 230i xDrive Coupe",
+          "appeal_score": 0.5,
+          "rating": "Average",
+          "why": "Priced at market average",
+          "flags": [],
+          "source": "nhtsa_live",
+          "source_url": "https://www.fueleconomy.gov/feg/Find.do?action=sbsSelect&year=2024&make=BMW&model=230i+xDrive+Coupe",
+          "location": "United States (NHTSA/EPA registry)"
+        },
+        {
+          "title": "2024 BMW 330e Sedan",
+          "appeal_score": 0.5,
+          "rating": "Average",
+          "why": "Priced at market average",
+          "flags": [],
+          "source": "nhtsa_live",
+          "source_url": "https://www.fueleconomy.gov/feg/Find.do?action=sbsSelect&year=2024&make=BMW&model=330e+Sedan",
+          "location": "United States (NHTSA/EPA registry)"
+        }
+      ]
+    },
+    "Leads": {
+      "how_it_works": {
+        "sources": "Google Maps + Instagram/Facebook via Google search (Playwright, headless)",
+        "fetch_logic": "THINK-FIRST: goal -> Intent Planner (GROQ) generates buyer-intent queries -> signal-memory ranks -> rotation. Maps: gmaps_keyword+location. Social: site:instagram.com/facebook.com {rotated buyer query}.",
+        "scoring_logic": "PHASE 2 pain (low rating + high reviews + complaint keywords -> hot prospect + pitch) OR intent (interested/signals) OR business (phone/website/reach). PHASE 4: signal-memory learns best queries.",
+        "scrapers_and_search_terms": [
+          {
+            "name": "AI Lead Agent · Social",
+            "bot": "Social Lead Engine",
+            "mode": "AI Agent",
+            "module": "core.lead_agent_client.fetch_leads",
+            "search_terms": {
+              "lead_params": {
+                "sources": [
+                  "google_maps",
+                  "instagram"
+                ],
+                "results_wanted": 4,
+                "analyze": true,
+                "use_stealth": true,
+                "goal": "clients for my social media marketing agency",
+                "targets": {
+                  "gmaps_keyword": "car service center",
+                  "gmaps_location": "Dubai",
+                  "open_posts": false,
+                  "headless": true
+                }
+              }
+            }
+          }
+        ],
+        "active_goal": "clients for my social media marketing agency",
+        "planner_targets": {
+          "gmaps_keyword": "car service center",
+          "gmaps_location": "Dubai",
+          "open_posts": false,
+          "headless": true
+        }
+      },
+      "result_count": 8,
+      "results": [
+        {
+          "title": "Trading Enterprises - Al-Futtaim —  · Dubai · 3.4★ (None reviews)",
+          "appeal_score": 0.547,
+          "rating": "Average",
+          "why": "friction: missed calls, booking delays · pitch: AI Chatbot",
+          "flags": [
+            "Pain: missed calls",
+            "Pain: booking delays"
+          ],
+          "source": "google_maps_live",
+          "source_url": "https://www.google.com/maps/place/Trading+Enterprises+-+Al-Futtaim/data=!4m7!3m6!1s0x3e5f5d9cbdd012f7:0xd9114cbd5c79069c!8m2!3d25.231417!4d55.363406!16s%2Fg%2F11b6_jwqsv!19sChIJ9xLQvZxdXz4RnAZ5XL1MEdk?authuser=0&hl=en&rclk=1",
+          "location": "Dubai"
+        },
+        {
+          "title": "The smartest thing you can do when your marketing isn't ... — Most business owners, when their marketing stops producing results, do one of two things: They do more of it. Post more, email more, spend more.",
+          "appeal_score": 0.437,
+          "rating": "Average",
+          "why": "Standard lead profile",
+          "flags": [
+            "ICP: most business owne"
+          ],
+          "source": "instagram_live",
+          "source_url": "https://www.instagram.com/p/DZU_XQaDZ7c/",
+          "location": ""
+        },
+        {
+          "title": "instagram",
+          "appeal_score": 0.405,
+          "rating": "Overpriced",
+          "why": "Standard lead profile",
+          "flags": [],
+          "source": "instagram_live",
+          "source_url": "https://www.instagram.com/reel/DWy2VuIgtau/",
+          "location": ""
+        },
+        {
+          "title": "Marketing not working and not sure you have ... — We may have the solution for you! If you've ever felt like your marketing isn't quite landing, your brand doesn't fully reflect who you are, or you're ...",
+          "appeal_score": 0.379,
+          "rating": "Overpriced",
+          "why": "Standard lead profile",
+          "flags": [],
+          "source": "instagram_live",
+          "source_url": "https://www.instagram.com/p/DXj_9O2lbfr/",
+          "location": ""
+        },
+        {
+          "title": "“Why isn't our marketing working?” I've been hearing ... — The instinct is to do more. More emails. More social posts. More campaigns. But if what you're doing isn't working, more of it usually doesn't ...",
+          "appeal_score": 0.379,
+          "rating": "Overpriced",
+          "why": "Standard lead profile",
+          "flags": [],
+          "source": "instagram_live",
+          "source_url": "https://www.instagram.com/p/DY2fUCgDXCf/",
+          "location": ""
+        },
+        {
+          "title": "Instant Car Battery Replacement Amaron, Varta Acdelco —  · Dubai · 4.8★ (None reviews)",
+          "appeal_score": 0.225,
+          "rating": "Overpriced",
+          "why": "Standard lead profile",
+          "flags": [],
+          "source": "google_maps_live",
+          "source_url": "https://www.google.com/maps/place/Instant+Car+Battery+Replacement+Amaron,+Varta+Acdelco/data=!4m7!3m6!1s0x3e5f693b64b532d1:0x81ffeb386eff5a17!8m2!3d25.135321!4d55.233728!16s%2Fg%2F11m6rfcbx3!19sChIJ0TK1ZDtpXz4RF1r_bjjr_4E?authuser=0&hl=en&rclk=1",
+          "location": "Dubai"
+        },
+        {
+          "title": "Profix Auto Care Garage — Auto repair shop · Dubai · 4.5★ (None reviews)",
+          "appeal_score": 0.225,
+          "rating": "Overpriced",
+          "why": "Standard lead profile",
+          "flags": [],
+          "source": "google_maps_live",
+          "source_url": "https://www.google.com/maps/place/Profix+Auto+Care+Garage/data=!4m7!3m6!1s0x3e5f6bfa35ea0ab7:0xa7958b75e76f3004!8m2!3d25.1245563!4d55.211773!16s%2Fg%2F11gkx2ncq5!19sChIJtwrqNfprXz4RBDBv53WLlac?authuser=0&hl=en&rclk=1",
+          "location": "Dubai"
+        },
+        {
+          "title": "800CarGuru Mobile Auto Repair Services — Car repair and maintenance service · Dubai · 4.4★ (None reviews)",
+          "appeal_score": 0.225,
+          "rating": "Overpriced",
+          "why": "Standard lead profile",
+          "flags": [],
+          "source": "google_maps_live",
+          "source_url": "https://www.google.com/maps/place/800CarGuru+Mobile+Auto+Repair+Services/data=!4m7!3m6!1s0x3e5f6cae06ddeb37:0x4f75f321335d4a6b!8m2!3d25.1128438!4d55.2268016!16s%2Fg%2F11fy90ms1f!19sChIJN-vdBq5sXz4Ra0pdMyHzdU8?authuser=0&hl=en&rclk=1",
+          "location": "Dubai"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,161 @@
+AI Sales Intelligence Platform
+
+├── Search Strategy Agent
+├── Lead Agent
+├── Website Analyzer
+├── Buying Signal Analyzer
+├── Outreach Agent
+├── Calling Agent
+├── CRM Agent
+├── WhatsApp Automation
+│   ├── Jobs Bot
+│   ├── University Bot
+│   ├── Visa Bot
+│   ├── Car Bot
+│   ├── Dental Bot
+│   ├── Aesthetic Bot
+├── Report Generator
+├── Analytics
+└── Existing 19+ Scrapers
+
+1. AI Lead Agent (Social Lead Engine) ✅
+Google Search
+Google Maps
+Instagram (Google indexed)
+Facebook (Google indexed)
+GROQ analysis
+Buying signal detection
+Lead scoring
+Hidden Gem detection
+2. AI Search Strategy & Intent Planner 🚧
+Buyer Persona Engine
+Pain Point Engine
+Intent Query Generator
+Source Planner
+Search Planner
+
+(Abhi design stage par hai.)
+
+3. AI WhatsApp Job Bot ✅
+User profile collect karta hai
+Skills poochta hai
+Country poochta hai
+Roz jobs send karta hai
+Subscription based
+4. AI WhatsApp University / Admission Bot ✅
+Student profile
+Country preference
+Course preference
+Admissions
+Scholarships
+Daily updates
+5. AI WhatsApp Visa Bot ✅
+Visa requirements
+Visa bulletin
+Canada PR
+Passport index
+Immigration updates
+6. AI WhatsApp Car Bot ✅
+Buyer profile
+Seller profile
+Toyota/BMW (abhi)
+Car recommendations
+Daily listings
+7. AI Dental Clinic Bot ✅
+FAQ
+Appointment booking
+Patient information
+Lead collection
+WhatsApp automation
+8. AI Aesthetic Clinic Bot ✅
+Treatment selection
+Consultation booking
+Patient qualification
+Lead capture
+Appointment scheduling
+🚀 Planned Bots
+9. AI Calling Agent
+Cold calling
+Qualification
+Appointment booking
+CRM updates
+10. AI Outreach Agent
+WhatsApp outreach
+Email outreach
+LinkedIn outreach
+Follow-ups
+11. AI Website Analyzer
+Chatbot detection
+WhatsApp detection
+Booking system
+SEO
+Speed
+Tech stack
+AI opportunity detection
+12. AI Buying Signal Analyzer
+Hiring detection
+Growth signals
+Funding
+Reviews
+Intent analysis
+Service recommendation
+13. AI CRM Agent
+Lead management
+Pipeline updates
+Task generation
+Follow-up reminders
+Notes
+14. AI Data Enrichment Agent
+Email finding
+Phone extraction
+Social links
+Company information
+Contact enrichment
+15. AI Report Generator
+PDF reports
+Lead summaries
+Analytics
+Weekly reports
+Client reports
+🕷️ Existing Data Scrapers (19)
+Jobs
+Indeed UAE
+GulfTalent
+Greenhouse
+UK Sponsored Jobs
+Universities
+HIPO
+THE Rankings
+QS Rankings
+College Scorecard
+Admissions
+Admissions News
+Global Admissions (UK/US/CA)
+Global Admissions (EU/AU/GCC)
+Visa
+US Visa Bulletin
+Canada PR
+Visa Requirements
+Passport Index
+Schengen
+Automobiles
+Toyota (NHTSA)
+BMW (NHTSA)
+🔜 Future Scrapers
+LinkedIn
+Workable
+RemoteOK (enhanced)
+Instagram
+TikTok
+Facebook
+Google Reviews
+Reddit
+Quora
+X (Twitter)
+Crunchbase (if feasible)
+Product Hunt
+AngelList / Wellfound
+Google News
+RSS Feeds
+Company Websites
+🎯 Final Vision

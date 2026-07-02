@@ -1,0 +1,318 @@
+Production-Ready AI Sales Intelligence Platform: Architectural BlueprintDocument Version: 2.4.0-PRODAuthor: Principal Software ArchitectClassification: Technical Architecture Design Document (TADD)1. Executive Summary & Architectural AxiomsThis document details the high-scale, production-ready backend architecture for an enterprise-tier AI Sales Intelligence Platform. The platform processes unstructured data, monitors digital channels for high-intent signals, and deploys context-aware autonomous agents to orchestrate conversion tunnels across multiple communications vectors.Core Architectural AxiomsAbsolute Provider Agnostic: Every functional vendor—whether an LLM, browser engine, primary transactional database, or communication channel—is abstracted behind static domain interfaces.State-Isolated Pluggability: Plugins cannot mutate core application state directly. They receive data through strict immutable value objects and emit standardized events or data structures.Asynchronous Event-Driven Foundation: Synchronous API operations are limited to immediate system boundary validation. Long-running pipelines (scraping, AI context evaluation, graph execution, outbound syncs) are decoupled using transactional outboxes and message queues.Resiliency-First Ingestion: External web properties are inherently volatile. The architecture treats crawling, enrichment, and network interactions as unstable operations, wrapping them in deterministic fault-tolerant supervisors.2. Global System Architecture & Communication ModalitiesThe system is organized into decoupled layers: the Ingestion Boundary, the Event Broker Core, Stateless Processing Contexts, and Abstracted Datastores.Topology OverviewCode snippetgraph TD
+    %% Inbound Traffic
+    ClientAPI[External Clients / Dashboards] -->|gRPC / REST| API_GW[Enterprise API Gateway]
+    Webhooks[WhatsApp / CRM Webhooks] -->|HTTPS| API_GW
+
+    %% Core Services Layer
+    subgraph Core_Services_Layer [Core Services Domain]
+        API_GW --> Orchestrator[Workflow Engine / Temporal Orchestrator]
+        Orchestrator --> ConfigEngine[Centralized Config System]
+        Orchestrator --> DI_Container[Dependency Injection Container]
+    end
+
+    %% Event Bus Broker
+    subgraph Message_Broker_Fabric [Message Broker Fabric]
+        EventBus[(Kafka / Redis Event Bus)]
+    end
+    Orchestrator -->|Publish / Subscribe| EventBus
+
+    %% AI Agent Mesh
+    subgraph AI_Agent_Mesh [AI Agent Subsystem]
+        PlannerAgent[Planner Module]
+        CollectorAgent[Collector Module]
+        AnalyzerAgent[Analyzer Module]
+        BuyingSignal[Buying Signal Engine]
+        ScoringEngine[Lead Scoring Engine]
+        OfferEngine[Offer Recommendation]
+    end
+    EventBus <--> AI_Agent_Mesh
+
+    %% Distributed Crawling Grid
+    subgraph Distributed_Scraping_Grid [Distributed Crawler Subsystem]
+        BrowserCluster[Browser Automation Mesh: Playwright / Puppeteer]
+        ScraperPlugins[Scraper Plugin Hub]
+    end
+    CollectorAgent -->|gRPC / Task Queue| Distributed_Scraping_Grid
+
+    %% Abstracted Storage Layer
+    subgraph Abstracted_Storage_Layer [Abstracted Storage Layer]
+        RepoPattern[Repository Layer Interface]
+        DB_Relational[(PostgreSQL Partitioned Matrix)]
+        DB_Vector[(Qdrant / Milvus Cluster)]
+        Cache_Layer[(Redis Cluster Layer)]
+    end
+    AI_Agent_Mesh --> RepoPattern
+    Distributed_Scraping_Grid --> RepoPattern
+    RepoPattern --> DB_Relational
+    RepoPattern --> DB_Vector
+    RepoPattern --> Cache_Layer
+
+    %% External Systems Sync
+    subgraph Outbound_Sync_Boundary [Outbound Sync Boundary]
+        CRMSync[CRM Synchronization Engine]
+        CommsAdapter[WhatsApp / Outbound Provider Adapter]
+    end
+    EventBus --> Outbound_Sync_Boundary
+Communication Protocols & StrategySynchronous Command Verification: High-throughput internal RPC commands run exclusively on gRPC (Protocol Buffers v3) to reduce serialization overhead.Asynchronous Event Processing: Data flows across ingestion workers, agents, and analytics engines via Apache Kafka, utilizing a structured payload schema to track lineage and support distributed tracing.Internal State Tracking: Workers communicate with distributed schedulers and workflow engines via low-latency internal TCP pipelines managed by Temporal.io.3. Package Structure & Folder ResponsibilityThe repository is organized as a unified monorepo using a Domain-Driven Design (DDD) layout.Plaintext/platform-backend
+├── .github/                        # CI/CD workflows and deployment configurations
+├── k8s/                            # Production Kubernetes manifests and Helm charts
+├── docker/                         # Dockerfiles for distinct runtime target layers
+├── src/
+│   ├── building_blocks/            # Shared cross-cutting components (Kernel)
+│   │   ├── di/                     # Dependency Injection composition roots
+│   │   ├── event_bus/              # Event Bus abstractions and Outbox implementations
+│   │   ├── exceptions/             # Unified system exception taxonomy
+│   │   ├── logging/                # Structured JSON logging configurations
+│   │   └── telemetry/              # OpenTelemetry tracers and Prometheus metrics
+│   │
+│   ├── domain/                     # Pure Enterprise Business Rules (No External Dependencies)
+│   │   ├── lead/                   # Lead Aggregate Root, Entities, Value Objects, and Domain Events
+│   │   ├── agent/                  # Agent State, Prompt Definitions, and Flow Matrices
+│   │   ├── workflow/               # Business Workflow definitions and Step States
+│   │   └── shared/                 # Reusable Domain primitives
+│   │
+│   ├── infrastructure/             # External Framework Concrete Implementations
+│   │   ├── persistence/            # Concrete Database Repositories
+│   │   │   ├── postgres/           # SQLAlchemy/Prisma ORM data access layers
+│   │   │   └── vector/             # Vector Database client layers
+│   │   ├── cache/                  # Redis connection pools and serialization logic
+│   │   ├── queue/                  # Kafka consumer/producer implementations
+│   │   ├── scheduler/              # Temporal worker runtime and orchestrators
+│   │   └── abstractions/           # Concrete implementation of vendor abstractions
+│   │       ├── llm/                # OpenAI / Anthropic / Groq Client Wrapper implementations
+│   │       ├── browser/            # Playwright / Crawl4AI Pool drivers
+│   │       └── crm/                # HubSpot / Salesforce Client implementations
+│   │
+│   ├── application/                # Use Cases, Command/Query Handlers, and Orchestration
+│   │   ├── lead_commands/          # Event-driven lead orchestration command handlers
+│   │   ├── pipeline_queries/       # CQRS decoupled read-side analytics handlers
+│   │   └── synchronization/        # Multi-CRM atomic syncing mechanisms
+│   │
+│   └── plugins/                    # Dynamically Loaded Strategy/Provider Realizations
+│       ├── scrapers/               # Firecrawl SDK provider, custom HTTP scrapers
+│       ├── analyzers/              # Specialized entity-extraction modules
+│       └── channels/               # WhatsApp business API providers, SMTP custom layers
+│
+├── tests/                          # Testing suites separated by scope
+│   ├── unit/                       # Pure domain and business logic mocks
+│   ├── integration/                # Infrastructure component testing
+│   └── architecture/               # Automated linting of layer violations
+4. Architectural Foundations & Framework AbstractionsProvider Abstraction FrameworkThe architecture decouples third-party integrations using the Strategy Pattern enforced by Abstract Base Classes. Core logic interacts only with the abstract interfaces.Code snippetclassDiagram
+    class ILLMProvider {
+        <<interface>>
+        +generate_structured_output(prompt: PromptMessage, schema: BaseModel) BaseResponse
+        +generate_stream(prompt: PromptMessage) AsyncIterator
+    }
+    class OpenAIProvider {
+        -client: AsyncOpenAI
+        +generate_structured_output(prompt: PromptMessage, schema: BaseModel) BaseResponse
+        +generate_stream(prompt: PromptMessage) AsyncIterator
+    }
+    class AnthropicProvider {
+        -client: AsyncAnthropic
+        +generate_structured_output(prompt: PromptMessage, schema: BaseModel) BaseResponse
+        +generate_stream(prompt: PromptMessage) AsyncIterator
+    }
+    ILLMProvider <|-- OpenAIProvider
+    ILLMProvider <|-- AnthropicProvider
+
+    class ICrawlerProvider {
+        <<interface>>
+        +scrape_url(url: str, options: ScrapeOptions) RawWebPayload
+    }
+    class FirecrawlPlugin {
+        -api_key: SecretStr
+        +scrape_url(url: str, options: ScrapeOptions) RawWebPayload
+    }
+    ICrawlerProvider <|-- FirecrawlPlugin
+Abstraction Layer Implementation DetailsLLM Abstraction Layer: System components route requests through ILLMProvider. Model switching, structural validation (using Pydantic models), and fallback token window calculations are handled transparently at runtime without modifying the application logic.Crawler & Browser Abstraction Layer: Separates the browser execution engine (IBrowserEngine) from the scraper extraction strategy (IScraperPlugin). If a target site introduces anti-bot challenges, the system can dynamically switch the provider configuration (e.g., swapping a direct Playwright runner for an enterprise Firecrawl API runner) via a configuration update.Core Plugin SubsystemPlugins are discovered dynamically at startup using a runtime registry based on Python package entry points or isolated dynamic module imports (importlib.util).PlaintextPlugin Loading Sequence:
+[System Boot] 
+      │
+      ▼
+[Read Manifest / Environment Variables]
+      │
+      ▼
+[Scan /src/plugins/ Directory]
+      │
+      ▼
+[Validate Subclass of BasePluginInterface]
+      │
+      ▼
+[Inject Infrastructure System Level Client Dependencies]
+      │
+      ▼
+[Register inside Container Memory Matrix]
+Dependency Injection (DI) & Lifecycle ManagementThe application manages object instances through a central Dependency Injection Container configured at system startup (Composition Root).Transient Lifecycles: Applied to use-case Command Handlers, ensuring state is isolated between distinct thread executions.Scoped Lifecycles: Tied directly to incoming Message-Queue loops or individual gRPC request boundaries. Database contexts and Unit-of-Work boundaries use this scope to prevent data leakage across transactions.Singleton Lifecycles: Reserved for state-free connection managers, Redis client connection pools, internal metrics exporters, and the central configuration engine.5. Storage, Caching, & Infrastructure ArchitectureAbstracted Database Layer (Repository Pattern)The application decouples from database vendors by handling transactional operations exclusively through the Repository Pattern and Unit of Work Pattern. Direct queries from the business layer to the underlying storage engines are strictly prohibited.Code snippetgraph LR
+    AppLayer[Application Layer Services] -->|Invoke Unit of Work| UOW[Unit Of Work Management Layer]
+    UOW -->|Provides Access| ILeadRepo[ILeadRepository Interface]
+    ILeadRepo -->|Implements Concrete Data Map| PGLeadRepo[PostgresLeadRepository]
+    PGLeadRepo -->|Executes DB Write| TargetDB[(Postgres Engine Cluster)]
+Datastore ArchitectureThe platform implements a multi-tenant, workload-separated database model:Relational Core (PostgreSQL)Purpose: Handles transactional workflows, relational account states, and tenant identity management.Scaling Strategy: Utilizes declarative range partitioning based on the Tenant Identifier (tenant_id). High-throughput tables, such as interaction history and raw logs, use auto-provisioning monthly time-range partitions.Semantic Matrix (Vector Store: Qdrant / Milvus)Purpose: Stores unstructured extraction embeddings, buying signals, and market contexts.Scaling Strategy: Implements payload-filtered HNSW indexing. Tenant structures are isolated using payload namespaces, preventing vector-space bleed during retrieval operations.Caching Architecture (Redis Cluster)The caching infrastructure balances access latency with data consistency using the following strategies:Write-Through Caching: Applied to active LLM session states and runtime agent tracking models.Cache-Aside Pattern: Used for account configurations, platform metadata, and tenant permission lists, using a 3600-second TTL backed by programmatic invalidation hooks triggered on update commands.Distributed Locking Engine: Utilizes Redlock algorithms to prevent concurrent processing workers from modifying the same lead pipeline entry simultaneously.Processing Fabric: Event Bus, Message Queue, & SchedulersThe message distribution layer is split between heavy stream processing and reliable job orchestration.Code snippetgraph TD
+    %% Source Action
+    Trigger[Scraping Target Discovered Event] -->|Publish| Kafka_Topic{Kafka Stream Engine}
+
+    %% Kafka Routing
+    subgraph Kafka_Pipeline [Asynchronous Streaming Fabric]
+        Kafka_Topic -->|Consumer Group GroupA| Worker1[Scrape Worker Instance 1]
+        Kafka_Topic -->|Consumer Group GroupA| Worker2[Scrape Worker Instance 2]
+    end
+
+    %% Temporal Routing
+    subgraph Temporal_Fabric [Durable Orchestration Fabric]
+        Worker1 -->|Emit Result| Outbox[Transactional Outbox Layer]
+        Outbox -->|Signal Worker Complete| Temp_Orch[Temporal Workflow Router]
+        Temp_Orch -->|Track State Durably| Temp_State[(Temporal State Matrix)]
+    end
+Event Bus (Apache Kafka): High-throughput data components (e.g., raw scraping dumps and multi-channel events) use append-only Kafka topics. This decoupling protects internal processing layers from external ingestion spikes.Distributed Workflow Scheduler (Temporal.io): Long-running, multi-step actions (such as automated follow-up cadences, retry schedules for web lookups, and account sync operations) are implemented as durable, code-defined state workflows. This ensures reliable execution and precise state visibility over multi-day business processes.6. Comprehensive AI Agent & Workflow Engine SubsystemThe intelligence engine is built as an event-driven loop where state transitions are managed by an immutable coordination layer.Code snippetgraph TD
+    %% Pipeline Trigger
+    StartEvent[Target Lead Registered Event] -->|Triggers| Planner[Planner Module]
+    
+    %% Loop Stage 1
+    Planner -->|Emits Exploration Plan| Collector[Collector Module]
+    
+    %% Loop Stage 2
+    Collector -->|Retrieves Content Data| CacheCheck{Content Cached?}
+    CacheCheck -->|Yes| Analyzer[Analyzer Module]
+    CacheCheck -->|No| ScraperGrid[Scraper / Browser Drivers]
+    ScraperGrid -->|Ingest Content| Analyzer
+    
+    %% Loop Stage 3
+    Analyzer -->|Extracts Standard Entities| SignalEngine[Buying Signal Engine]
+    
+    %% Loop Stage 4
+    SignalEngine -->|Identifies Market Intent| Scoring[Lead Scoring Engine]
+    
+    %% Loop Stage 5
+    Scoring -->|Computes Pipeline Priority| Recommendation[Offer Recommendation Engine]
+    
+    %% Final Pipeline Steps
+    Recommendation -->|Synthesizes Response| CRMSync[CRM Synchronization / Interaction History]
+    CRMSync -->|Evaluates Feedback Loop| LearningEngine[Platform Learning Engine]
+Module Descriptions1. Planner ModuleResponsibility: Evaluates a target lead's context and builds a dynamic exploration strategy based on the available information. It determines which sources require scanning, defines the target context requirements, and assigns specific tools to execution agents.Interface Contract: Consumes a LeadRegisteredEvent and returns a structured ExplorationPlan object specifying the data points required for validation.2. Collector ModuleResponsibility: Executes the exploration plan generated by the Planner. It coordinates with the scraping infrastructure pool, routes extraction jobs, and handles proxy switching and anti-bot mitigation.Interface Contract: Receives an ExplorationPlan and emits a RawContentPayload containing extracted site text, social posts, and structural metadata.3. Analyzer ModuleResponsibility: Transforms raw, unstructured web text into structured business entities. It parses markdown data, extracts key personnel names, identifies technology stack fingerprints, and normalizes external corporate references.Interface Contract: Processes a RawContentPayload and outputs an enterprise-ready StructuredProfile model validated against Pydantic definitions.4. Buying Signal EngineResponsibility: Evaluates structured data over time to detect buying intent signals, such as leadership changes, new job openings, tool migrations, or business expansion indicators.Interface Contract: Compares incoming profiles with historical data baselines and emits a SignalDetectedEvent accompanied by an intent confidence score.5. Lead Scoring EngineResponsibility: Dynamically adjusts a lead's pipeline priority. It processes demographic data, firmographic details, and behavioral intent metrics through a composite evaluation matrix.Formulas & Logic: Calculates a target priority score $S$ by combining explicit firmographic alignment $F$ with real-time intent signal frequency $I$:$$S = (w_f \cdot F) + \sum_{k=1}^{n} (w_k \cdot I_k)$$where $w_f$ and $w_k$ represent normalized weight vectors. If the priority score crosses a predefined activation threshold, the system triggers the offer customization pipeline.6. Offer Recommendation EngineResponsibility: Generates personalized outreach messaging and value propositions. It combines corporate challenge data, technology stacks, and detected buying signals to select the optimal product offering and generate customized messaging templates.Interface Contract: Processes an amplified scoring event and outputs an OfferPayload containing the recommended strategy and tailored copywriting options.7. CRM Synchronization EngineResponsibility: Manages bidirectional data sync between the internal system and external enterprise CRMs. It schedules state updates, syncs communication records, and handles data conflicts using a last-write-wins strategy.Interface Contract: Listens for pipeline change events and processes an atomic database transaction using the ICRMProvider layer.8. Interaction History TrackingResponsibility: Maintained as an append-only event ledger. Every scraper execution, AI prompt generation, scoring adjustment, and outbound communication hook records an entry to secure complete system auditability.Interface Contract: Persists data via the IHistoryRepository directly to time-partitioned PostgreSQL data stores.9. Platform Learning EngineResponsibility: Analyzes historical pipeline conversions, sales engagement results, and conversion data to optimize upstream system performance. It updates agent prompt definitions, adjusts scoring weights, and refines outreach timing metrics.Interface Contract: Runs as an asynchronous background analytics worker, updating system prompt versions and operational weights via the central configuration system.7. Unified Lead Data Schema SpecificationThe core system domain enforces an immutable data schema across all boundaries.JSON{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "UnifiedLeadAggregate",
+  "type": "object",
+  "required": ["lead_id", "tenant_id", "identity", "firmographic", "pipeline_state", "audit_metadata"],
+  "properties": {
+    "lead_id": { "type": "string", "format": "uuid" },
+    "tenant_id": { "type": "string" },
+    "identity": {
+      "type": "object",
+      "required": ["full_name", "primary_email"],
+      "properties": {
+        "full_name": { "type": "string" },
+        "primary_email": { "type": "string", "format": "email" },
+        "phone_number_e164": { "type": "string", "pattern": "^\\+[1-9]\\d{1,14}$" },
+        "linkedin_url": { "type": "string", "format": "uri" }
+      }
+    },
+    "firmographic": {
+      "type": "object",
+      "required": ["company_name", "domain"],
+      "properties": {
+        "company_name": { "type": "string" },
+        "domain": { "type": "string", "format": "hostname" },
+        "estimated_employee_count": { "type": "integer" },
+        "detected_tech_stack": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "intent_signals": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["signal_id", "source_type", "confidence_weight", "detected_at"],
+        "properties": {
+          "signal_id": { "type": "string", "format": "uuid" },
+          "source_type": { "type": "string" },
+          "signal_payload": { "type": "object" },
+          "confidence_weight": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+          "detected_at": { "type": "string", "format": "date-time" }
+        }
+      }
+    },
+    "pipeline_state": {
+      "type": "object",
+      "required": ["current_score", "funnel_status", "assigned_agent_id"],
+      "properties": {
+        "current_score": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "funnel_status": { "type": "string", "enum": ["DISCOVERED", "ENRICHED", "SIGNAL_QUALIFIED", "OUTREACH_ENGAGED", "CONVERTED", "NURTURE", "ARCHIVED"] },
+        "assigned_agent_id": { "type": "string", "format": "uuid" }
+      }
+    },
+    "vector_embedding_references": {
+      "type": "object",
+      "properties": {
+        "profile_embedding_id": { "type": "string", "format": "uuid" },
+        "context_collection_name": { "type": "string" }
+      }
+    },
+    "audit_metadata": {
+      "type": "object",
+      "required": ["created_timestamp", "updated_timestamp", "schema_version"],
+      "properties": {
+        "created_timestamp": { "type": "string", "format": "date-time" },
+        "updated_timestamp": { "type": "string", "format": "date-time" },
+        "schema_version": { "type": "string" }
+      }
+    }
+  }
+}
+8. Resilience, Security, & High-Scale OptimizationResilience Policies (Circuit Breakers & Retries)To protect internal systems from external disruptions, the architecture implements resilience policies through the infrastructure layer using an isolated orchestration interceptor.Code snippetgraph LR
+    Request[Inbound API Command Request] -->|Route Via Interceptor| RateLimit{Rate Limiter Matrix}
+    RateLimit -->|Pass| CircBreaker{Circuit Breaker State}
+    CircBreaker -->|Closed| TargetCall[Execute External Service Call]
+    TargetCall -->|Fails with Network Error| RetryEngine[Exponential Backoff Retry Strategy]
+    CircBreaker -->|Open / Tripped| Fallback[Execute Fallback / Dead Letter Logic]
+Token-Bucket Rate Limiting: Enforced at the gateway layer using Redis keys configured per tenant, and at the worker boundaries to adhere strictly to external vendor API or crawling constraints.Circuit Breaker Configuration: Monitored using sliding window success rates. If network failures to an upstream provider (e.g., an LLM API or external CRM endpoint) exceed 15% within a 30-second window, the circuit trips to Open. This routes downstream tasks to fallback queues or secondary providers for a 60-second recovery window.Exponential Backoff Strategy: Network timeouts or rate-limit rejections (HTTP 429) trigger an exponential retry loop with jitter:$$T_{\text{backoff}} = 2^{\text{attempt}} \pm \text{Random Jitter}$$If all programmatic retry attempts are exhausted, the operation is moved to a Dead Letter Queue (DLQ) for human intervention.Security & Data Protection PoliciesZero-Trust Network Topology: Internal service-to-service communication requires mutual TLS (mTLS) authentication managed by an Istio Service Mesh.At-Rest & In-Transit Cryptography: All transport interactions use TLS 1.3 encryption. Field-level PII data stored within PostgreSQL tables (such as direct phone numbers or personal emails) is encrypted at rest using an AES-256-GCM symmetric cryptographic key rotation cycle managed by an external Key Management Service (KMS).Multi-Tenant Logical Isolation: Multi-tenancy is enforced through Row-Level Security (RLS) policies within the PostgreSQL persistence engine, requiring a validated tenant token context for all query access paths.9. Quality Assurance & Testing TopographyThe testing strategy enforces a rigorous validation matrix to maintain platform stability across dynamic module updates.Unit Testing ArchitectureFocus: Isolated business domain logic, state machines, and Pydantic validation structures.Constraint: External infrastructure frameworks, database contexts, and network sockets are entirely replaced with programmatic test doubles or contract mocks.Integration Testing ArchitectureFocus: Verifies component interactions, repository persistence functionality, cache invalidation pipelines, and transaction boundaries.Execution Environment: Spin up short-lived database instances and Kafka message brokers within ephemeral containerized runtimes using tools like Testcontainers.LLM & Prompt Eval ArchitectureFocus: Assesses the output quality and deterministic performance of integrated LLM components.Strategy: Evaluates prompt outputs against fixed benchmark datasets using assertions for semantic similarity, schema compliance, and toxic content monitoring.Chaos Engineering & System InversionFocus: Validates system stability under simulated infrastructure failures.Strategy: Randomly injects system latency, breaks message queue brokers, drops database connection pools, and introduces mock API failures to ensure circuit breakers trip and failover systems activate correctly.10. Continuous Deployment & Infrastructure ArchitectureContainerization Strategy (Docker Spec)The platform uses multi-stage Docker builds to keep runtime images clean and minimal, reducing the surface area for security vulnerabilities.PlaintextStage 1: Build & Construction
+  ├── Install production and development toolchains
+  ├── Run security linting tools and static analysis validation
+  └── Generate compiled binary wheels
+
+Stage 2: Operational Target Runtime
+  ├── Copy only the required execution artifacts
+  ├── Set up a non-privileged system group and user context
+  └── Configure internal entry points to receive environment settings via runtime parameters
+Production Kubernetes Topology (Orchestration Setup)Services are deployed to an enterprise-grade Kubernetes container cluster configured for horizontal scalability and resource control.YAMLapiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sales-agent-orchestrator
+  namespace: sales-intelligence-prod
+spec:
+  replicas: 4
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: agent-orchestrator
+    spec:
+      containers:
+      - name: orchestrator-engine
+        image: crm-platform/agent-orchestrator:v2.4.0
+        resources:
+          limits:
+            cpu: "2"
+            memory: 4Gi
+          requests:
+            cpu: "500m"
+            memory: 1Gi
+        readinessProbe:
+          httpGet:
+            path: /healthz/ready
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /healthz/live
+            port: 8080
+          initialDelaySeconds: 15
+          periodSeconds: 10
+Horizontal Pod Autoscaling (HPA) StrategyThe system scales pods dynamically using Custom Metrics APIs queried from Prometheus, adjusting capacity to meet real-time processing demands:Code snippetgraph TD
+    Queue_Length[Kafka Lag Metric / Custom CPU Matrix] -->|Poll Status| Prometheus_Metrics[Prometheus Monitoring Database]
+    Prometheus_Metrics -->|Query Evaluation| K8s_HPA_Controller[Kubernetes HPA Controller]
+    K8s_HPA_Controller -->|Scale Up / Provision Pods| Cluster_Nodes[Agent / Crawler Pod Pool Expansion]
+Core Services: Scale up based on target resource utilization profiles, triggering when average CPU utilization crosses 70%.Ingestion Workers & Agents: Scale based on active queue metrics, adding worker instances when consumer group lag on processing topics exceeds 1,500 messages.Observability, Logging, & System TelemetryStructured Event Logging: System logs are output exclusively in structured JSON formats to standard output (stdout), collecting core context identifiers such as tenant_id, lead_id, and trace_id.Distributed Distributed Tracing: Distributed context propagation is managed using OpenTelemetry Interceptors across all gRPC nodes, message queues, and worker boundaries, allowing for complete end-to-end request tracing.Operational Dashboards & Metrics: System health and performance indicators (such as LLM token consumption rates, database connection pool saturation, crawl success rates, and processing errors) are exported to Prometheus and visualized on central Grafana dashboards.

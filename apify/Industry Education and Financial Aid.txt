@@ -1,0 +1,57 @@
+[
+  {
+    "actor_id": "qingwa/scholarship-finder-scraper",
+    "console_url": "https://console.apify.com/actors/efJ8M6hdFS2UqDfJC/input",
+    "name": "Scholarship Finder Scraper — 23,000+ US Scholarships, 23 Fields",
+    "description": "Extracts US scholarship data from CollegeScholarships.org covering awards, deadlines, eligibility, amounts across 23 fields.",
+    "pricing": "$3.00 per 1,000 results",
+    "input_parameters": [
+      "Search Keyword",
+      "Maximum Results (Default: 100)",
+      "Max Pages to Scrape (Default: 10)",
+      "Fetch Detail Pages (Boolean)",
+      "Minimum Award Amount ($)",
+      "Sort Results By"
+    ]
+  },
+  {
+    "actor_id": "majestic_fund/the-scholarship-scraper-actor",
+    "console_url": "https://console.apify.com/actors/UFkEcjN3acgkmZbgx",
+    "name": "The Scholarship Scraper Actor",
+    "developer": "Agaba Mark",
+    "description": "Scrapes scholarship information from multiple scholarship databases and platforms.",
+    "pricing": "$0.35 per 1,000 results",
+    "input_parameters": [
+      "Search Query",
+      "Maximum Scholarships",
+      "Country Filter",
+      "Minimum Scholarship Amount",
+      "Education Level",
+      "Field of Study"
+    ]
+  },
+  {
+    "actor_id": "crawlerbros/college-scorecard-scraper",
+    "console_url": "https://console.apify.com/actors/o7eSPKgU3vwg6UKfX",
+    "name": "College Scorecard Scraper",
+    "description": "Searches US colleges and universities using the Department of Education's College Scorecard API. Retrieves admission rates, SAT/ACT scores, tuition, earnings, and completion rates for 6,000+ institutions.",
+    "pricing": "$5.00 per 1,000 results",
+    "input_parameters": [
+      "Mode (Search by name/state/type or getByOpeid)",
+      "API key (Optional)",
+      "School name search (e.g., MIT)",
+      "State filter",
+      "Ownership type",
+      "OPE IDs",
+      "Max items (Default: 100)"
+    ]
+  },
+  {
+    "actor_id": "parseforge/niche-schools-scraper",
+    "console_url": "https://console.apify.com/actors/NQUlXsiiqCFdRXTRG",
+    "name": "Niche Schools & Colleges Scraper",
+    "description": "Scrapes school and college rankings, Niche grades, acceptance rates, net prices, SAT ranges, student counts, and reviews from Niche.com.",
+    "pricing": "$5.50 per 1,000 results",
+    "input_parameters": []
+  }
+]

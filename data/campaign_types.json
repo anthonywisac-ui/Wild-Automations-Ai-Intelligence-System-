@@ -1,0 +1,50 @@
+{
+  "_meta": {
+    "purpose": "Campaign-type definitions for the Search Planner. Each type declares default sources, the intent tiers worth generating, and a persona strategy. Fully data-driven — edit to add/adjust campaigns without code changes.",
+    "version": "1.0.0"
+  },
+  "campaigns": {
+    "lead_generation": {
+      "label": "Lead Generation",
+      "default_sources": ["google_maps", "instagram", "facebook", "reddit", "linkedin", "google"],
+      "tiers": ["hot", "warm", "problem", "hiring", "comparison"],
+      "persona_strategy": "buyers_of_service",
+      "location_aware": true
+    },
+    "recruitment": {
+      "label": "Recruitment",
+      "default_sources": ["linkedin", "github", "google", "reddit", "news"],
+      "tiers": ["hiring"],
+      "persona_strategy": "candidates_for_role",
+      "location_aware": true
+    },
+    "university": {
+      "label": "University / Admissions",
+      "default_sources": ["google", "news", "rss"],
+      "tiers": ["problem", "hot"],
+      "persona_strategy": "programs_for_student",
+      "location_aware": false
+    },
+    "visa": {
+      "label": "Visa / Immigration",
+      "default_sources": ["google", "news", "government"],
+      "tiers": ["problem", "hot"],
+      "persona_strategy": "routes_for_passport",
+      "location_aware": false
+    },
+    "cars": {
+      "label": "Automobiles",
+      "default_sources": ["google_maps", "google", "marketplace"],
+      "tiers": ["comparison"],
+      "persona_strategy": "listings_for_buyer",
+      "location_aware": true
+    },
+    "custom": {
+      "label": "Custom",
+      "default_sources": ["google", "google_maps"],
+      "tiers": ["hot", "warm", "problem"],
+      "persona_strategy": "generic",
+      "location_aware": true
+    }
+  }
+}

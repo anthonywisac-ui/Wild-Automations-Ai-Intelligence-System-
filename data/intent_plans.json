@@ -1,0 +1,81 @@
+{
+  "3cf8e7edd789": {
+    "buyer_personas": [
+      "Gym Owners",
+      "Fitness Studio Managers",
+      "Personal Trainers",
+      "Wellness Center Directors",
+      "Recreation Center Administrators",
+      "Sports Facility Operators",
+      "Yoga Studio Owners",
+      "Pilates Studio Managers",
+      "Martial Arts School Owners",
+      "Dance Studio Directors"
+    ],
+    "pain_points": [
+      "Member retention and engagement",
+      "Scheduling and booking management",
+      "Payment processing and revenue tracking",
+      "Marketing and lead generation",
+      "Staff management and training",
+      "Facility maintenance and upkeep",
+      "Compliance with health and safety regulations",
+      "Managing multiple locations",
+      "Integrating with existing systems",
+      "Data analysis and reporting",
+      "Customer communication and support"
+    ],
+    "intent_queries": {
+      "hot": [
+        "gym management software",
+        "fitness studio software",
+        "best gym management system",
+        "gym membership management",
+        "fitness studio management tools"
+      ],
+      "warm": [
+        "how to manage a gym",
+        "fitness studio management tips",
+        "gym software reviews",
+        "best fitness studio software",
+        "gym management system comparison"
+      ],
+      "problem": [
+        "gym member retention strategies",
+        "fitness studio scheduling issues",
+        "gym payment processing problems",
+        "fitness studio marketing ideas",
+        "gym staff management challenges"
+      ],
+      "hiring": [
+        "gym management software developer",
+        "fitness studio software consultant",
+        "gym management system implementation",
+        "fitness studio software support",
+        "gym software training services"
+      ],
+      "comparison": [
+        "gym management software comparison",
+        "fitness studio software reviews",
+        "best gym management systems",
+        "gym software alternatives",
+        "fitness studio management system comparison"
+      ]
+    },
+    "priority_sources": [
+      "google",
+      "linkedin",
+      "facebook",
+      "reddit",
+      "quora"
+    ],
+    "gmaps_keywords": [
+      "gyms",
+      "fitness studios",
+      "yoga studios",
+      "pilates studios",
+      "martial arts schools"
+    ],
+    "_origin": "llm:groq"
+  }
+}

@@ -1,0 +1,50 @@
+[
+  {
+    "actor_id": "maxcopell/zillow-detail-scraper",
+    "console_url": "https://console.apify.com/actors/ENK9p4RZHg0iVso52/input",
+    "name": "Zillow Detail Scraper",
+    "description": "Extracts property details from specific Zillow URLs (home details, apartments, communities) and raw addresses.",
+    "pricing": "$3.60 per 1,000 results",
+    "input_parameters": [
+      "Home detail URLs",
+      "Addresses"
+    ]
+  },
+  {
+    "actor_id": "dhrumil/uk-landregistry-sold-price-history-scraper",
+    "console_url": "https://console.apify.com/actors/quekgyAN6DajCpjHY",
+    "name": "UK Landregistry Sold Price History Scraper",
+    "description": "Scrapes structured UK Land Registry sold price data grouped by house number or street using postcodes or outcodes.",
+    "pricing": "Pay per event",
+    "input_parameters": [
+      "Postcode",
+      "Outcode"
+    ]
+  },
+  {
+    "actor_id": "dhrumil/emirates-auction-scraper",
+    "console_url": "https://console.apify.com/actors/rdyWbpPjEUKXNfTaS",
+    "name": "Emirates Auction Scraper",
+    "description": "Scrapes vehicle and property listings from Emirates Auction with monitoring, deduplication, and full gallery image extraction.",
+    "pricing": "$35.00/month + usage",
+    "input_parameters": []
+  },
+  {
+    "actor_id": "scrapestorm/govdeals-government-auction-scraper---cheap",
+    "console_url": "https://console.apify.com/actors/ZX2pGuHK7GRawlnY2/",
+    "name": "GovDeals Government Auction Scraper - Cheap 🚜🏛️🔨",
+    "developer": "Storm_Scraper",
+    "description": "Collects government surplus asset listings from GovDeals using category or filtered URLs. Automatically handles pagination.",
+    "pricing": "$14.89/month + usage",
+    "input_parameters": [
+      "Category / Search URLs"
+    ],
+    "extracted_fields": [
+      "Asset Title",
+      "Bid",
+      "Location",
+      "Closing Date",
+      "Asset URL"
+    ]
+  }
+]

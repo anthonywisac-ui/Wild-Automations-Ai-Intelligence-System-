@@ -1,0 +1,810 @@
+AI Lead Agent Integration Master Blueprint
+Version: 2.4.0-PROD
+Date: July 2026
+Purpose: Complete system reference for AI agents, scrapers, and CRM integration
+
+🏗️ System Architecture Overview
+High-Level Data Flow
+text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          INBOUND DATA SOURCES                               │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌───────────────────┐ │
+│  │ Web Scrapers│  │Social Media │  │Google Maps  │  │  Channel Webhooks  │ │
+│  │ (19 active) │  │  (LinkedIn) │  │  (Local Biz)│  │ (WA, TG, IG, API) │ │
+│  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘  └────────┬──────────┘ │
+└─────────┼────────────────┼────────────────┼──────────────────┼─────────────┘
+          ▼                ▼                ▼                  ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         EVENT BUS / MESSAGE QUEUE                           │
+│                    (Kafka / Redis Streams)                                  │
+│  Topics: web-content-raw → enriched-leads → crm-sync                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+          │                │                │                  │
+          ▼                ▼                ▼                  ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    PROCESSING LAYER (Stateless Workers)                     │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌───────────────┐  │
+│  │  Scraping    │  │  Enrichment  │  │  Scoring     │  │  Orchestration│  │
+│  │  Core        │→ │  (LinkedIn/  │→ │  Engine      │  │  (LangGraph)  │  │
+│  │  (Firecrawl) │  │   Social)    │  │  (probz)     │  │               │  │
+│  └──────────────┘  └──────────────┘  └──────────────┘  └───────────────┘  │
+└─────────────────────────────────────────────────────────────────────────────┘
+          │                │                │                  │
+          ▼                ▼                ▼                  ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                            STORAGE LAYER                                    │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌───────────────┐  │
+│  │  PostgreSQL  │  │ Elasticsearch│  │   Redis      │  │   Qdrant      │  │
+│  │  (OLTP)      │  │  (Analytics) │  │  (Cache)     │  │  (Vector)     │  │
+│  └──────────────┘  └──────────────┘  └──────────────┘  └───────────────┘  │
+└─────────────────────────────────────────────────────────────────────────────┘
+          │                │                │                  │
+          ▼                ▼                ▼                  ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                            OUTPUT & SYNC                                    │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌───────────────┐  │
+│  │    CRM       │  │   Dashboard  │  │   Channel    │  │   Analytics   │  │
+│  │ (Salesforce/ │  │   (Grafana)  │  │  Outbound    │  │   (Prometheus)│  │
+│  │  HubSpot)    │  │              │  │   (WhatsApp) │  │               │  │
+│  └──────────────┘  └──────────────┘  └──────────────┘  └───────────────┘  │
+└─────────────────────────────────────────────────────────────────────────────┘
+📊 Current System Inventory
+Active Scrapers (19)
+ID	Scraper Name	Source	Technology	Output Format
+1	firecrawl_scraper	Web (General)	Firecrawl SDK	Markdown/JSON
+2	crawl4ai_scraper	Web (Deep)	Crawl4AI	Markdown/Metadata
+3	linkedin_scraper	LinkedIn	HTTP API	Profile/JSON
+4	google_maps_scraper	Google Maps	Browser/API	Business Data
+5	twitter_scraper	Twitter/X	snscrape	Posts/Profile
+6	instagram_scraper	Instagram	Osintgram	Profile/Posts
+7	facebook_scraper	Facebook	HTTP/Headless	Profile/Pages
+8	email_extractor	Any Web	Regex/DFS	Email/Phone
+9	contact_info_scraper	Any Web	Regex/BeautifulSoup	Contact Details
+10	smma_lead_scraper	Multi-Platform	HTTP/Browser	Lead Data
+11	whatsapp_scraper	WhatsApp	WhatsApp API	Messages
+12	telegram_scraper	Telegram	Telegram API	Messages
+13	youtube_scraper	YouTube	API/Scraping	Channel/Video
+14	tiktok_scraper	TikTok	Browser/API	Profile/Content
+15	reddit_scraper	Reddit	PRAW/HTTP	Posts/Comments
+16	glassdoor_scraper	Glassdoor	HTTP	Company/Reviews
+17	indeed_scraper	Indeed	HTTP	Jobs/Companies
+18	crunchbase_scraper	Crunchbase	HTTP	Company/Investors
+19	producthunt_scraper	ProductHunt	HTTP	Products/Reviews
+Core Engine Modules
+Module	Purpose	Technology	Source
+Agent Orchestrator	Conversation state management	LangGraph	langgraph-sales-agent
+Dialogue Manager	Multi-turn chat context	SalesGPT	SalesGPT
+Lead Scoring Engine	ICP qualification	probz_sales	probz_sales
+Task Router	Multi-agent task delegation	CrewAI	crewAIInc/crewAI
+Browser Automation	Headless browser control	browser-use	browser-use/browser-use
+MCP Server	Tool server for agents	MCP	modelcontextprotocol/servers
+Dependencies
+yaml
+Core:
+  - Python 3.11+
+  - FastAPI 0.100+
+  - SQLAlchemy 2.0+ (async)
+  - Pydantic 2.0+ (with Settings)
+  - httpx 0.25+ (async HTTP)
+  - aiohttp 3.8+
+
+AI/ML:
+  - langgraph 0.0.20+
+  - crewai 0.30+
+  - openai 1.0+
+  - anthropic 0.7+
+  - sentence-transformers 2.2+
+
+Scraping/Browser:
+  - playwright 1.40+
+  - selenium 4.15+
+  - beautifulsoup4 4.12+
+  - scrapy 2.11+
+  - firecrawl-py 1.0+ (optional)
+  - crawl4ai 0.2+
+
+Database:
+  - asyncpg 0.29+
+  - sqlalchemy 2.0+
+  - redis 5.0+
+  - elasticsearch 8.0+
+
+Messaging:
+  - aiokafka 0.8+
+  - redis 5.0+ (for streams)
+  - celery 5.3+ (fallback)
+
+Observability:
+  - prometheus-client 0.19+
+  - opentelemetry-api 1.20+
+  - opentelemetry-instrumentation-fastapi
+📋 THE CONTRACT: Adding a New AI Agent/Scraper
+Required Schema
+python
+from datetime import datetime
+from typing import Optional, Dict, Any, List
+from uuid import UUID, uuid4
+from pydantic import BaseModel, EmailStr, Field
+
+class LeadRecord(BaseModel):
+    """Canonical lead record - this is the ONLY schema the system accepts."""
+    
+    # Identifiers
+    lead_id: UUID = Field(default_factory=uuid4)
+    tenant_id: UUID
+    
+    # Core Identity
+    name: str = Field(..., min_length=1, max_length=255)
+    email: Optional[EmailStr] = None
+    phone: Optional[str] = None
+    
+    # Firmographic
+    company: Optional[str] = Field(None, max_length=255)
+    title: Optional[str] = Field(None, max_length=255)
+    industry: Optional[str] = None
+    company_size: Optional[int] = None
+    
+    # Source Metadata
+    source: str  # e.g., "linkedin", "google_maps", "web_crawl"
+    source_url: Optional[str] = None  # UNIQUE - prevents duplicates
+    crawled_at: datetime = Field(default_factory=datetime.utcnow)
+    
+    # Enrichment Data (flexible JSONB in PostgreSQL)
+    enrichment_data: Dict[str, Any] = Field(default_factory=dict)
+    """
+    Expected structure:
+    {
+        "linkedin_profile": {
+            "work_history": [...],
+            "skills": [...],
+            "education": [...]
+        },
+        "social_posts": [...],
+        "scraped_site_metadata": {
+            "technologies": [...],
+            "keywords": [...],
+            "description": "..."
+        },
+        "contact_info": {
+            "emails": [...],
+            "phones": [...]
+        }
+    }
+    """
+    
+    # Scoring
+    score: float = 0.0
+    status: str = "new"  # new|contacted|qualified|lost
+    
+    # Audit
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+Mandatory fetch_leads() Signature
+python
+from typing import List, Dict, Any, Optional
+from datetime import datetime
+
+async def fetch_leads(
+    config: Dict[str, Any],
+    since: Optional[datetime] = None,
+    limit: int = 100,
+    **kwargs
+) -> List[LeadRecord]:
+    """
+    Fetch leads from a source and return them as LeadRecord objects.
+    
+    Args:
+        config: Configuration dict for the scraper
+        since: Only fetch leads updated after this time (for incremental runs)
+        limit: Maximum number of leads to return
+        **kwargs: Additional parameters (tenant_id, credentials, etc.)
+    
+    Returns:
+        List[LeadRecord]: List of leads in canonical format
+    
+    Raises:
+        ScrapingError: If scraping fails
+        RateLimitExceededError: If rate limited by source
+    """
+    # Implement your scraping logic here
+    # Must return LeadRecord objects
+    pass
+SCRAPERS Registry Entry
+Add to /crm-leadgen-backend/plugins/registry.py:
+
+python
+# In PluginRegistry.__init__ or register method
+SCRAPERS = {
+    "your_scraper_name": {
+        "class": "YourScraperPlugin",
+        "module": "crm.plugins.scrapers.your_scraper",
+        "config_schema": {
+            "api_key": {"type": "string", "required": False},
+            "timeout": {"type": "integer", "default": 30},
+            "max_pages": {"type": "integer", "default": 10},
+            "proxy_url": {"type": "string", "required": False}
+        },
+        "supports_incremental": True,
+        "default_limit": 100,
+        "rate_limit": {
+            "requests_per_second": 10,
+            "burst": 20
+        }
+    }
+}
+Scoring Branch Integration
+python
+# In lead_scoring_engine.py - add your scoring logic
+
+async def calculate_icp_score(lead: LeadRecord) -> float:
+    """
+    Calculate ICP (Ideal Customer Profile) score.
+    Returns: Float between 0.0 and 100.0
+    """
+    score = 50.0  # Base score
+    
+    # Example scoring logic
+    if lead.title:
+        title_scores = {
+            "cto": 30, "vp": 25, "director": 20,
+            "head": 20, "manager": 15, "engineer": 10,
+            "founder": 35, "ceo": 30
+        }
+        for keyword, points in title_scores.items():
+            if keyword in lead.title.lower():
+                score += points
+                break
+    
+    # Company size bonus
+    if lead.company_size:
+        if 50 <= lead.company_size <= 500:
+            score += 15
+        elif 10 <= lead.company_size < 50:
+            score += 5
+    
+    # Industry bonus
+    target_industries = ["saas", "fintech", "ai", "healthtech", "edtech"]
+    if lead.industry and lead.industry.lower() in target_industries:
+        score += 20
+    
+    return min(100.0, score)
+🚨 10 HARD RULES (Do Not Break These)
+1. Unique source_url
+python
+# ✅ ALWAYS check for duplicates
+existing = await lead_repo.get_by_source_url(source_url, tenant_id)
+if existing:
+    logger.info("Lead already exists: %s", source_url)
+    return None  # Skip duplicate
+
+# ❌ NEVER skip duplicate check
+2. Use httpx Only (No requests)
+python
+# ✅ Use httpx exclusively
+import httpx
+async with httpx.AsyncClient(timeout=30.0) as client:
+    resp = await client.get(url, headers=headers)
+
+# ❌ NEVER use requests (blocks event loop)
+# import requests  # FORBIDDEN
+3. No jobspy on Windows
+python
+# ✅ Check platform
+import sys
+if sys.platform == "win32":
+    # Use alternative scraping method
+    pass
+else:
+    # Use jobspy if needed
+    pass
+
+# ❌ NEVER use jobspy on Windows without checking
+4. 45-Second Budget
+python
+# ✅ Respect timeout
+SCRAPER_TIMEOUT_SECONDS = 45
+
+async def fetch_leads(config, **kwargs):
+    try:
+        return await asyncio.wait_for(
+            _actual_fetch(config, **kwargs),
+            timeout=SCRAPER_TIMEOUT_SECONDS
+        )
+    except asyncio.TimeoutError:
+        raise ScrapingError("Scraper exceeded 45-second timeout")
+
+# ❌ NEVER allow indefinite scraping
+5. Re-splice _page_new.py
+python
+# ✅ ALWAYS use _page_new.py pattern for pagination
+def _page_new(self, cursor: Optional[str] = None) -> Dict[str, Any]:
+    """Get next page of results using cursor-based pagination."""
+    params = self._base_params.copy()
+    if cursor:
+        params["cursor"] = cursor
+    response = self._make_request(params)
+    return {
+        "data": response["data"],
+        "next_cursor": response.get("next_cursor")
+    }
+
+# ❌ NEVER hardcode page numbers
+# page = 1  # WRONG
+6. Pass Tenant Context
+python
+# ✅ Always propagate tenant_id
+async def fetch_leads(config, tenant_id: UUID, **kwargs):
+    # ... scraping logic ...
+    return LeadRecord(tenant_id=tenant_id, **lead_data)
+
+# ❌ NEVER assume default tenant
+7. Use Structured Logging
+python
+# ✅ Use structured logger
+from crm.logging import get_logger
+logger = get_logger(__name__)
+
+logger.info("Scraping started", extra={
+    "scraper": "your_scraper",
+    "tenant_id": str(tenant_id),
+    "limit": limit
+})
+
+# ❌ NEVER use print()
+# print("Scraping started")  # WRONG
+8. Handle Rate Limits Gracefully
+python
+# ✅ Implement exponential backoff
+from crm.utils.retry import async_retry, RetryConfig
+
+RETRY_CONFIG = RetryConfig(
+    max_attempts=5,
+    base_delay=1.0,
+    backoff_multiplier=2.0,
+    retryable_exceptions=(RateLimitExceededError, NetworkError)
+)
+
+@async_retry(config=RETRY_CONFIG)
+async def _make_scraping_request(url: str):
+    # ... request logic ...
+    pass
+
+# ❌ NEVER retry indefinitely
+9. Validate Output
+python
+# ✅ Validate with Pydantic
+def validate_lead_data(raw_data: Dict[str, Any]) -> LeadRecord:
+    try:
+        return LeadRecord(**raw_data)
+    except ValidationError as e:
+        logger.error("Invalid lead data", extra={"errors": e.errors()})
+        raise
+
+# ❌ NEVER skip validation
+10. Clean Browser Sessions
+python
+# ✅ ALWAYS clean up browser sessions
+async with browser_context() as browser:
+    page = await browser.new_page()
+    try:
+        data = await scrape_page(page)
+    finally:
+        await page.close()
+        # Browser auto-closes via context manager
+
+# ❌ NEVER leave browser sessions dangling
+# page = await browser.new_page()
+# ... do scraping ...
+# OOPS forgot to close page!
+📂 Files & Directory Structure
+Where to Drop New Files
+text
+crm-leadgen-backend/
+├── apps/
+│   ├── agent_orchestrator/
+│   │   ├── src/
+│   │   │   ├── graphs/              # LangGraph DAGs
+│   │   │   └── channels/            # Channel controllers
+│   │   └── Dockerfile
+│   ├── scraping_service/            # Scraper workers
+│   ├── enrichment_worker/           # Enrichment workers
+│   └── mcp_server/                  # MCP tool server
+│
+├── plugins/                         # ⭐ NEW SCRAPER GOES HERE
+│   ├── scrapers/
+│   │   ├── __init__.py
+│   │   ├── firecrawl_scraper.py
+│   │   ├── crawl4ai_scraper.py
+│   │   ├── linkedin_scraper.py
+│   │   └── your_new_scraper.py      # ← CREATE THIS
+│   ├── channels/
+│   │   ├── whatsapp_adapter.py
+│   │   ├── telegram_adapter.py
+│   │   └── instagram_adapter.py
+│   └── enrichers/
+│       ├── linkedin_enricher.py
+│       └── social_enricher.py
+│
+├── libs/
+│   ├── core_plugin_spec/            # Abstract interfaces
+│   └── shared_schemas/              # Pydantic models
+│
+├── models/                          # SQLAlchemy ORM models
+│   ├── lead.py
+│   ├── tenant.py
+│   └── conversation.py
+│
+├── services/                        # Business logic
+│   ├── lead_service.py
+│   ├── enrichment_service.py
+│   └── scraping_service.py
+│
+├── config/                          # Configuration
+│   ├── settings.py
+│   └── database.py
+│
+└── tests/                           # Test suites
+    ├── unit/
+    ├── integration/
+    └── architecture/
+🔧 Build & Test Loop
+Development Commands
+bash
+# 1. Install dependencies
+poetry install --with dev
+
+# 2. Run linters
+poetry run ruff check .
+poetry run mypy .
+
+# 3. Run unit tests
+poetry run pytest tests/unit
+
+# 4. Run integration tests (requires Docker)
+poetry run pytest tests/integration
+
+# 5. Run specific scraper test
+poetry run pytest tests/unit/test_scrapers/test_your_scraper.py -v
+
+# 6. Run the scraper standalone (for debugging)
+poetry run python -m crm.plugins.scrapers.your_scraper --url "https://example.com"
+
+# 7. Build Docker image
+docker build -t crm-scraper:latest .
+
+# 8. Run with Docker Compose (full stack)
+docker-compose up -d
+docker-compose logs -f scraper_service
+Definition of Done
+Scraper returns List[LeadRecord]
+
+All fields validated with Pydantic
+
+source_url is unique per tenant
+
+Passes all tests (unit + integration)
+
+No requests import (uses httpx)
+
+Respects 45-second timeout
+
+Handles rate limits with backoff
+
+Structured logging added
+
+Health check endpoint works
+
+README updated with new scraper
+
+Dockerfile includes new dependencies
+
+🧩 Integration with Existing System
+Event Flow
+python
+# In scraper service
+async def scrape_and_publish(tenant_id: UUID, config: Dict[str, Any]):
+    leads = await fetch_leads(config, tenant_id)
+    
+    for lead in leads:
+        # 1. Publish to Kafka
+        await event_dispatcher.dispatch(
+            LeadCreatedEvent(lead=lead, tenant_id=tenant_id)
+        )
+        
+        # 2. Store in PostgreSQL
+        await lead_repository.save(lead)
+        
+        # 3. Cache in Redis (TTL: 1 hour)
+        await redis_client.set_json(
+            f"lead:{lead.lead_id}",
+            lead.model_dump(),
+            ex=3600
+        )
+        
+        # 4. Index in Elasticsearch (for search)
+        await es_client.index(
+            index="leads",
+            id=str(lead.lead_id),
+            body=lead.model_dump()
+        )
+
+# Handlers listen for events
+@event_handler(event_types=["lead.created"])
+async def handle_lead_created(event: LeadCreatedEvent):
+    # Auto-enrich with LinkedIn
+    await enrichment_service.enrich_lead(event.lead_id)
+    
+    # Auto-score
+    await scoring_service.score_lead(event.lead_id)
+    
+    # Check for qualified leads
+    lead = await lead_service.get_lead(event.lead_id)
+    if lead.score >= 80:
+        await orchestration_service.queue_outreach(lead.lead_id)
+Adding New Agent Type
+python
+# 1. Define agent in /plugins/agents/your_agent.py
+from crm.plugins.base import BaseAgentPlugin
+from crm.schemas.lead import LeadRecord
+
+class YourAgentPlugin(BaseAgentPlugin):
+    @property
+    def plugin_metadata(self):
+        return PluginMetadata(
+            name="your_agent",
+            version="1.0.0",
+            plugin_type="agent"
+        )
+    
+    async def process_lead(self, lead: LeadRecord) -> Dict[str, Any]:
+        # Your agent logic here
+        return {"status": "processed", "lead": lead}
+    
+    async def send_message(self, recipient_id: str, text: str) -> bool:
+        # Channel adapter
+        pass
+
+# 2. Register in /plugins/__init__.py
+from .agents.your_agent import YourAgentPlugin
+
+__all__ = [
+    # ... existing exports
+    "YourAgentPlugin",
+]
+
+# 3. Add to registry
+PLUGIN_REGISTRY.register(YourAgentPlugin)
+🔐 Security & Compliance
+API Key Management
+python
+from crm.config import get_settings
+from pydantic import SecretStr
+
+settings = get_settings()
+API_KEY = settings.api_secret_key.get_secret_value()
+
+# In .env
+CRM_API_SECRET_KEY="your-secret-key-here"
+CRM_ENABLE_SECURE_HEADERS=true
+Rate Limiting
+python
+from crm.middleware.rate_limit import RateLimiter
+
+@RateLimiter(
+    key=lambda r: r.headers.get("X-Tenant-ID"),
+    rate="10/s",
+    burst=20
+)
+async def scraper_endpoint(request):
+    pass
+Data Encryption
+python
+from crm.utils.crypto import hash_password, verify_password, generate_secure_token
+
+# Always encrypt sensitive data at rest
+class LeadRecord(BaseModel):
+    # ... fields ...
+    class Config:
+        json_encoders = {
+            SecretStr: lambda v: v.get_secret_value()
+        }
+📈 Monitoring & Observability
+Metrics to Track
+python
+from prometheus_client import Counter, Histogram, Gauge
+
+SCRAPER_REQUESTS = Counter(
+    "scraper_requests_total",
+    "Total scraper requests",
+    ["scraper_name", "status"]
+)
+
+SCRAPER_LATENCY = Histogram(
+    "scraper_request_duration_seconds",
+    "Scraper request duration",
+    ["scraper_name"]
+)
+
+LEADS_PROCESSED = Gauge(
+    "leads_processed_total",
+    "Total leads processed",
+    ["tenant_id", "source"]
+)
+
+# Usage
+@SCRAPER_LATENCY.time()
+async def fetch_leads(config):
+    try:
+        leads = await _fetch_leads(config)
+        SCRAPER_REQUESTS.labels("your_scraper", "success").inc()
+        return leads
+    except Exception as e:
+        SCRAPER_REQUESTS.labels("your_scraper", "error").inc()
+        raise
+Logging
+python
+# All logs are JSON-structured and include correlation IDs
+{
+    "timestamp": "2026-07-01T15:44:59Z",
+    "level": "info",
+    "logger": "crm.plugins.scrapers.your_scraper",
+    "message": "Scraping completed successfully",
+    "correlation_id": "abc-123-def-456",
+    "tenant_id": "tenant-123",
+    "scraper": "your_scraper",
+    "leads_found": 25,
+    "elapsed_seconds": 12.5
+}
+🔄 CI/CD Pipeline
+GitHub Actions Workflow
+yaml
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: |
+          pip install poetry
+          poetry install --with dev
+      - name: Run linters
+        run: |
+          poetry run ruff check .
+          poetry run mypy .
+      - name: Run tests
+        run: poetry run pytest tests/unit -v --cov
+      - name: Upload coverage
+        uses: codecov/codecov-action@v3
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build Docker image
+        run: docker build -t crm-scraper:latest .
+      - name: Push to registry
+        run: |
+          echo ${{ secrets.DOCKER_PASSWORD }} | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
+          docker tag crm-scraper:latest crm-registry/crm-scraper:${GITHUB_SHA}
+          docker push crm-registry/crm-scraper:${GITHUB_SHA}
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Deploy to Kubernetes
+        run: |
+          kubectl set image deployment/scraper-service scraper=crm-registry/crm-scraper:${GITHUB_SHA}
+          kubectl rollout status deployment/scraper-service
+📚 FAQ / Troubleshooting
+Q: How do I add a new channel adapter?
+python
+# 1. Create adapter
+from crm.interfaces import BaseChannelAdapter
+
+class YourChannelAdapter(BaseChannelAdapter):
+    @property
+    def plugin_name(self) -> str:
+        return "your_channel"
+    
+    async def normalize_incoming(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        return {
+            "channel": "your_channel",
+            "sender_id": payload["from"],
+            "text": payload["message"],
+            "raw": payload
+        }
+
+# 2. Register in /plugins/channels/__init__.py
+PLUGIN_REGISTRY.register(YourChannelAdapter)
+Q: How do I handle pagination?
+python
+async def fetch_leads(config, **kwargs) -> List[LeadRecord]:
+    results = []
+    cursor = None
+    
+    while True:
+        page_data = await _page_new(cursor)
+        results.extend(page_data["data"])
+        
+        cursor = page_data.get("next_cursor")
+        if not cursor:
+            break
+        
+        # Respect rate limit
+        await asyncio.sleep(0.1)
+    
+    return results
+Q: How do I test my scraper locally?
+bash
+# Run with test data
+poetry run python -m crm.plugins.scrapers.your_scraper --test --limit 5
+
+# Mock external dependencies
+poetry run pytest tests/unit/test_scrapers/test_your_scraper.py --mock-external
+Q: What if my scraper fails?
+python
+try:
+    leads = await fetch_leads(config)
+except ScrapingError as e:
+    # Log error
+    logger.error("Scraper failed: %s", e, exc_info=True)
+    
+    # Move to Dead Letter Queue
+    await dlq_service.send({
+        "scraper": "your_scraper",
+        "config": config,
+        "error": str(e)
+    })
+    
+    # Notify team
+    await alert_service.send("Scraper failed", e)
+    
+    return []
+🎯 Quick Start Checklist
+Create new scraper file: /plugins/scrapers/your_scraper.py
+
+Implement fetch_leads() with proper signature
+
+Add to SCRAPERS registry
+
+Write unit tests (min 80% coverage)
+
+Test locally with --test flag
+
+Add to Dockerfile
+
+Update monitoring metrics
+
+Update documentation
+
+Create pull request
+
+📞 Support
+Documentation: /docs/README.md
+
+Architecture: /docs/ARCHITECTURE.md
+
+Troubleshooting: /docs/TROUBLESHOOTING.md
+
+Slack Channel: #crm-scrapers
+
+Email: engineering@your-company.com
+
+This is the definitive source of truth for the AI Lead Agent Integration System. All new agents and scrapers MUST follow this contract.
+
+Version: 2.4.0-PROD | Last Updated: July 2026
