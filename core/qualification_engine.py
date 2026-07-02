@@ -54,6 +54,7 @@ REJECT_MARKETPLACE = "MARKETPLACE"
 REJECT_GOVERNMENT = "GOVERNMENT"
 REJECT_DIRECTORY = "DIRECTORY"
 REJECT_SOFTWARE_VENDOR = "SOFTWARE_VENDOR"
+REJECT_EDUCATION = "EDUCATION_INSTITUTION"
 
 # Non-buyer entity detectors (deterministic keyword sets).
 _MARKETPLACE = ("marketplace", "classifieds", "olx", "dubizzle", "amazon", "ebay",
@@ -64,6 +65,9 @@ _GOVERNMENT = ("ministry", "gov.", ".gov", "municipality", "authority", "council
                "department of", "embassy", "consulate")
 _SOFTWARE = ("software", "saas", "app development", "crm software", "platform inc",
              "technologies", "systems inc", "it solutions")
+# Higher-education institutions are never buyers for these services (forbidden).
+_EDUCATION = ("university", "college", ".edu", "academy", "higher education",
+              "faculty of")
 _COMPETITOR_TERMS = ("marketing agency", "seo agency", "digital agency",
                      "advertising agency", "social media agency", "branding agency",
                      "web design agency", "pr agency", "ad agency", "smma",
@@ -345,6 +349,8 @@ def _dim_risk(f, prof) -> Tuple[Dimension, List[str]]:
         risk = max(risk, 85); reasons.append(REJECT_GOVERNMENT); ev.append("government entity")
     if _any(_SOFTWARE):
         risk = max(risk, 80); reasons.append(REJECT_SOFTWARE_VENDOR); ev.append("software vendor")
+    if _any(_EDUCATION):
+        risk = max(risk, 85); reasons.append(REJECT_EDUCATION); ev.append("education institution")
     # config-driven rejection indicators
     for ind in prof.get("rejection_indicators", []):
         if ind.lower() in text or ind.lower() in cat:

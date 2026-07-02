@@ -601,6 +601,28 @@ async def qualification_rejected(limit: int = 50, decision: str = ""):
         return JSONResponse({"error": f"{type(exc).__name__}: {exc}"}, status_code=500)
 
 
+@app.get("/api/leads/export")
+async def leads_export(format: str = "json"):
+    """Export the latest run's qualified leads as CRM/automation-ready rows.
+    Every row carries scores, answer set, evidence, and trace context — no manual
+    cleaning required. format=json (default) or csv."""
+    try:
+        from core import lead_export
+        if not _ANALYSIS_CACHE.exists():
+            return JSONResponse({"error": "no analysis run yet — call /api/analyze first"},
+                                status_code=404)
+        payload = json.loads(_ANALYSIS_CACHE.read_text(encoding="utf-8"))
+        scored = payload.get("records", [])
+        if format.lower() == "csv":
+            return StreamingResponse(
+                iter([lead_export.to_csv(scored)]), media_type="text/csv",
+                headers={"Content-Disposition": "attachment; filename=leads.csv"})
+        rowset = lead_export.rows(scored)
+        return JSONResponse({"count": len(rowset), "leads": rowset})
+    except Exception as exc:
+        return JSONResponse({"error": f"{type(exc).__name__}: {exc}"}, status_code=500)
+
+
 # ── HTML ─────────────────────────────────────────────────────────────────────
 
 def _html() -> str:
