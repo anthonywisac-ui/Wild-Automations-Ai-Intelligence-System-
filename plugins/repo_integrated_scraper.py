@@ -535,7 +535,7 @@ class GoogleSocialScraper:
                     title = (await h3.inner_text()) if h3 else self.source
                     snip_el = await b.query_selector("div[data-sncf], .VwiC3b, .lyLwlc")
                     snippet = (await snip_el.inner_text()) if snip_el else ""
-                    harvested.append((title.split("•")[0].strip()[:80] or self.source, href, snippet))
+                    harvested.append((self._clean_name(title), href, snippet))
                 except Exception:
                     continue
 
@@ -573,6 +573,19 @@ class GoogleSocialScraper:
             if p:
                 await p.stop()
         return results
+
+    def _clean_name(self, title: str) -> str:
+        """Extract a clean display name from a Google SERP title. LinkedIn titles
+        look like 'John Doe - Practice Manager at X | LinkedIn'; IG/FB use '•'."""
+        t = (title or "").strip()
+        # strip trailing site suffix
+        t = re.sub(r"\s*[|\-–]\s*LinkedIn.*$", "", t, flags=re.I)
+        if self.source == "linkedin":
+            # name is the part before the first ' - ' (headline separator)
+            name = re.split(r"\s+[-–]\s+", t)[0].strip()
+        else:
+            name = t.split("•")[0].strip()
+        return name[:80] or self.source
 
     async def _open_post(self, context, url: str, fallback_text: str):
         """Open a post URL and pull text + a few comments (fast, best-effort)."""
@@ -655,8 +668,22 @@ async def run_pipeline(
                                               "source": "facebook", "open_posts": open_posts})
                          .fetch_leads(tenant_id, limit=limit_per_source, query=social_q))
         elif s == "linkedin":
-            tasks.append(LinkedInScraper({"mode": "agentic", "headless": headless})
-                         .fetch_leads(tenant_id, limit=limit_per_source, keyword=li_kw))
+            # Default: find LinkedIn PROFILES via Google SERP (site:linkedin.com/in
+            # + search terms) — no login/cookie needed, works like IG/FB. If the
+            # user has configured a li_at cookie, use the richer authenticated path.
+            try:
+                from plugins.linkedin_vendor import vendor_available
+                has_cookie = vendor_available()
+            except Exception:
+                has_cookie = False
+            if has_cookie:
+                tasks.append(LinkedInScraper({"mode": "agentic", "headless": headless})
+                             .fetch_leads(tenant_id, limit=limit_per_source, keyword=li_kw))
+            else:
+                tasks.append(GoogleSocialScraper(
+                    {"headless": headless, "site": "linkedin.com/in",
+                     "source": "linkedin", "open_posts": False})
+                    .fetch_leads(tenant_id, limit=limit_per_source, query=li_kw))
     results = await asyncio.gather(*tasks, return_exceptions=True)
 
     all_leads: List[LeadRecord] = []
