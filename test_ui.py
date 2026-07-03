@@ -605,6 +605,17 @@ async def qualification_rejected(limit: int = 50, decision: str = ""):
         return JSONResponse({"error": f"{type(exc).__name__}: {exc}"}, status_code=500)
 
 
+@app.get("/api/linkedin/collected")
+async def linkedin_collected(limit: int = 100):
+    """Qualified LinkedIn leads accumulated by the continuous background collector."""
+    try:
+        from core import linkedin_collector_store
+        return JSONResponse({"stats": linkedin_collector_store.stats(),
+                             "leads": linkedin_collector_store.qualified(limit=limit)})
+    except Exception as exc:
+        return JSONResponse({"error": f"{type(exc).__name__}: {exc}"}, status_code=500)
+
+
 @app.get("/api/leads/export")
 async def leads_export(format: str = "json"):
     """Export the latest run's qualified leads as CRM/automation-ready rows.
