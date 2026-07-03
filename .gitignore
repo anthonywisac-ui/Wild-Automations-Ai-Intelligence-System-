@@ -18,3 +18,8 @@ data_dump.json
 *.pdf
 *.png
 images/
+
+# collector runtime logs
+data/*.err
+data/*.log
+linkedin_collector.*
