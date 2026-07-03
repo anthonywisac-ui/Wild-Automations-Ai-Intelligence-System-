@@ -105,6 +105,13 @@ async def _plan_targets(params: Dict[str, Any]) -> Dict[str, Any]:
         gk = plan.get("gmaps_keywords") or []
         if gk and not targets.get("gmaps_keyword"):
             targets["gmaps_keyword"] = gk[0]
+        # LinkedIn: dynamic, rotating decision-maker query built from the plan's
+        # buyer categories (not hardcoded). Manual linkedin_keyword overrides.
+        if not targets.get("linkedin_keyword"):
+            li = intent_planner.linkedin_queries(
+                goal, plan, location=targets.get("gmaps_location", ""), count=1)
+            if li:
+                targets["linkedin_keyword"] = li[0]
         targets["_plan"] = {
             "origin": plan.get("_origin"),
             "query_used": targets.get("social_query"),

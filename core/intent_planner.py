@@ -230,3 +230,38 @@ def next_queries(goal: str, plan_obj: Dict[str, Any], count: int = 1,
     state[key] = (idx + len(picked)) % len(pool)
     _save(_ROTATION, state)
     return picked
+
+
+# LinkedIn decision-maker roles OR'd into each query for maximum SERP yield.
+_LI_ROLES = ('"owner"', '"founder"', '"CEO"', '"managing director"',
+            '"practice manager"', '"general manager"')
+
+
+def linkedin_queries(goal: str, plan_obj: Dict[str, Any], location: str = "",
+                     count: int = 1) -> List[str]:
+    """Build dynamic, rotating LinkedIn (Google-SERP) search terms that target the
+    DECISION-MAKERS of the plan's buyer businesses — never the service itself.
+
+    For each rotation it picks the next buyer category from the plan and OR's a set
+    of decision-maker role titles, e.g.:
+        "dental clinic" ("owner" OR "founder" OR "CEO" ...) Dubai
+    A persisted rotation index (own key) cycles through categories run-to-run, so
+    repeated runs surface DIFFERENT decision-makers → more unique LinkedIn leads.
+    """
+    cats = [c for c in (plan_obj.get("gmaps_keywords")
+                        or plan_obj.get("buyer_personas") or []) if c]
+    if not cats:
+        return []
+    roles = " OR ".join(_LI_ROLES[:4])
+    loc = (location or "").strip()
+    state = _load(_ROTATION, {})
+    key = "li:" + _goal_key(goal)
+    idx = int(state.get(key, 0))
+    picked: List[str] = []
+    for i in range(min(count, len(cats))):
+        cat = cats[(idx + i) % len(cats)]
+        q = f'"{cat}" ({roles})' + (f" {loc}" if loc else "")
+        picked.append(q)
+    state[key] = (idx + len(picked)) % len(cats)
+    _save(_ROTATION, state)
+    return picked

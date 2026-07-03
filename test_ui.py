@@ -326,9 +326,10 @@ SCRAPERS = [
                     # Planner fills it with a concrete TARGET BUSINESS category
                     # (dentist/restaurant/…), never the service (marketing agency).
                     "gmaps_location": "Dubai",
-                    # LinkedIn (vendored cookie-auth) — decision-maker of a BUYER
-                    # business, not a competitor. Needs LINKEDIN_LI_AT in .env.
-                    "linkedin_keyword": "clinic owner Dubai",
+                    # linkedin_keyword intentionally omitted → the Intent Planner
+                    # builds a DYNAMIC, rotating decision-maker query from the plan's
+                    # buyer categories (e.g. "dental clinic" ("owner" OR "founder")
+                    # Dubai), different each run → more unique LinkedIn leads.
                     "open_posts": False,   # snippets already carry post text; True=comments (slower)
                     "headless": True,
                     # social_query is auto-filled by the Intent Planner (rotated each run)
