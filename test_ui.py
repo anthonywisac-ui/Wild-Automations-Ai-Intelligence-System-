@@ -646,6 +646,13 @@ async def leads_export(format: str = "json"):
 
 
 # ── AI Concierge (persona intake → targeted run → match) ──────────────────────
+@app.get("/concierge", response_class=HTMLResponse)
+async def concierge_page():
+    """Mobile-first AI Concierge chat UI (persona tap → intake → results → send)."""
+    from concierge_page import CONCIERGE_HTML
+    return HTMLResponse(CONCIERGE_HTML)
+
+
 @app.get("/api/concierge/personas")
 async def concierge_personas():
     """List the user personas + the info the assistant must collect for each."""
@@ -707,11 +714,33 @@ async def concierge_run(request: Request):
                                 "status": r.get("status")})
                 records.extend(r.get("results") or [])
         ranked = concierge.rank(records, persona, answers)
+        top = ranked[:20]
+
+        delivery = None
+        if body.get("deliver"):
+            from core import concierge_delivery
+            delivery = await concierge_delivery.deliver_matches(
+                persona, answers, top, to=body.get("to"))
+
         return JSONResponse({
             "persona": persona, "category": category,
             "requirement": answers, "sources": sources,
-            "total": len(ranked), "matches": ranked[:20],
+            "total": len(ranked), "matches": top, "delivery": delivery,
         })
+    except Exception as exc:
+        return JSONResponse({"error": f"{type(exc).__name__}: {exc}"}, status_code=500)
+
+
+@app.post("/api/concierge/deliver")
+async def concierge_deliver(request: Request):
+    """Send an already-computed match set to WhatsApp (WHAPI/Meta)."""
+    try:
+        from core import concierge_delivery
+        body = await request.json()
+        result = await concierge_delivery.deliver_matches(
+            body.get("persona", ""), body.get("requirement", {}) or {},
+            body.get("matches", []) or [], to=body.get("to"))
+        return JSONResponse({"channels": concierge_delivery.channels_available(), **result})
     except Exception as exc:
         return JSONResponse({"error": f"{type(exc).__name__}: {exc}"}, status_code=500)
 
