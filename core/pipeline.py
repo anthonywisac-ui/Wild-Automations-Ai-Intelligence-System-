@@ -616,7 +616,19 @@ class DataPipeline:
         # qualified lead must carry before entering the CRM (deterministic).
         stages["explanation"] = self._explain_leads(scored)
 
+        # 8. Push FINAL qualified leads to Supabase (durable, queryable). Best-effort.
+        stages["supabase_leads"] = self._push_supabase_leads(scored)
+
         return {"summary": summary, "records": scored, "stages": stages}
+
+    def _push_supabase_leads(self, scored: List[Dict[str, Any]]) -> Dict[str, Any]:
+        try:
+            from core import lead_export, supabase_leads
+            rows = lead_export.rows(scored)
+            pushed = supabase_leads.push_leads(rows)
+            return {"active": pushed > 0, "pushed": pushed, "eligible": len(rows)}
+        except Exception as exc:
+            return {"active": False, "reason": str(exc)}
 
     def _explain_leads(self, scored: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Compose the CRM answer set for each qualified lead from frozen-module

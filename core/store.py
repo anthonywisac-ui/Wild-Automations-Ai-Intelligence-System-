@@ -175,6 +175,15 @@ class SupabaseMirror:
                 self.enabled = False
                 return
 
+    async def load_all(self) -> List[Dict[str, Any]]:
+        if not self.enabled or not self._db:
+            return []
+        try:
+            return await self._db.load_all()
+        except Exception as exc:
+            logger.warning("store: Supabase load_all failed: %s", exc)
+            return []
+
 
 class UnifiedStore:
     """Primary = LocalStore (reliable). Secondary = Supabase mirror (best-effort)."""
@@ -182,9 +191,27 @@ class UnifiedStore:
     def __init__(self):
         self.local = LocalStore()
         self.mirror: Optional[SupabaseMirror] = None
+        self._hydrated = False
         url, key = os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_KEY")
         if url and key:
             self.mirror = SupabaseMirror(url, key)
+
+    async def _hydrate_if_needed(self) -> None:
+        """Cold-start durability: on a fresh container (empty local SQLite) pull
+        everything back from Supabase so data survives Railway redeploys. Runs
+        once, best-effort — never fatal."""
+        if self._hydrated or not (self.mirror and self.mirror.enabled):
+            return
+        self._hydrated = True
+        try:
+            if await self.local.count() > 0:
+                return  # local already has data (local dev / mounted volume)
+            records = await self.mirror.load_all()
+            if records:
+                n = await self.local.save_batch(records)
+                logger.info("store: hydrated %d records from Supabase (cold start)", n)
+        except Exception as exc:
+            logger.warning("store: hydrate skipped: %s", exc)
 
     async def save_batch(self, records: List[Dict[str, Any]]) -> int:
         inserted = await self.local.save_batch(records)
@@ -196,14 +223,16 @@ class UnifiedStore:
         return inserted
 
     async def load_recent(self, days: int = 30, category: Optional[str] = None) -> List[Dict[str, Any]]:
+        await self._hydrate_if_needed()
         return await self.local.load_recent(days=days, category=category)
 
     async def count(self) -> int:
+        await self._hydrate_if_needed()
         return await self.local.count()
 
     def backend_name(self) -> str:
         if self.mirror and self.mirror.enabled:
-            return "SQLite + Supabase mirror"
+            return "Supabase (durable) + SQLite cache"
         return "SQLite (local)"
 
 
