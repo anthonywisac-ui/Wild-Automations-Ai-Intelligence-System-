@@ -122,6 +122,12 @@ class LinkedInScraper:
 
     async def fetch_leads(self, tenant_id: UUID, limit: int = 10, keyword: str = "cto") -> List[LeadRecord]:
         try:
+            # 0. Vendored cookie-auth scraper (Playwright, li_at) — preferred when a
+            #    LinkedIn session cookie is configured; the agentic/spider GitHub
+            #    packages are not installed, so this is the real working path.
+            vendored = await self._fetch_vendored(tenant_id, limit, keyword)
+            if vendored:
+                return vendored
             if self.mode == "agentic" and AGENTIC_AVAILABLE:
                 return await self._fetch_agentic(tenant_id, limit, keyword)
             if self.mode == "spider" and LINKEDIN_SPIDER_AVAILABLE:
@@ -135,6 +141,27 @@ class LinkedInScraper:
         except Exception as exc:
             logger.warning("repo_integrated LinkedIn failed: %s", exc)
         return []
+
+    async def _fetch_vendored(self, tenant_id: UUID, limit: int, keyword: str) -> List[LeadRecord]:
+        """Vendored cookie-auth LinkedIn scraper (plugins/linkedin_vendor.py)."""
+        try:
+            from plugins.linkedin_vendor import LinkedInVendorScraper, vendor_available
+            if not vendor_available():
+                return []
+            scraper = LinkedInVendorScraper(headless=self.config.get("headless", True),
+                                            proxy=self.config.get("proxy"))
+            profiles = await scraper.search_people(keyword, limit=limit)
+            out: List[LeadRecord] = []
+            for pr in profiles or []:
+                out.append(LeadRecord(
+                    tenant_id=tenant_id, name=pr.get("name", "Unknown"), source="linkedin",
+                    source_url=pr.get("profile_url") or f"linkedin_{uuid4()}",
+                    title=pr.get("headline", ""), company=pr.get("company", ""),
+                    enrichment_data={"linkedin_profile": pr}))
+            return out
+        except Exception as exc:
+            logger.warning("repo_integrated LinkedIn vendored failed: %s", exc)
+            return []
 
     async def _fetch_agentic(self, tenant_id: UUID, limit: int, keyword: str) -> List[LeadRecord]:
         results: List[LeadRecord] = []

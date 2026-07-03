@@ -316,7 +316,7 @@ SCRAPERS = [
         "config": {
             "portal_name": "Social Leads", "crawl_mode": "lead_agent",
             "lead_params": {
-                "sources": ["google_maps", "instagram"],
+                "sources": ["google_maps", "instagram", "linkedin"],
                 "results_wanted": 4, "analyze": True, "use_stealth": True,
                 # THINK-FIRST: set a business goal → Intent Planner auto-generates
                 # rotating buyer-intent queries (no manual social_query needed).
@@ -326,6 +326,9 @@ SCRAPERS = [
                     # Planner fills it with a concrete TARGET BUSINESS category
                     # (dentist/restaurant/…), never the service (marketing agency).
                     "gmaps_location": "Dubai",
+                    # LinkedIn (vendored cookie-auth) — decision-maker of a BUYER
+                    # business, not a competitor. Needs LINKEDIN_LI_AT in .env.
+                    "linkedin_keyword": "clinic owner Dubai",
                     "open_posts": False,   # snippets already carry post text; True=comments (slower)
                     "headless": True,
                     # social_query is auto-filled by the Intent Planner (rotated each run)
