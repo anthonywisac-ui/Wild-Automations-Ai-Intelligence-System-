@@ -1079,26 +1079,77 @@ html,body{{height:100%;overflow:hidden;background:var(--bg);color:var(--white);f
   #wc-panel{{height:86vh;max-height:780px;border-radius:18px;overflow:hidden}}
 }}
 
-/* ── Mobile-first overrides (<=768px). Desktop (>768px) is fully unchanged. ── */
+/* ── Mobile chrome (hidden on desktop — desktop stays 100% unchanged) ── */
+.m-only{{display:none!important}}
+.m-scrim{{position:fixed;inset:0;background:rgba(3,3,4,.6);backdrop-filter:blur(3px);
+  z-index:115;opacity:0;pointer-events:none;transition:opacity .25s}}
+
+/* ── True mobile adaptation of the desktop dashboard (<=768px) ── */
 @media (max-width:768px){{
+  .m-only{{display:flex!important}}
   .layout{{flex-direction:column;height:100vh;height:100dvh}}
-  .sidebar{{order:2;position:fixed;bottom:0;left:0;width:100%;min-width:0;height:60px;
-    flex-direction:row;border-right:none;border-top:1px solid var(--muted-border);
-    background:#010000;z-index:120}}
-  .sb-brand,.sb-artwork,.sb-artwork-fallback,.sb-profile,.sb-brand-name{{display:none!important}}
-  .sb-nav{{flex-direction:row;justify-content:space-around;align-items:center;width:100%;
-    padding:6px 2px;gap:0;overflow-x:auto}}
-  .sb-item{{flex-direction:column;gap:3px;padding:6px 6px;font-size:9px;justify-content:center;
-    text-align:center;min-width:52px}}
-  .sb-item-label{{font-size:9px}}
-  .main{{order:1;flex:1;min-height:0;padding-bottom:64px}}
+
+  /* the desktop sidebar, rearranged into a premium slide-in drawer (same look) */
+  .sidebar{{position:fixed;top:0;left:0;height:100vh;height:100dvh;width:76%;max-width:300px;
+    transform:translateX(-104%);transition:transform .28s cubic-bezier(.16,1,.3,1);
+    z-index:140;box-shadow:0 0 60px rgba(0,0,0,.75)}}
+  body.nav-open .sidebar{{transform:translateX(0)}}
+  body.nav-open .m-scrim{{opacity:1;pointer-events:auto}}
+
+  .main{{order:1;flex:1;min-height:0;padding-bottom:78px}}
+
+  /* sticky glass header + hamburger + notifications */
+  .header{{position:sticky;top:0;z-index:90;backdrop-filter:blur(16px);
+    background:rgba(10,10,11,.82);border-bottom:1px solid var(--gold-border)}}
+  .header-row{{gap:10px;padding:12px 14px;align-items:center}}
+  .header-right .h-cat-pill,.header-right .h-run-btn,.header-right .h-last-run{{display:none!important}}
+  .h-title{{font-size:15px}}
+  .h-sub{{font-size:10.5px}}
+  .m-ham,.m-bell{{width:40px;height:40px;border-radius:11px;border:1px solid var(--gold-border);
+    background:var(--gold-dim);color:var(--gold);align-items:center;justify-content:center;
+    font-size:18px;cursor:pointer;flex-shrink:0;padding:0}}
+  .m-bell{{margin-left:auto;position:relative}}
+  .m-bell::after{{content:"";position:absolute;top:9px;right:11px;width:6px;height:6px;
+    border-radius:50%;background:var(--gold);box-shadow:0 0 8px var(--gold)}}
+
+  /* filter controls stacked vertically */
+  .filter-bar{{flex-direction:column;align-items:stretch;gap:8px;padding:12px 14px}}
+  .filter-bar .f-sep{{display:none}}
+  .filter-bar .f-inp{{width:100%!important}}
+  .f-clear{{align-self:flex-end}}
+
+  /* stats in a 2x2 grid (same kpi cards) */
   .kpi-strip{{grid-template-columns:repeat(2,1fr)}}
-  .kpi-card{{padding:14px 16px;gap:12px}}
-  .filter-bar{{padding:9px 14px}}
+  .kpi-card{{padding:16px;gap:14px;border-bottom:1px solid var(--muted-border)}}
+  .kpi-card:nth-child(odd){{border-right:1px solid var(--muted-border)}}
+
+  /* horizontal source chips (unchanged look), one card per row */
   .chip-bar{{padding:10px 14px}}
-  .header-row{{gap:10px}}
-  .card-grid{{grid-template-columns:1fr}}
-  #wc-fab{{bottom:76px}}
+  .card-grid{{grid-template-columns:1fr;gap:14px}}
+
+  /* bottom navigation (premium glass) replacing the sidebar */
+  .m-bottomnav{{position:fixed;left:0;right:0;bottom:0;height:66px;z-index:100;
+    justify-content:space-around;align-items:center;
+    background:rgba(8,8,9,.92);backdrop-filter:blur(18px);border-top:1px solid var(--gold-border);
+    box-shadow:0 -6px 24px rgba(0,0,0,.5);padding-bottom:env(safe-area-inset-bottom)}}
+  .m-nav-item{{display:flex;flex-direction:column;align-items:center;gap:3px;background:none;border:none;
+    color:var(--secondary);font-size:9.5px;font-weight:600;font-family:var(--font);cursor:pointer;
+    padding:6px 4px;min-width:50px}}
+  .m-nav-item svg{{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;
+    stroke-linecap:round;stroke-linejoin:round;opacity:.7}}
+  .m-nav-item.active{{color:var(--gold)}}
+  .m-nav-item.active svg{{stroke:var(--gold);opacity:1}}
+
+  /* floating gold Run All */
+  .m-runfab{{position:fixed;left:50%;transform:translateX(-50%);bottom:82px;z-index:110;
+    align-items:center;gap:8px;padding:13px 26px;border:none;border-radius:999px;
+    font-family:var(--font);font-size:15px;font-weight:700;color:#050505;cursor:pointer;
+    background:linear-gradient(135deg,#F0C838,#B8860B);
+    box-shadow:0 12px 30px rgba(226,180,4,.42),0 0 0 1px rgba(226,180,4,.55)}}
+  .m-runfab svg{{width:14px;height:14px;fill:#050505}}
+  .m-runfab:active{{transform:translateX(-50%) scale(.96)}}
+
+  #wc-fab{{bottom:82px}}   /* chat FAB clears the bottom nav */
 }}
 </style>
 </head>
@@ -1188,6 +1239,7 @@ html,body{{height:100%;overflow:hidden;background:var(--bg);color:var(--white);f
   <header class="header">
     <div class="header-row">
       <div class="header-left">
+        <button class="m-ham m-only" onclick="toggleNav()" aria-label="Menu">&#9776;</button>
         <span class="h-sdot" id="sdot"></span>
         <div>
           <div class="h-title" id="pg-title">Scraper CRM &mdash; Live Engine Monitor</div>
@@ -1201,6 +1253,7 @@ html,body{{height:100%;overflow:hidden;background:var(--bg);color:var(--white);f
           Run All
         </button>
         <span class="h-last-run" id="last-run">Ready to run</span>
+        <button class="m-bell m-only" aria-label="Notifications">&#128276;</button>
       </div>
     </div>
   </header>
@@ -1732,6 +1785,28 @@ function wcClose(){{$('wc-overlay').style.display='none';}}
     <iframe id="wc-frame" title="AI Concierge"></iframe>
   </div>
 </div>
+
+<!-- Mobile chrome: drawer scrim · bottom nav · Run-All FAB (hidden on desktop) -->
+<div class="m-scrim m-only" onclick="toggleNav()"></div>
+<nav class="m-bottomnav m-only">
+  <button class="m-nav-item active" data-cat="all" onclick="mNav('all')"><svg viewBox="0 0 24 24"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>All</button>
+  <button class="m-nav-item" data-cat="Jobs" onclick="mNav('Jobs')"><svg viewBox="0 0 24 24"><path d="M16 6V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><rect width="20" height="14" x="2" y="6" rx="2"/></svg>Jobs</button>
+  <button class="m-nav-item" data-cat="University" onclick="mNav('University')"><svg viewBox="0 0 24 24"><path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/></svg>Edu</button>
+  <button class="m-nav-item" data-cat="Visa" onclick="mNav('Visa')"><svg viewBox="0 0 24 24"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>Visa</button>
+  <button class="m-nav-item" data-cat="Automobiles" onclick="mNav('Automobiles')"><svg viewBox="0 0 24 24"><path d="M5 10H2a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h20a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1h-3"/><path d="m21 8-2 2-1.5-3.7A2 2 0 0 0 15.646 5H8.4a2 2 0 0 0-1.903 1.257L5 10"/><circle cx="7" cy="15" r="1"/><circle cx="17" cy="15" r="1"/></svg>Cars</button>
+  <button class="m-nav-item" data-cat="Leads" onclick="mNav('Leads')"><svg viewBox="0 0 24 24"><path d="M17 6.1H3"/><path d="M21 12.1H3"/><path d="M15.1 18H3"/></svg>Leads</button>
+</nav>
+<button class="m-runfab m-only" onclick="runView()"><svg viewBox="0 0 24 24"><polygon points="6 3 20 12 6 21 6 3"/></svg>Run All</button>
+<script>
+function toggleNav(){{document.body.classList.toggle('nav-open');}}
+function mNav(cat){{
+  var sb=document.querySelector('.sb-item[data-cat="'+cat+'"]');
+  if(sb){{setView(cat,sb);}}
+  document.querySelectorAll('.m-nav-item').forEach(function(n){{n.classList.toggle('active',n.getAttribute('data-cat')===cat);}});
+  document.body.classList.remove('nav-open');
+}}
+document.querySelectorAll('.sb-item').forEach(function(b){{b.addEventListener('click',function(){{document.body.classList.remove('nav-open');}});}});
+</script>
 </body>
 </html>"""
 
