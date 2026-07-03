@@ -403,6 +403,17 @@ async def index():
     return HTMLResponse(_html())
 
 
+@app.get("/api/scrapers")
+async def api_scrapers():
+    """Scraper registry metadata for the mobile shell (carousel + chips + nav)."""
+    return JSONResponse({"scrapers": [
+        {"index": i, "name": s.get("name", ""), "bot": s.get("bot", ""),
+         "emoji": s.get("emoji", ""), "category": s.get("category", ""),
+         "mode": s.get("mode", "")}
+        for i, s in enumerate(SCRAPERS)
+    ], "categories": CATEGORIES})
+
+
 async def _stream_scrapers(indexed_scrapers) -> AsyncGenerator[str, None]:
     """Yield SSE events: result (per row), done (per scraper), stream_end."""
     async def run_and_tag(idx, s):
@@ -780,7 +791,15 @@ def _html() -> str:
     categories_js = json.dumps(CATEGORIES)
     cat_icons_js  = json.dumps(CAT_ICONS)
     n = len(SCRAPERS)
-    return _PAGE(scrapers_js, categories_js, cat_icons_js, n)
+    page = _PAGE(scrapers_js, categories_js, cat_icons_js, n)
+    # Inject the dedicated mobile-first shell (plain string, no f-string escaping).
+    # Shown only <=768px; desktop layout is hidden on mobile and untouched otherwise.
+    try:
+        from mobile_shell import MOBILE_SHELL
+        page = page.replace("</body>", MOBILE_SHELL + "\n</body>", 1)
+    except Exception as exc:
+        logger.warning("mobile shell inject skipped: %s", exc)
+    return page
 
 
 def _PAGE(scrapers_js, categories_js, cat_icons_js, n) -> str:  # noqa: E501
