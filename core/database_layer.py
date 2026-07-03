@@ -199,6 +199,29 @@ class SupabaseDB:
             logging.getLogger(__name__).error("db.search error: %s", exc)
             return []
 
+    async def load_all(self, limit: int = 5000) -> List[Dict[str, Any]]:
+        """Return all stored records' normalized_data (for cold-start hydration).
+        Paginates so large tables come back fully."""
+        out: List[Dict[str, Any]] = []
+        page = 1000
+        offset = 0
+        while offset < limit:
+            resp = await self._execute(
+                self.client.table(self.table_name)
+                .select("normalized_data")
+                .range(offset, offset + page - 1)
+                .execute
+            )
+            rows = resp.data or []
+            for row in rows:
+                nd = row.get("normalized_data")
+                if isinstance(nd, dict):
+                    out.append(nd)
+            if len(rows) < page:
+                break
+            offset += page
+        return out
+
     # ──────────────────────────────────────────────────────────────────────────
     # User management (requires `users` table in Supabase)
     # ──────────────────────────────────────────────────────────────────────────

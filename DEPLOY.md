@@ -50,11 +50,20 @@ CAPTCHA these **more** than home IPs, so the browser-based lead scrapers
 on Railway** is the HTTP/API scrapers + the qualification/enrichment/scoring
 pipeline. For high-volume social leads, use a residential-proxy or an API.
 
-**SQLite is ephemeral.** `data/*.sqlite3` (collected leads, features, events)
-**resets on every redeploy**. To keep data:
-- Railway → **Add Volume**, mount path `/app/data`, **or**
-- migrate the stores to **Railway Postgres** (ask me — the store modules are
-  isolated and easy to point at Postgres).
+**Persistence → Supabase (recommended).** Do this and your data survives every
+redeploy:
+1. Supabase → **SQL Editor** → paste & run [`supabase_schema.sql`](supabase_schema.sql)
+   (creates `crm_records` + `qualified_leads`).
+2. Railway → **Variables** → add `SUPABASE_URL` and `SUPABASE_KEY`.
+Then: scraped records mirror to `crm_records` and **re-hydrate local SQLite on
+cold start** (survives redeploys); final qualified leads (scores + AI explanation
++ contact) are written to `qualified_leads`, queryable straight from Supabase.
+Backend badge changes to **"Supabase (durable) + SQLite cache"**.
+
+Without Supabase keys, `data/*.sqlite3` is local and **resets on redeploy** —
+either add the Supabase keys above, or mount a Railway **Volume** at `/app/data`.
+(Note: internal ML tables — features/events — stay in SQLite; the durable data is
+records + qualified leads.)
 
 **Browser-less option.** If you only want the reliable HTTP scrapers, delete the
 `playwright install` line from the `Dockerfile` and remove `playwright` from
