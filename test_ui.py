@@ -645,6 +645,102 @@ async def leads_export(format: str = "json"):
         return JSONResponse({"error": f"{type(exc).__name__}: {exc}"}, status_code=500)
 
 
+# ── AI Concierge (persona intake → targeted run → match) ──────────────────────
+@app.get("/api/concierge/personas")
+async def concierge_personas():
+    """List the user personas + the info the assistant must collect for each."""
+    from core import concierge
+    return JSONResponse({"personas": concierge.personas()})
+
+
+@app.post("/api/concierge/analyze-cv")
+async def concierge_analyze_cv(request: Request):
+    """Extract role/skills/location/seniority from CV text (auto-fills job intake)."""
+    try:
+        from core import concierge
+        body = await request.json()
+        return JSONResponse(await concierge.analyze_cv(body.get("cv_text", "")))
+    except Exception as exc:
+        return JSONResponse({"error": f"{type(exc).__name__}: {exc}"}, status_code=500)
+
+
+@app.post("/api/concierge/chat")
+async def concierge_chat(request: Request):
+    """General assistant chat (GROQ; safe fallback without a key)."""
+    try:
+        from core import concierge
+        body = await request.json()
+        reply = await concierge.chat(body.get("message", ""), body.get("history"))
+        return JSONResponse({"reply": reply})
+    except Exception as exc:
+        return JSONResponse({"error": f"{type(exc).__name__}: {exc}"}, status_code=500)
+
+
+@app.post("/api/concierge/run")
+async def concierge_run(request: Request):
+    """The core flow: for a persona + answers, patch the relevant scrapers' params,
+    run them, and return requirement-ranked matches."""
+    try:
+        from core import concierge
+        body = await request.json()
+        persona = body.get("persona", "")
+        answers = body.get("answers", {}) or {}
+        category = concierge.category_for(persona)
+        if not category:
+            return JSONResponse({"error": f"unknown persona '{persona}'"}, status_code=400)
+
+        # job seekers: if a CV was pasted, auto-fill missing role/location
+        if persona == "job_seeker" and answers.get("cv_text") and not answers.get("role"):
+            cv = await concierge.analyze_cv(answers["cv_text"])
+            answers.setdefault("role", cv.get("role", ""))
+            if not answers.get("location"):
+                answers["location"] = cv.get("location", "")
+
+        targets = [{**s, "config": concierge.patch_config(s.get("config", {}), persona, answers)}
+                   for s in SCRAPERS if s.get("category") == category]
+        results = await asyncio.gather(*[_run_one(t) for t in targets], return_exceptions=True)
+        records: list = []
+        sources = []
+        for t, r in zip(targets, results):
+            if isinstance(r, dict):
+                sources.append({"name": t.get("name"), "count": r.get("count", 0),
+                                "status": r.get("status")})
+                records.extend(r.get("results") or [])
+        ranked = concierge.rank(records, persona, answers)
+        return JSONResponse({
+            "persona": persona, "category": category,
+            "requirement": answers, "sources": sources,
+            "total": len(ranked), "matches": ranked[:20],
+        })
+    except Exception as exc:
+        return JSONResponse({"error": f"{type(exc).__name__}: {exc}"}, status_code=500)
+
+
+@app.post("/api/concierge/my-data")
+async def concierge_my_data(request: Request):
+    """"Tell me about my data" — summarize what's stored (records + qualified leads)."""
+    try:
+        from core import concierge
+        from core.pipeline import get_pipeline
+        body = await request.json()
+        question = body.get("question", "Summarize my data")
+        store = get_pipeline().store
+        total = await store.count()
+        try:
+            from core import linkedin_collector_store, rejection_store, feature_store
+            extra = {"linkedin_collected": linkedin_collector_store.stats(),
+                     "rejections": rejection_store.stats(),
+                     "features": feature_store.stats()}
+        except Exception:
+            extra = {}
+        facts = {"backend": store.backend_name(), "records_stored": total, **extra}
+        reply = await concierge.chat(
+            f"My CRM data facts: {facts}. Question: {question}. Answer briefly using only these facts.")
+        return JSONResponse({"facts": facts, "answer": reply})
+    except Exception as exc:
+        return JSONResponse({"error": f"{type(exc).__name__}: {exc}"}, status_code=500)
+
+
 # ── HTML ─────────────────────────────────────────────────────────────────────
 
 def _html() -> str:
