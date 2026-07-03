@@ -1059,6 +1059,47 @@ html,body{{height:100%;overflow:hidden;background:var(--bg);color:var(--white);f
 .az-stage-name{{font-size:10px;font-weight:600;color:var(--white);text-transform:uppercase;letter-spacing:.7px}}
 .az-stage-val{{font-size:11px;color:var(--secondary);line-height:1.35}}
 .az-stage-val b{{color:var(--gold);font-weight:600}}
+
+/* ── Floating AI Concierge chat (all screens; desktop layout untouched) ── */
+#wc-fab{{position:fixed;right:20px;bottom:24px;width:58px;height:58px;border-radius:50%;
+  background:linear-gradient(135deg,#E2B404,#8a6c00);color:#050505;font-size:26px;border:none;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:150;
+  box-shadow:0 8px 26px rgba(226,180,4,.4),0 0 0 1px rgba(226,180,4,.45)}}
+#wc-fab:active{{transform:scale(.94)}}
+#wc-overlay{{position:fixed;inset:0;background:rgba(5,5,5,.85);backdrop-filter:blur(10px);
+  z-index:250;display:none;align-items:center;justify-content:center}}
+#wc-panel{{background:var(--card);width:100%;max-width:520px;height:100%;display:flex;
+  flex-direction:column;border:1px solid var(--gold-border)}}
+#wc-bar{{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;
+  border-bottom:1px solid var(--gold-border);color:var(--gold);font-weight:700;font-size:14px}}
+#wc-bar button{{background:none;border:none;color:var(--gold);font-size:22px;cursor:pointer;line-height:1}}
+#wc-frame{{flex:1;border:none;width:100%;background:#0a0a0b}}
+@media(min-width:560px){{
+  #wc-overlay{{padding:22px}}
+  #wc-panel{{height:86vh;max-height:780px;border-radius:18px;overflow:hidden}}
+}}
+
+/* ── Mobile-first overrides (<=768px). Desktop (>768px) is fully unchanged. ── */
+@media (max-width:768px){{
+  .layout{{flex-direction:column;height:100vh;height:100dvh}}
+  .sidebar{{order:2;position:fixed;bottom:0;left:0;width:100%;min-width:0;height:60px;
+    flex-direction:row;border-right:none;border-top:1px solid var(--muted-border);
+    background:#010000;z-index:120}}
+  .sb-brand,.sb-artwork,.sb-artwork-fallback,.sb-profile,.sb-brand-name{{display:none!important}}
+  .sb-nav{{flex-direction:row;justify-content:space-around;align-items:center;width:100%;
+    padding:6px 2px;gap:0;overflow-x:auto}}
+  .sb-item{{flex-direction:column;gap:3px;padding:6px 6px;font-size:9px;justify-content:center;
+    text-align:center;min-width:52px}}
+  .sb-item-label{{font-size:9px}}
+  .main{{order:1;flex:1;min-height:0;padding-bottom:64px}}
+  .kpi-strip{{grid-template-columns:repeat(2,1fr)}}
+  .kpi-card{{padding:14px 16px;gap:12px}}
+  .filter-bar{{padding:9px 14px}}
+  .chip-bar{{padding:10px 14px}}
+  .header-row{{gap:10px}}
+  .card-grid{{grid-template-columns:1fr}}
+  #wc-fab{{bottom:76px}}
+}}
 </style>
 </head>
 <body>
@@ -1681,7 +1722,16 @@ function closeModal(){{$('modal').classList.remove('show');_mdata=null;}}
 function copyJSON(){{if(_mdata)navigator.clipboard.writeText(JSON.stringify(_mdata,null,2)).catch(()=>{{}});}}
 document.addEventListener('keydown',e=>{{if(e.key==='Escape')closeModal();}});
 setView('all',document.querySelector('.sb-item[data-cat="all"]'));
+function wcOpen(){{var o=$('wc-overlay');var f=$('wc-frame');if(!f.getAttribute('src'))f.setAttribute('src','/concierge');o.style.display='flex';}}
+function wcClose(){{$('wc-overlay').style.display='none';}}
 </script>
+<button id="wc-fab" onclick="wcOpen()" title="AI Concierge">💬</button>
+<div id="wc-overlay" onclick="if(event.target===this)wcClose()">
+  <div id="wc-panel">
+    <div id="wc-bar"><span>🤖 AI Concierge</span><button onclick="wcClose()">✕</button></div>
+    <iframe id="wc-frame" title="AI Concierge"></iframe>
+  </div>
+</div>
 </body>
 </html>"""
 

@@ -72,6 +72,7 @@ CONCIERGE_HTML = r"""<!doctype html>
 
 <h2>What do you need?</h2>
 <div class="grid" id="personas"></div>
+<button class="btn ghost" style="margin-top:12px" onclick="helpChoose()">🤔 Not sure? Let AI help me choose</button>
 
 <div id="intake"></div>
 <div id="results"></div>
@@ -107,12 +108,38 @@ function pick(id){
     if(qq.type==='textarea') return `<label>${qq.label}${req}</label><textarea id="f_${qq.key}" placeholder="${qq.example||''}"></textarea>`;
     if(qq.type==='select') return `<label>${qq.label}${req}</label><select id="f_${qq.key}">`+
       (qq.options||[]).map(o=>`<option>${o}</option>`).join('')+`</select>`;
-    return `<label>${qq.label}${req}</label><input id="f_${qq.key}" placeholder="${qq.example||''}"/>`;
+    return `<label>${qq.label}${req}</label><input id="f_${qq.key}" placeholder="${qq.example||''}"/>`+sugChips(selected.id,qq.key);
   }).join('');
   document.getElementById('intake').innerHTML=
     `<div class="card"><div style="font-weight:700">${selected.icon} ${selected.label}</div>
      ${q}<button class="btn" onclick="runIt()" id="runbtn">Find matches ▶</button></div>`;
   document.getElementById('intake').scrollIntoView({behavior:'smooth'});
+}
+
+// tap-able suggestions so users who don't know exact info can just pick
+const SUGG={
+  student:{country:['United Kingdom','USA','Canada','Germany','Australia','UAE'],
+           field:['Computer Science','Business','Engineering','Medicine','Data Science','Law']},
+  job_seeker:{role:['Software Engineer','Accountant','Marketing Manager','Nurse','Sales Executive','Civil Engineer'],
+              location:['Dubai','Abu Dhabi','Remote','London','Riyadh']},
+  travel_agent:{nationality:['India','Pakistan','Nigeria','Philippines','Egypt'],
+                destination:['Canada','United Kingdom','Germany','Australia','UAE']},
+  car_dealer:{make:['Toyota','BMW','Mercedes','Honda','Nissan','Audi'],
+              model:['Camry','Corolla','X5','Civic','Patrol']}
+};
+function sugChips(pid,key){
+  const s=(SUGG[pid]||{})[key];if(!s)return '';
+  return `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">`+
+    s.map(v=>`<span class="chip" style="cursor:pointer" onclick="fillF('${key}','${v.replace(/'/g,"")}')">${v}</span>`).join('')+`</div>`;
+}
+function fillF(key,val){const el=document.getElementById('f_'+key);if(el)el.value=val;}
+
+async function helpChoose(){
+  bubble("I'm not sure what I need — help me choose.","me");
+  const d=await j('/api/concierge/chat',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({message:"I'm not sure what I need. Ask me 1-2 short questions to help me choose between Student/Admission, Job Seeker, Travel Agent, or Car Dealer, then tell me which to tap."})});
+  bubble(d.reply||'Tell me: are you looking to study, find a job, travel/visa, or buy/sell cars?','ai');
+  document.getElementById('chatin').scrollIntoView({behavior:'smooth'});
 }
 
 function answers(){const a={};selected.questions.forEach(q=>{const el=document.getElementById('f_'+q.key);if(el)a[q.key]=el.value;});return a;}
