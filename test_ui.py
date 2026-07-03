@@ -887,7 +887,7 @@ html,body{{height:100%;overflow:hidden;background:var(--bg);color:var(--white);f
 .f-inp:focus{{border-color:rgba(226,180,4,.4);background:rgba(226,180,4,.04)}}
 .f-inp option{{background:#111;color:var(--white)}}
 .f-sep{{width:1px;height:14px;background:rgba(255,255,255,.07);flex-shrink:0}}
-.f-clear{{font-size:11px;color:#444;background:none;border:none;cursor:pointer;font-family:var(--font);padding:3px 7px;transition:color .15s}}
+.f-clear{{font-size:11px;color:#444;background:none;border:none;cursor:pointer;font-family:var(--font);padding:3px 7px;transition:color .15s;margin-left:auto}}
 .f-clear:hover{{color:var(--gold)}}
 .f-active{{font-size:11px;color:var(--gold);margin-left:auto}}
 
@@ -899,10 +899,12 @@ html,body{{height:100%;overflow:hidden;background:var(--bg);color:var(--white);f
 .kpi-ring svg{{width:20px;height:20px;stroke:var(--gold);stroke-width:1.5;fill:none;stroke-linecap:round;stroke-linejoin:round}}
 .kpi-content{{min-width:0}}
 .kpi-num{{font-size:36px;font-weight:700;color:var(--white);letter-spacing:-1.5px;line-height:1;font-family:var(--font)}}
-.kpi-lbl{{font-size:10px;font-weight:500;color:var(--secondary);text-transform:uppercase;letter-spacing:1.5px;margin-top:5px}}
+.kpi-lbl{{font-size:10px;font-weight:500;color:var(--secondary);text-transform:uppercase;letter-spacing:1.5px;margin-top:5px;min-height:2.4em;display:flex;align-items:flex-start}}
 
 /* CHIP BAR */
-.chip-bar{{background:var(--sb-bg);border-bottom:1px solid var(--muted-border);padding:10px 28px;display:flex;align-items:center;gap:6px;flex-shrink:0;overflow-x:auto;min-height:42px}}
+.chip-bar{{background:var(--sb-bg);border-bottom:1px solid var(--muted-border);padding:10px 28px;display:flex;align-items:center;gap:6px;flex-shrink:0;overflow-x:auto;min-height:42px;-webkit-mask-image:linear-gradient(to right,#000 92%,transparent);mask-image:linear-gradient(to right,#000 92%,transparent);scrollbar-width:thin;scrollbar-color:var(--gold-border) transparent}}
+.chip-bar::-webkit-scrollbar{{height:4px}}
+.chip-bar::-webkit-scrollbar-thumb{{background:var(--gold-border);border-radius:2px}}
 .chip-info{{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:400;color:var(--secondary);white-space:nowrap;flex-shrink:0;margin-right:6px}}
 .chip-info svg{{width:12px;height:12px;stroke:var(--secondary);stroke-width:2;fill:none}}
 .chip{{display:inline-flex;align-items:center;gap:5px;padding:4px 11px;border-radius:999px;font-size:11px;font-weight:500;background:#0f0f0f;border:1px solid rgba(255,255,255,.09);color:var(--secondary);white-space:nowrap;transition:all .15s;flex-shrink:0}}
@@ -1217,11 +1219,11 @@ html,body{{height:100%;overflow:hidden;background:var(--bg);color:var(--white);f
 
     <div style="flex:1;min-height:8px"></div>
 
-    <button class="sb-item" onclick="void 0">
+    <button class="sb-item" onclick="navStub('Health',this)">
       <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"/></svg>
       <span class="sb-item-label">Health</span>
     </button>
-    <button class="sb-item" onclick="void 0">
+    <button class="sb-item" onclick="navStub('Config',this)">
       <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
       <span class="sb-item-label">Config</span>
     </button>
@@ -1793,6 +1795,14 @@ function openModal(r,cat){{
 function closeModal(){{$('modal').classList.remove('show');_mdata=null;}}
 function copyJSON(){{if(_mdata)navigator.clipboard.writeText(JSON.stringify(_mdata,null,2)).catch(()=>{{}});}}
 document.addEventListener('keydown',e=>{{if(e.key==='Escape')closeModal();}});
+function navStub(name,el){{
+  document.querySelectorAll('.sb-item').forEach(b=>b.classList.remove('active'));
+  if(el)el.classList.add('active');
+  var t=$('pg-title'); if(t)t.textContent=name+' — Wild Automations';
+  var p=$('cat-pill'); if(p)p.textContent=name;
+  var info={{'Health':['System Health','All engines operational · monitoring live'],'Config':['Configuration','Environment, providers & delivery settings']}}[name]||[name,''];
+  var ca=$('card-area'); if(ca)ca.innerHTML='<div class="empty-state"><div class="empty-icon">'+(name==='Health'?'❤':'⚙')+'</div><div class="empty-msg">'+info[0]+'</div><div class="empty-sub">'+info[1]+'</div></div>';
+}}
 setView('all',document.querySelector('.sb-item[data-cat="all"]'));
 function wcOpen(){{var o=$('wc-overlay');var f=$('wc-frame');if(!f.getAttribute('src'))f.setAttribute('src','/concierge');o.style.display='flex';}}
 function wcClose(){{$('wc-overlay').style.display='none';}}

@@ -57,8 +57,8 @@ body.ms-nav .ms-side{transform:translateX(0)}
 /* ── Header ── */
 .ms-head{position:sticky;top:0;z-index:40;display:flex;align-items:center;gap:12px;padding:14px 16px;
   background:rgba(10,10,11,.82);backdrop-filter:blur(16px);border-bottom:1px solid var(--line)}
-.ms-ham,.ms-ic{width:40px;height:40px;border-radius:11px;border:1px solid var(--gb);background:var(--gd);
-  color:var(--g);display:grid;place-items:center;cursor:pointer;flex-shrink:0}
+.ms-ham,.ms-ic{width:44px;height:44px;min-width:44px;min-height:44px;border-radius:12px;border:1px solid var(--gb);
+  background:var(--gd);color:var(--g);display:grid;place-items:center;cursor:pointer;flex-shrink:0}
 .ms-ham svg,.ms-ic svg{width:18px;height:18px;stroke:var(--g);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .ms-logo{width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,#E2B404,#8a6c00);
   display:grid;place-items:center;color:#050505;font-weight:900;font-size:16px;flex-shrink:0}
@@ -77,8 +77,10 @@ body.ms-nav .ms-side{transform:translateX(0)}
 .ms-row .ms-card{flex:0 0 82%;scroll-snap-align:start}
 
 /* ── Single-category carousel ── */
-.ms-chips{display:flex;gap:8px;overflow-x:auto;padding:14px 16px 6px;scrollbar-width:none}
+.ms-chips{display:flex;gap:8px;overflow-x:auto;padding:14px 16px 6px;scrollbar-width:none;
+  -webkit-mask-image:linear-gradient(to right,#000 90%,transparent);mask-image:linear-gradient(to right,#000 90%,transparent)}
 .ms-chips::-webkit-scrollbar{display:none}
+.ms-row{-webkit-mask-image:linear-gradient(to right,#000 92%,transparent);mask-image:linear-gradient(to right,#000 92%,transparent)}
 .ms-chip{flex-shrink:0;padding:8px 14px;border-radius:999px;border:1px solid var(--line);background:var(--card);
   color:var(--sec);font-size:12.5px;font-weight:600;white-space:nowrap;cursor:pointer;transition:.15s}
 .ms-chip.on{border-color:var(--g);color:var(--g);background:var(--gd);box-shadow:0 0 14px rgba(226,180,4,.12)}
@@ -202,7 +204,7 @@ body.ms-nav .ms-side{transform:translateX(0)}
     <button class="ms-ic" onclick="msOpen('filter')" aria-label="Filters"><svg viewBox="0 0 24 24"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg></button>
   </div>
 
-  <div class="ms-content" id="ms-content"></div>
+  <div class="ms-content" id="ms-content"><div class="ms-empty"><span class="ms-spin"></span><div style="margin-top:12px">Loading sources…</div></div></div>
 
   <button class="ms-run" onclick="msRunAll()" id="ms-runall" aria-label="Run All"><svg viewBox="0 0 24 24"><polygon points="6 3 20 12 6 21 6 3"/></svg></button>
 
@@ -244,10 +246,21 @@ body.ms-nav .ms-side{transform:translateX(0)}
   function $(id){return document.getElementById(id);}
   function esc(s){return (s||'').replace(/[<>&]/g,function(c){return {'<':'&lt;','>':'&gt;','&':'&amp;'}[c];});}
 
-  fetch('/api/scrapers').then(function(r){return r.json();}).then(function(d){
-    ALL=d.scrapers||[]; CATS=(d.categories||[]).filter(function(c){return ALL.some(function(s){return s.category===c;});});
-    renderNav(); selectCat('all');
-  }).catch(function(){});
+  function loadScrapers(){
+    $('ms-content').innerHTML='<div class="ms-empty"><span class="ms-spin"></span><div style="margin-top:12px">Loading sources…</div></div>';
+    fetch('/api/scrapers').then(function(r){return r.json();}).then(function(d){
+      ALL=d.scrapers||[]; CATS=(d.categories||[]).filter(function(c){return ALL.some(function(s){return s.category===c;});});
+      if(!ALL.length){$('ms-content').innerHTML='<div class="ms-empty">No sources registered.</div>';return;}
+      renderNav(); selectCat('all');
+    }).catch(function(){
+      $('ms-content').innerHTML='<div class="ms-empty"><div style="font-size:30px">⚡</div>'+
+        '<div style="margin-top:8px;color:#f4f2ea;font-weight:600">Couldn\'t load sources</div>'+
+        '<div style="margin-top:4px">Check your connection.</div>'+
+        '<button class="ms-apply" style="max-width:180px;margin:16px auto 0" onclick="msReload()">Retry</button></div>';
+    });
+  }
+  window.msReload=loadScrapers;
+  loadScrapers();
 
   function navBtn(key,label,fn,active){
     return '<button class="ms-sitem'+(active?' on':'')+'" onclick="'+fn+'"><svg viewBox="0 0 24 24">'+(NAV_SVG[key]||'')+'</svg>'+label+'</button>';
