@@ -1,0 +1,431 @@
+Recruitment Lead Intelligence File
+Cover Page
+Title: Recruitment Lead Intelligence File
+Subtitle: Employer-side job search terms and hiring demand categories for global and country-wise lead generation.
+Use Case: Feed these search terms into your scraper to find companies that are actively hiring and may need recruitment support.
+
+Purpose
+This file is designed to help a job-scraping system find employers who are hiring, not job seekers. When your scraper searches these terms across job boards, career pages, and public listings, it can reveal companies with active hiring needs, urgent vacancies, and recurring recruitment demand. That data can then be sold to hiring companies as leads, talent sourcing, or recruitment support.
+
+High-Intent Employer Categories
+These are the best company types to target because they usually have ongoing hiring needs and higher willingness to pay for recruitment help.
+
+Startups.
+
+SMEs.
+
+Enterprise firms.
+
+Agencies hiring for clients.
+
+Manufacturing companies.
+
+Logistics and supply chain firms.
+
+Ecommerce businesses.
+
+IT and software companies.
+
+SaaS companies.
+
+Healthcare providers.
+
+Construction firms.
+
+Hospitality groups.
+
+Retail chains.
+
+Finance and accounting firms.
+
+Oil and gas companies.
+
+BPO and call centers.
+
+Real estate companies.
+
+Education providers.
+
+Government contractors.
+
+Remote-first companies.
+
+Core Employer Search Terms
+Use these search terms in your scraper to find public job posts from companies that are actively hiring. Job board scrapers commonly support keyword, location, company, and job type filters, which makes these terms highly practical.
+
+hiring now.
+
+we are hiring.
+
+now hiring.
+
+immediate start.
+
+urgent hiring.
+
+open positions.
+
+career opportunities.
+
+join our team.
+
+vacancies.
+
+job openings.
+
+job opportunities.
+
+looking for candidates.
+
+hiring multiple roles.
+
+recruiting now.
+
+recruitment drive.
+
+expand our team.
+
+open roles.
+
+current vacancies.
+
+apply now.
+
+talent acquisition.
+
+staffing needs.
+
+workforce expansion.
+
+hiring for growth.
+
+job posting.
+
+employment opportunity.
+
+Role and Department Search Terms
+These terms help your scraper find companies hiring for specific departments, which is useful when you want to sell specialized recruitment services.
+
+software engineer jobs.
+
+sales executive jobs.
+
+marketing manager jobs.
+
+finance manager jobs.
+
+HR manager jobs.
+
+operations manager jobs.
+
+customer support jobs.
+
+warehouse staff jobs.
+
+logistics coordinator jobs.
+
+accountant jobs.
+
+project manager jobs.
+
+data analyst jobs.
+
+administrative assistant jobs.
+
+office manager jobs.
+
+procurement jobs.
+
+nurse jobs.
+
+doctor jobs.
+
+electrician jobs.
+
+mechanical engineer jobs.
+
+civil engineer jobs.
+
+Problem-Based Hiring Signals
+These are the hidden demand terms that indicate a company is struggling to hire or needs support quickly. They are especially useful because not every employer writes “we need a recruiter,” but the job postings reveal the need.
+
+multiple openings.
+
+urgent vacancies.
+
+high volume hiring.
+
+expanding team.
+
+replace departed staff.
+
+backfill position.
+
+urgent staffing need.
+
+seasonal hiring.
+
+contract hiring.
+
+temporary staffing.
+
+permanent staffing.
+
+niche role hiring.
+
+experienced candidates needed.
+
+senior level hiring.
+
+entry level hiring.
+
+remote hiring.
+
+local hiring.
+
+overseas hiring.
+
+country-wise hiring.
+
+multi-location hiring.
+
+Country and Region Filters
+These are the regions you asked for. Your scraper should run separate searches for each market because job language and employer demand change by location.
+
+US.
+
+UK.
+
+Canada.
+
+Europe.
+
+Ireland.
+
+Australia.
+
+Singapore.
+
+Malaysia.
+
+GCC.
+
+UAE.
+
+Saudi Arabia.
+
+Qatar.
+
+Kuwait.
+
+Bahrain.
+
+Oman.
+
+Country-Wise Search Patterns
+Use these to find companies hiring in each market. These patterns are useful for lead generation because they show real geographic demand.
+
+hiring in US.
+
+hiring in UK.
+
+hiring in Canada.
+
+hiring in Europe.
+
+hiring in Ireland.
+
+hiring in Australia.
+
+hiring in Singapore.
+
+hiring in Malaysia.
+
+hiring in UAE.
+
+hiring in Saudi Arabia.
+
+hiring in Qatar.
+
+hiring in Kuwait.
+
+hiring in Bahrain.
+
+hiring in Oman.
+
+hiring across GCC.
+
+global hiring.
+
+international hiring.
+
+overseas recruitment.
+
+country-wise recruitment.
+
+local job openings.
+
+Industry-Specific Hiring Terms
+These categories help you identify which employers need niche recruitment help. Niche hiring often converts better than generic hiring because the client has a harder role to fill.
+
+IT jobs.
+
+software jobs.
+
+tech hiring.
+
+healthcare hiring.
+
+nursing jobs.
+
+construction jobs.
+
+manufacturing jobs.
+
+warehouse jobs.
+
+ecommerce jobs.
+
+retail jobs.
+
+hospitality jobs.
+
+sales jobs.
+
+finance jobs.
+
+accounting jobs.
+
+engineering jobs.
+
+logistics jobs.
+
+legal jobs.
+
+education jobs.
+
+oil and gas jobs.
+
+BPO jobs.
+
+Keywords for Hidden Buyer Intent
+These are ideal when your goal is to detect companies that may buy recruitment services, not just post jobs. They often indicate budget, urgency, or business growth.
+
+fill vacancies fast.
+
+hire qualified staff.
+
+source candidates.
+
+recruit skilled workers.
+
+find the right talent.
+
+hire employees quickly.
+
+reduce time to hire.
+
+manage hiring volume.
+
+outsource recruitment.
+
+help with hiring.
+
+staffing support.
+
+talent sourcing.
+
+candidate sourcing.
+
+recruitment partner.
+
+hiring support.
+
+recruitment agency needed.
+
+recruitment services needed.
+
+employer hiring support.
+
+staffing solution needed.
+
+HR outsourcing.
+
+Suggested Scraper Logic
+Your scraper should prioritize searches that combine a role, location, and urgency signal. That will help you find companies with real hiring pain instead of generic listings. Job scraping platforms commonly support keyword, location, date, and job-type filters, so this type of structured list is practical to automate.
+
+Search by job title + country.
+
+Search by industry + country.
+
+Search by urgency terms + country.
+
+Search by multiple openings + country.
+
+Search by remote / hybrid / onsite.
+
+Search by company career pages.
+
+Search by “hiring now” variants.
+
+Search by “join our team” variants.
+
+Search by local city names.
+
+Search by contract / permanent / temporary.
+
+Lead Qualification Signals
+These signals help you decide which companies are strong sales prospects for recruitment services.
+
+They have many open roles.
+
+They are hiring in multiple countries.
+
+They are hiring for hard-to-fill roles.
+
+They post jobs frequently.
+
+They have urgent or immediate-start roles.
+
+They need both junior and senior staff.
+
+They are scaling fast.
+
+They have repeated vacancies.
+
+They lack internal HR capacity.
+
+They are expanding into a new market.
+
+Output Fields Your Scraper Should Capture
+For each job result, capture structured fields so you can sell the data or use it for outreach. Job scrapers typically return these types of fields in JSON or CSV.
+
+Job title.
+
+Company name.
+
+Location.
+
+Country.
+
+City.
+
+Industry.
+
+Job description.
+
+Apply link.
+
+Posting date.
+
+Salary.
+
+Employment type.
+
+Remote / hybrid / onsite.
+
+Skills required.
+
+Hiring urgency.
+
+Source website.

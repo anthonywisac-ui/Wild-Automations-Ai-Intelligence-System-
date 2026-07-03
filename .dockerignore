@@ -1,0 +1,21 @@
+# keep the image small + never ship secrets/runtime state
+.venv/
+.venv_broken312/
+venv/
+__pycache__/
+**/__pycache__/
+*.pyc
+.git/
+.env
+data/*.sqlite3
+data/*.sqlite3-*
+data/*.log
+data/*.err
+data/*.out
+data_dump.json
+*.pdf
+*.png
+images/
+docs/
+*.md
+!README.md

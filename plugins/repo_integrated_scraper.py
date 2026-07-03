@@ -354,13 +354,17 @@ class FacebookScraper:
 
 
 # ── Shared Playwright helpers (consent / CAPTCHA aware) ───────────────────────
-async def _new_stealth_page(headless: bool):
-    """Launch a stealth chromium page. Caller must close browser via returned handle."""
+async def _new_stealth_page(headless: bool, proxy: str = None):
+    """Launch a stealth chromium page (optionally through a rotating proxy).
+    Caller must close browser via returned handle."""
     p = await async_playwright().start()
-    browser = await p.chromium.launch(
+    launch_kw = dict(
         headless=headless,
         args=["--disable-blink-features=AutomationControlled", "--no-sandbox"],
     )
+    if proxy:
+        launch_kw["proxy"] = {"server": proxy}
+    browser = await p.chromium.launch(**launch_kw)
     context = await browser.new_context(
         user_agent=random.choice(USER_AGENTS),
         viewport={"width": random.choice([1280, 1366, 1440]), "height": 900},
@@ -407,7 +411,7 @@ class GoogleMapsScraper:
         results: List[LeadRecord] = []
         p = browser = None
         try:
-            p, browser, page = await _new_stealth_page(self.config.get("headless", True))
+            p, browser, page = await _new_stealth_page(self.config.get("headless", True), self.config.get("proxy"))
             query = f"{keyword} in {location}".replace(" ", "+")
             await page.goto(f"https://www.google.com/maps/search/{query}?hl=en&gl=us", timeout=45000)
             await _dismiss_google_consent(page)
@@ -512,7 +516,7 @@ class GoogleSocialScraper:
         results: List[LeadRecord] = []
         p = browser = None
         try:
-            p, browser, page = await _new_stealth_page(self.config.get("headless", True))
+            p, browser, page = await _new_stealth_page(self.config.get("headless", True), self.config.get("proxy"))
             q = f"site:{self.site} {query}".replace(" ", "+")
             await page.goto(f"https://www.google.com/search?q={q}&num=20", timeout=45000)
             await _dismiss_google_consent(page)

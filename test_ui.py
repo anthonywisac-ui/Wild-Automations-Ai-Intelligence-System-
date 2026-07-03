@@ -7,6 +7,7 @@ Open: http://localhost:8001
 import asyncio
 import json
 import logging
+import os
 import sys
 import time
 from datetime import datetime, timezone
@@ -610,7 +611,13 @@ async def linkedin_collected(limit: int = 100):
     """Qualified LinkedIn leads accumulated by the continuous background collector."""
     try:
         from core import linkedin_collector_store
+        try:
+            from core import proxy_pool
+            proxies = proxy_pool.stats()
+        except Exception:
+            proxies = {}
         return JSONResponse({"stats": linkedin_collector_store.stats(),
+                             "proxies": proxies,
                              "leads": linkedin_collector_store.qualified(limit=limit)})
     except Exception as exc:
         return JSONResponse({"error": f"{type(exc).__name__}: {exc}"}, status_code=500)
@@ -1555,7 +1562,9 @@ setView('all',document.querySelector('.sb-item[data-cat="all"]'));
 
 
 if __name__ == "__main__":
+    # Railway/hosts inject the port via $PORT; fall back to 8001 locally.
+    port = int(os.getenv("PORT", "8001"))
     print(f"\n  Wild Automations — Premium Scraper CRM v2")
     print(f"  {len(SCRAPERS)} scrapers · {len(CATEGORIES)} categories")
-    print(f"  http://localhost:8001\n")
-    uvicorn.run(app, host="0.0.0.0", port=8001, log_level="warning")
+    print(f"  http://0.0.0.0:{port}\n")
+    uvicorn.run(app, host="0.0.0.0", port=port, log_level="warning")
