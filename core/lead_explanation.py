@@ -74,20 +74,30 @@ def _opportunity_evidence(record: Dict[str, Any]) -> List[str]:
     return list(dict.fromkeys(ev))[:6]
 
 
-def _what_to_sell(record: Dict[str, Any], opp: List[str]) -> str:
-    """Deterministic offer suggestion from the strongest gap."""
+def _what_to_sell(record: Dict[str, Any], opp: List[str]):
+    """Deterministic offer suggestion from the strongest gap, WITH the basis
+    (which detected gap triggered which rule) so the recommendation is auditable.
+    Returns (offer, basis)."""
     joined = " ".join(opp).lower()
     if "no website" in joined:
-        return "Website build + local SEO foundation"
+        return ("Website build + local SEO foundation",
+                "no website detected on the crawl → they have no owned funnel to convert traffic")
     if "meta pixel" in joined or "instagram" in joined:
-        return "Paid social + tracking setup (Meta Pixel + retargeting)"
+        trig = [g for g in opp if "meta pixel" in g.lower() or "instagram" in g.lower()]
+        return ("Paid social + tracking setup (Meta Pixel + retargeting)",
+                f"gaps {trig} → can't run or measure paid social without a pixel / active social presence")
     if "booking" in joined or "chatbot" in joined:
-        return "Lead-capture funnel (booking + WhatsApp automation)"
+        trig = [g for g in opp if "booking" in g.lower() or "chatbot" in g.lower()]
+        return ("Lead-capture funnel (booking + WhatsApp automation)",
+                f"gaps {trig} → enquiries are arriving but there's no capture/booking path, so leads leak")
     if "low rating" in joined or "reviews" in joined:
-        return "Reputation management + review-generation campaign"
+        return ("Reputation management + review-generation campaign",
+                "low rating / weak review volume → trust is the bottleneck before demand-gen")
     if "hiring" in joined:
-        return "Recruitment marketing campaign"
-    return "Social media management + lead-generation retainer"
+        return ("Recruitment marketing campaign",
+                "active hiring signal → they're growing and have budget for growth marketing")
+    return ("Social media management + lead-generation retainer",
+            "no specific gap surfaced pre/at this enrichment depth → default growth retainer")
 
 
 def explain(record: Dict[str, Any]) -> Dict[str, Any]:
@@ -110,7 +120,7 @@ def explain(record: Dict[str, Any]) -> Dict[str, Any]:
     spend_crawl = decision in ("FULL_ENRICHMENT", "STANDARD_ENRICHMENT")
     spend_llm = decision == "FULL_ENRICHMENT"
 
-    what = _what_to_sell(record, opp)
+    what, what_basis = _what_to_sell(record, opp)
     close = _CLOSE_PRIOR.get(decision, {}).get(ticket, 0.15)
     # confidence nudges the prior slightly
     close = round(min(0.9, close * (0.7 + 0.6 * confidence)), 2)
@@ -130,6 +140,12 @@ def explain(record: Dict[str, Any]) -> Dict[str, Any]:
         "spend_crawl": spend_crawl,
         "spend_llm": spend_llm,
         "what_to_sell": what,
+        "recommendation_basis": what_basis,
+        "analysis_basis": (
+            f"Qualified as a buyer because: {'; '.join(why_buyer) if why_buyer else 'fits target industry'}. "
+            f"Offer chosen because: {what_basis}. "
+            f"Confidence {round(confidence,2)} from qualification score {q.get('overall',0)}; "
+            f"enrichment depth: {decision}."),
         "why_sell": why_sell,
         "who_to_contact": who_to_contact,
         "outreach_channel": channel,

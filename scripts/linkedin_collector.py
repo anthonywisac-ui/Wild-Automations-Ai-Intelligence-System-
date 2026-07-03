@@ -33,8 +33,13 @@ from uuid import uuid4
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core import intent_planner, qualification_engine as qe, lead_explanation
+from core import intent_analyzer
 from core import linkedin_collector_store as store
 from plugins.repo_integrated_scraper import GoogleSocialScraper
+
+# buying-intent phrases OR'd into the post search — where leads hide in comments/posts
+_INTENT_PHRASES = ('"looking for" OR "need a" OR "recommendations for" OR '
+                   '"anyone recommend" OR "can someone help"')
 
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s [linkedin-collector] %(message)s",
@@ -81,31 +86,51 @@ def _to_record(lead, category: str, query: str) -> dict:
     }
 
 
-async def _one_cycle(plan) -> int:
-    """Run one query, qualify, persist. Returns number of NEW qualified leads."""
+async def _one_cycle(plan, mode: str) -> int:
+    """Run one query, qualify, analyze intent, persist.
+    mode='profiles'     -> decision-makers via site:linkedin.com/in
+    mode='intent_posts' -> buying-intent POSTS/COMMENTS via site:linkedin.com/posts
+    Returns count of NEW qualified leads, or -1 if Google returned nothing."""
     q = intent_planner.linkedin_queries(GOAL, plan, location=LOCATION, count=1)
     if not q:
         return 0
-    query = q[0]
-    category = _category_from_query(query)
-    log.info("query -> %s", query)
+    base = q[0]
+    category = _category_from_query(base)
 
-    scraper = GoogleSocialScraper({"headless": True, "site": "linkedin.com/in",
-                                   "source": "linkedin", "open_posts": False})
+    if mode == "intent_posts":
+        # people posting/commenting that they NEED a service = hottest leads
+        query = f"({_INTENT_PHRASES}) {category} {LOCATION}"
+        scraper = GoogleSocialScraper({"headless": True, "site": "linkedin.com/posts",
+                                       "source": "linkedin", "open_posts": True})
+    else:
+        query = base
+        scraper = GoogleSocialScraper({"headless": True, "site": "linkedin.com/in",
+                                       "source": "linkedin", "open_posts": False})
+    log.info("[%s] query -> %s", mode, query)
+
     leads = await scraper.fetch_leads(uuid4(), limit=PER_QUERY, query=query)
     if not leads:
-        log.info("  0 profiles (Google may be throttling) - will back off")
-        return -1  # signal: empty
+        log.info("  0 results (Google may be throttling) - will back off")
+        return -1
 
     new_qualified = 0
     for lead in leads:
+        text = lead.title or ""
+        # analyze the profile headline + comment/post text for buying intent
+        intent = intent_analyzer.analyze(lead.company or lead.name, text)
+        if intent["is_seller"]:
+            log.info("  x skip seller: %s (%s)", lead.name, intent["basis"][:60])
+            continue
+
         rec = _to_record(lead, category, query)
         result = qe.qualify(rec, service=SERVICE)
         rec["metadata"]["qualification"] = result.as_dict()
         expl = lead_explanation.explain(rec) if result.qualified else {}
+        if expl:
+            expl["intent"] = intent          # attach transparent intent + basis
         row = {
             "profile_url": lead.source_url, "name": lead.name,
-            "headline": lead.title or "", "company": lead.company or "",
+            "headline": text, "company": lead.company or "",
             "location": LOCATION, "category": category, "query": query,
             "qualified": 1 if result.qualified else 0,
             "qualification_score": result.overall, "decision": result.decision,
@@ -114,8 +139,10 @@ async def _one_cycle(plan) -> int:
         is_new = store.upsert(row)
         if result.qualified and is_new:
             new_qualified += 1
-            log.info("  + QUALIFIED %s | %s (score %.0f)", lead.name,
-                     (lead.title or "")[:50], result.overall)
+            tag = f"[{intent['temperature'].upper()}]" if intent["is_lead"] else ""
+            log.info("  + QUALIFIED %s %s | %s (score %.0f)%s", lead.name, tag,
+                     text[:45], result.overall,
+                     f" | intent: {intent['signals']}" if intent["signals"] else "")
     return new_qualified
 
 
@@ -129,8 +156,10 @@ async def main():
     empties = 0
     next_break = random.randint(*BREAK_EVERY)
     while _running:
+        # alternate: decision-maker profiles, then buying-intent posts/comments
+        mode = "intent_posts" if cycles % 2 else "profiles"
         try:
-            new_q = await _one_cycle(plan)
+            new_q = await _one_cycle(plan, mode)
         except Exception as exc:
             log.warning("cycle error: %s", exc)
             new_q = 0
