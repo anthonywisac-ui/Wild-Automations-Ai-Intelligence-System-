@@ -44,6 +44,12 @@
           "leads": 8,
           "sum_appeal": 3.293,
           "gems": 0
+        },
+        "\"dental clinic\" hiring marketing": {
+          "runs": 1,
+          "leads": 4,
+          "sum_appeal": 2.11,
+          "gems": 0
         }
       },
       "sources": {
@@ -54,9 +60,9 @@
           "gems": 0
         },
         "google_maps": {
-          "runs": 7,
-          "leads": 28,
-          "sum_appeal": 9.087,
+          "runs": 8,
+          "leads": 32,
+          "sum_appeal": 11.197,
           "gems": 0
         }
       }

@@ -1,0 +1,6 @@
+04:46:05 [linkedin-collector] starting — goal='clients for my social media marketing agency' service='social media marketing agency' location='Dubai'
+04:46:05 [linkedin-collector] query -> "law firm" ("owner" OR "founder" OR "CEO" OR "managing director") Dubai
+04:46:19 [linkedin-collector] repo_integrated GoogleSocial: blocked by Google (CAPTCHA) -> []
+04:46:19 [linkedin-collector]   0 profiles (Google may be throttling) — will back off
+04:46:19 [linkedin-collector] cycle 1 done | +0 new | total qualified in CRM: 0
+04:46:19 [linkedin-collector] backing off 214s (empty streak 1)
