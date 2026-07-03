@@ -35,7 +35,10 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from core import intent_planner, qualification_engine as qe, lead_explanation
 from core import intent_analyzer
 from core import linkedin_collector_store as store
+from core import proxy_pool
 from plugins.repo_integrated_scraper import GoogleSocialScraper
+
+USE_PROXIES = os.getenv("LINKEDIN_COLLECTOR_PROXIES", "1") == "1"
 
 # buying-intent phrases OR'd into the post search — where leads hide in comments/posts
 _INTENT_PHRASES = ('"looking for" OR "need a" OR "recommendations for" OR '
@@ -86,10 +89,11 @@ def _to_record(lead, category: str, query: str) -> dict:
     }
 
 
-async def _one_cycle(plan, mode: str) -> int:
+async def _one_cycle(plan, mode: str, proxy: str = None) -> int:
     """Run one query, qualify, analyze intent, persist.
     mode='profiles'     -> decision-makers via site:linkedin.com/in
     mode='intent_posts' -> buying-intent POSTS/COMMENTS via site:linkedin.com/posts
+    proxy               -> optional rotating IP to dodge Google's per-IP CAPTCHA
     Returns count of NEW qualified leads, or -1 if Google returned nothing."""
     q = intent_planner.linkedin_queries(GOAL, plan, location=LOCATION, count=1)
     if not q:
@@ -97,16 +101,16 @@ async def _one_cycle(plan, mode: str) -> int:
     base = q[0]
     category = _category_from_query(base)
 
+    cfg = {"headless": True, "source": "linkedin", "proxy": proxy}
     if mode == "intent_posts":
         # people posting/commenting that they NEED a service = hottest leads
         query = f"({_INTENT_PHRASES}) {category} {LOCATION}"
-        scraper = GoogleSocialScraper({"headless": True, "site": "linkedin.com/posts",
-                                       "source": "linkedin", "open_posts": True})
+        cfg.update({"site": "linkedin.com/posts", "open_posts": True})
     else:
         query = base
-        scraper = GoogleSocialScraper({"headless": True, "site": "linkedin.com/in",
-                                       "source": "linkedin", "open_posts": False})
-    log.info("[%s] query -> %s", mode, query)
+        cfg.update({"site": "linkedin.com/in", "open_posts": False})
+    scraper = GoogleSocialScraper(cfg)
+    log.info("[%s]%s query -> %s", mode, f" via {proxy}" if proxy else "", query)
 
     leads = await scraper.fetch_leads(uuid4(), limit=PER_QUERY, query=query)
     if not leads:
@@ -149,8 +153,15 @@ async def _one_cycle(plan, mode: str) -> int:
 async def main():
     signal.signal(signal.SIGINT, _stop)
     signal.signal(signal.SIGTERM, _stop)
-    log.info("starting — goal=%r service=%r location=%r", GOAL, SERVICE, LOCATION)
+    log.info("starting — goal=%r service=%r location=%r proxies=%s",
+             GOAL, SERVICE, LOCATION, USE_PROXIES)
     plan = await intent_planner.plan(GOAL)
+    if USE_PROXIES:
+        try:
+            n = await proxy_pool.refresh()
+            log.info("proxy pool ready: %d live proxies", n)
+        except Exception as exc:
+            log.warning("proxy refresh failed: %s", exc)
 
     cycles = 0
     empties = 0
@@ -158,11 +169,14 @@ async def main():
     while _running:
         # alternate: decision-maker profiles, then buying-intent posts/comments
         mode = "intent_posts" if cycles % 2 else "profiles"
+        proxy = await proxy_pool.get_working() if USE_PROXIES else None
         try:
-            new_q = await _one_cycle(plan, mode)
+            new_q = await _one_cycle(plan, mode, proxy)
         except Exception as exc:
             log.warning("cycle error: %s", exc)
             new_q = 0
+        if new_q == -1 and proxy:
+            proxy_pool.mark_bad(proxy)   # this IP got blocked/failed → drop it
 
         st = store.stats()
         log.info("cycle %d done | +%s new | total qualified in CRM: %s",
