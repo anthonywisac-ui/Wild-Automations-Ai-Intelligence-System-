@@ -49,6 +49,30 @@ async def _safe(fn, cfg, timeout: int = 40) -> List[Dict[str, Any]]:
         return []
 
 
+async def expand_terms(query: str) -> List[str]:
+    """Use an LLM (Gemini/Perplexity/Groq via OpenRouter or direct) to widen the
+    search into related job titles → more coverage. Empty list if no model."""
+    try:
+        from core.llm_client import get_llm
+        llm = get_llm()
+        if not llm:
+            return []
+        out = await llm.complete(
+            f"List 4 closely-related job titles a candidate searching '{query}' would "
+            f"also apply to. Comma-separated, titles only, no numbering.",
+            system="You output only a short comma-separated list.", max_tokens=60)
+        terms = [t.strip() for t in re.split(r"[,\n]", out) if 2 < len(t.strip()) < 40]
+        # drop duplicates / the original
+        seen, uniq = {query.lower()}, []
+        for t in terms:
+            if t.lower() not in seen:
+                seen.add(t.lower()); uniq.append(t)
+        return uniq[:3]
+    except Exception as exc:
+        logger.info("job_search expand failed: %s", exc)
+        return []
+
+
 async def search(query: str, location: str = "", job_type: str = "",
                  skills: Optional[List[str]] = None, worldwide: bool = False,
                  limit: int = 30) -> Dict[str, Any]:
@@ -66,8 +90,16 @@ async def search(query: str, location: str = "", job_type: str = "",
     gcfg = {"portal_name": "remote", "crawl_mode": "gulftalent",
             "gulftalent_params": {"category": query, "results_wanted": 40}}
 
-    lists = await asyncio.gather(_safe(jobspy_client.fetch_jobspy, jcfg),
-                                 _safe(gulftalent_client.fetch_gulftalent, gcfg))
+    tasks = [_safe(jobspy_client.fetch_jobspy, jcfg),
+             _safe(gulftalent_client.fetch_gulftalent, gcfg)]
+    # multi-model coverage: also search related titles the LLM suggests
+    for alt in await expand_terms(query):
+        ac = {"portal_name": "search", "crawl_mode": "jobspy", "jobspy_params": {
+            "site_names": ["indeed", "google"], "search_term": alt,
+            "google_search_term": f"{alt} {jt} jobs {location}".strip(),
+            "location": loc, "results_wanted": 20, "is_remote": jt == "remote"}}
+        tasks.append(_safe(jobspy_client.fetch_jobspy, ac))
+    lists = await asyncio.gather(*tasks)
     raw = [r for lst in lists for r in (lst or [])]
 
     want = set(re.findall(r"[a-z]{3,}", (query + " " + " ".join(skills)).lower()))

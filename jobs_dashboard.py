@@ -130,12 +130,41 @@ td{padding:14px 20px;font-size:13.5px;vertical-align:middle}
 .m-only{display:none}
 /* ── responsive ── */
 @media(max-width:1100px){.details{width:340px;min-width:340px}}
+/* mobile chrome (2nd-image Job Board look) */
+.jham,.jbell,.jfilt{display:none;width:40px;height:40px;border-radius:11px;border:1px solid var(--line);background:none;color:var(--sec);align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+.jham svg,.jbell svg,.jfilt svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:2}
+.jcount{display:none;align-items:center;justify-content:space-between;padding:12px 16px 6px;font-size:13px}
+.jcount b{font-size:15px}.jcount .sort{color:var(--sec)}
+.jscrim{position:fixed;inset:0;background:rgba(3,3,4,.6);backdrop-filter:blur(3px);z-index:180;opacity:0;pointer-events:none;transition:opacity .25s}
+body.jnav .jscrim{opacity:1;pointer-events:auto}
+.jsheet{position:fixed;left:0;right:0;bottom:0;z-index:220;background:var(--panel);border-top:1px solid var(--gb);border-radius:22px 22px 0 0;padding:8px 18px calc(24px + env(safe-area-inset-bottom));transform:translateY(103%);transition:transform .34s cubic-bezier(.16,1,.3,1);max-height:82vh;overflow-y:auto}
+.jsheet.on{transform:translateY(0)}
+.jgrip{width:40px;height:4px;border-radius:2px;background:var(--line);margin:6px auto 14px}
+.jsheet h3{margin:0 0 14px;font-size:17px}
+.jf-field{margin-bottom:12px}
+.jf-field label{display:block;font-size:12px;color:var(--sec);margin-bottom:6px}
+.jf-field select,.jf-field input{width:100%;min-height:46px;background:var(--card2);border:1px solid var(--line);color:var(--text);border-radius:11px;padding:12px;font-size:15px}
+.jf-toggle{display:flex;align-items:center;gap:10px;padding:12px;background:var(--card2);border:1px solid var(--line);border-radius:11px;margin-bottom:10px;cursor:pointer;font-size:14px}
+.jf-toggle input{width:18px;height:18px}
+.jf-apply{width:100%;min-height:50px;border:none;border-radius:13px;margin-top:6px;font-weight:700;font-size:16px;color:#050505;cursor:pointer;background:linear-gradient(135deg,#F0C838,#B8860B)}
+.drawer-extra{display:none;padding:12px 14px;border-top:1px solid var(--line)}
+.drawer-extra .runbtn2{width:100%;justify-content:center;margin-bottom:12px;display:flex;align-items:center;gap:8px;padding:12px;border:none;border-radius:11px;font-weight:700;color:#050505;background:linear-gradient(135deg,#F0C838,#B8860B);cursor:pointer;font-family:var(--font)}
+
 @media(max-width:900px){
-  .side{display:none}
-  .details{position:fixed;inset:0;width:100%;min-width:0;z-index:50;transform:translateX(100%);transition:transform .3s cubic-bezier(.16,1,.3,1)}
+  .side{position:fixed;top:0;left:0;height:100vh;height:100dvh;width:82%;max-width:300px;z-index:190;transform:translateX(-104%);transition:transform .28s cubic-bezier(.16,1,.3,1);display:flex;box-shadow:0 0 60px rgba(0,0,0,.8)}
+  body.jnav .side{transform:translateX(0)}
+  .drawer-extra{display:block}
+  .details{position:fixed;inset:0;width:100%;min-width:0;z-index:210;transform:translateX(100%);transition:transform .3s cubic-bezier(.16,1,.3,1)}
   .details.show{transform:translateX(0)}
-  .stats{grid-template-columns:repeat(2,1fr)}
-  .stat:nth-child(-n+2){border-bottom:1px solid var(--line)}
+  .hdr{gap:10px;padding:14px 16px}
+  .hdr .dot,.hdr .sub,.hdr .pill,.hdr .runbtn,.hdr .last,.hdr .hicon,.hdr .havatar{display:none!important}
+  .hdr h1{font-size:19px}
+  .jham,.jbell{display:flex}
+  .searchrow{padding:10px 16px 4px;gap:8px}
+  .searchrow .selbox{display:none}
+  .jfilt{display:flex}
+  .chips2,.stats,.srcbar{display:none}
+  .jcount{display:flex}
   thead{display:none}
   table,tbody,tr,td{display:block;width:100%}
   tbody tr{padding:14px 16px;position:relative}
@@ -144,20 +173,26 @@ td{padding:14px 20px;font-size:13.5px;vertical-align:middle}
   td.emp,td.sal{font-size:12px;color:var(--sec);margin-top:8px;margin-right:14px}
   td.posted{display:none}
   td.star{position:absolute;right:14px;top:14px}
-  .searchrow .selbox.everywhere{display:none}
   .m-only{display:flex}
 }
 </style></head><body>
+<div class="jscrim" onclick="jNav(false)"></div>
 <div class="wrap">
   <aside class="side">
     <div class="brand"><div class="l">W</div><div class="n">WILD AUTOMATIONS</div></div>
     <nav class="nav" id="side-nav"></nav>
+    <div class="drawer-extra">
+      <button class="runbtn2" onclick="jNav(false);runJobs()"><svg viewBox="0 0 24 24" width="13" height="13" fill="#050505"><polygon points="6 3 20 12 6 21 6 3"/></svg> Run Jobs</button>
+      <div id="drawer-src" style="font-size:11.5px;color:var(--sec)"></div>
+    </div>
     <div class="prof"><div class="av">WA</div><div><div class="nm">Wild Admin</div><div class="em">admin@wild.com</div></div></div>
   </aside>
   <div class="main">
     <div class="hdr">
+      <button class="jham" onclick="jNav(true)" aria-label="Menu"><svg viewBox="0 0 24 24"><line x1="3" x2="21" y1="6" y2="6"/><line x1="3" x2="21" y1="12" y2="12"/><line x1="3" x2="21" y1="18" y2="18"/></svg></button>
       <span class="dot"></span>
       <div><h1>Jobs Scrapers</h1><div class="sub">Wild Automations · <span id="agents">20</span> agents registered across 4 categories</div></div>
+      <button class="jbell" aria-label="Notifications"><svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></button>
       <span class="pill">Jobs</span>
       <button class="runbtn" onclick="runJobs()" id="runbtn"><svg viewBox="0 0 24 24"><polygon points="6 3 20 12 6 21 6 3"/></svg> Run Jobs</button>
       <span class="last" id="last">Ready</span>
@@ -169,8 +204,10 @@ td{padding:14px 20px;font-size:13.5px;vertical-align:middle}
       <div class="selbox"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/></svg> Jobs <span style="opacity:.6">▾</span></div>
       <div class="inp"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--sec)" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg> <input id="q" placeholder="Search by Job Title, Company, Location, and More" oninput="applyFilter()"/></div>
       <div class="selbox everywhere"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-6-7-11a7 7 0 0 1 14 0c0 5-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg> Everywhere <span style="opacity:.6">▾</span></div>
+      <button class="jfilt" onclick="jFilterOpen()" aria-label="Filters"><svg viewBox="0 0 24 24"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg></button>
       <button class="searchbtn" onclick="applyFilter()">Search</button>
     </div>
+    <div class="jcount"><b id="jcount-n">0</b> Jobs Found <span class="sort">Most Relevant ▾</span></div>
     <div class="chips2">
       <span class="f2">Easy apply</span><span class="f2">Salary Range ▾</span><span class="f2">Company Rating ▾</span>
       <span class="f2">Date posted ▾</span><span class="f2">All Filters</span>
@@ -192,6 +229,14 @@ td{padding:14px 20px;font-size:13.5px;vertical-align:middle}
       <aside class="details empty" id="details"><div><div style="font-size:30px">🗂</div><div style="margin-top:8px">Select a job to see details</div></div></aside>
     </div>
   </div>
+</div>
+<div class="jsheet" id="jsheet"><div class="jgrip"></div><h3>Filters</h3>
+  <div class="jf-field"><label>Keyword</label><input id="jf-q" placeholder="Title, company, skill…"/></div>
+  <div class="jf-field"><label>Country</label><select id="jf-country"><option value="">Any</option><option>United Kingdom</option><option>United States</option><option>UAE</option><option>Canada</option><option>Germany</option><option>Australia</option><option>India</option><option>Pakistan</option></select></div>
+  <div class="jf-field"><label>Job type</label><select id="jf-type"><option value="">Any</option><option value="remote">Remote</option><option value="hybrid">Hybrid</option><option value="onsite">Onsite</option></select></div>
+  <label class="jf-toggle"><input type="checkbox" id="jf-verified"/> Visa-Verified sponsors only</label>
+  <label class="jf-toggle"><input type="checkbox" id="jf-salary"/> Has salary listed</label>
+  <button class="jf-apply" onclick="jFilterApply()">Apply filters</button>
 </div>
 <script>
 (function(){
@@ -224,8 +269,9 @@ td{padding:14px 20px;font-size:13.5px;vertical-align:middle}
       document.getElementById('s-pass').textContent=d.verified_sponsors||0;
       document.getElementById('s-lat').textContent=avg.toFixed(1)+'s';
       document.getElementById('last').textContent='Last run '+new Date().toLocaleTimeString();
-      document.getElementById('srcbar').innerHTML='<span class="lbl">'+(d.sources||[]).length+' sources</span>'+
-        (d.sources||[]).map(function(s){return '<span class="src"><span class="ok"></span>'+esc(s.name)+' ('+(s.count||0)+')</span>';}).join('');
+      var srcHtml=(d.sources||[]).map(function(s){return '<span class="src"><span class="ok"></span>'+esc(s.name)+' ('+(s.count||0)+')</span>';}).join('');
+      document.getElementById('srcbar').innerHTML='<span class="lbl">'+(d.sources||[]).length+' sources</span>'+srcHtml;
+      var de=document.getElementById('drawer-src');if(de)de.innerHTML='<div style="font-weight:600;color:var(--text);margin-bottom:8px">Sources</div>'+srcHtml+'<div style="margin-top:12px">✓ '+(d.verified_sponsors||0)+' verified sponsors · '+((d.sponsor_index&&d.sponsor_index.sponsors_indexed)||0).toLocaleString()+' indexed</div>';
       page=1; render();
     }).catch(function(){document.getElementById('tbody').innerHTML='<tr><td colspan="6"><div class="center" style="padding:50px"><div style="font-size:28px">⚡</div><div>Couldn\'t load jobs</div><button class="searchbtn" style="margin-top:10px" onclick="location.reload()">Retry</button></div></td></tr>';});
   }
@@ -233,8 +279,30 @@ td{padding:14px 20px;font-size:13.5px;vertical-align:middle}
     fetch('/api/jobs/all').then(function(r){return r.json();}).then(function(){b.innerHTML='<svg viewBox="0 0 24 24"><polygon points="6 3 20 12 6 21 6 3"/></svg> Run Jobs';b.disabled=false;load();})
     .catch(function(){b.innerHTML='Run Jobs';b.disabled=false;});};
 
-  window.applyFilter=function(){var q=(document.getElementById('q').value||'').toLowerCase();
-    VIEW=JOBS.filter(function(j){return !q||JSON.stringify(j).toLowerCase().indexOf(q)>=0;});page=1;render();};
+  var FILT={q:'',country:'',type:'',verified:false,salary:false};
+  window.applyFilter=function(){
+    var q=((document.getElementById('q').value||'')||FILT.q).toLowerCase();
+    VIEW=JOBS.filter(function(j){
+      if(q&&JSON.stringify(j).toLowerCase().indexOf(q)<0)return false;
+      if(FILT.country&&(j.location||'').toLowerCase().indexOf(FILT.country.toLowerCase())<0)return false;
+      if(FILT.type==='remote'&&!j.remote&&(j.location||'').toLowerCase().indexOf('remote')<0)return false;
+      if(FILT.type==='onsite'&&(j.remote||(j.location||'').toLowerCase().indexOf('remote')>=0))return false;
+      if(FILT.verified&&!j.sponsor_verified)return false;
+      if(FILT.salary&&(!j.salary||j.salary==='—'))return false;
+      return true;});
+    page=1;render();};
+  window.jNav=function(open){document.body.classList.toggle('jnav',open);};
+  window.jFilterOpen=function(){
+    document.getElementById('jf-q').value=FILT.q||document.getElementById('q').value||'';
+    document.getElementById('jf-country').value=FILT.country;document.getElementById('jf-type').value=FILT.type;
+    document.getElementById('jf-verified').checked=FILT.verified;document.getElementById('jf-salary').checked=FILT.salary;
+    document.getElementById('jsheet').classList.add('on');};
+  window.jFilterApply=function(){
+    FILT.q=document.getElementById('jf-q').value;FILT.country=document.getElementById('jf-country').value;
+    FILT.type=document.getElementById('jf-type').value;FILT.verified=document.getElementById('jf-verified').checked;
+    FILT.salary=document.getElementById('jf-salary').checked;
+    var qi=document.getElementById('q');if(qi)qi.value=FILT.q;
+    document.getElementById('jsheet').classList.remove('on');applyFilter();};
 
   function render(){
     var tb=document.getElementById('tbody');
@@ -252,6 +320,7 @@ td{padding:14px 20px;font-size:13.5px;vertical-align:middle}
     var tot=VIEW.length,to=Math.min(start+per,tot);
     document.getElementById('pginfo').textContent='Showing '+(start+1)+' to '+to+' of '+tot+' results';
     document.getElementById('pgnum').textContent=page;
+    var jc=document.getElementById('jcount-n');if(jc)jc.textContent=tot;
   }
   window.pg=function(d){var max=Math.ceil(VIEW.length/per)||1;page=Math.min(max,Math.max(1,page+d));render();};
   window.toggleSave=function(i,el){saved[i]=!saved[i];el.textContent=saved[i]?'★':'☆';el.classList.toggle('on',saved[i]);};

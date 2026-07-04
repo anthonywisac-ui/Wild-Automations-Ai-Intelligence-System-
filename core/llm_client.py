@@ -34,6 +34,19 @@ logger = logging.getLogger(__name__)
 
 # provider -> (env key candidates, base_url, default model, needs_key)
 _PROVIDERS = {
+    "openrouter": (
+        ["OPENROUTER_API_KEY", "OPENROUTER"],
+        "https://openrouter.ai/api/v1",
+        # override with LLM_MODEL, e.g. perplexity/sonar, google/gemini-2.0-flash-exp
+        "google/gemini-2.0-flash-exp:free",
+        True,
+    ),
+    "perplexity": (
+        ["PERPLEXITY_API_KEY", "PERPLEXITY"],
+        "https://api.perplexity.ai",
+        "sonar",
+        True,
+    ),
     "groq": (
         ["GROQ_API_KEY", "GROQ_API", "GROQ"],
         "https://api.groq.com/openai/v1",
