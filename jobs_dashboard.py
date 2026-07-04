@@ -9,10 +9,12 @@ icons. Plain string (no f-string) so every { } is literal.
 JOBS_HTML = r"""<!doctype html><html lang="en"><head>
 <meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
 <title>Jobs Scrapers — Wild Automations</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#0a0a0b;--panel:#111113;--card:#141416;--card2:#1a1a1e;--line:#242429;
-  --text:#f4f2ea;--sec:#8f8c83;--g:#E2B404;--gb:rgba(226,180,4,.28);--gd:rgba(226,180,4,.10);
-  --font:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Inter,sans-serif}
+:root{--bg:#0b0b0c;--panel:#0f0f11;--card:#151517;--card2:#1a1a1e;--line:#222226;
+  --text:#f2f1ec;--sec:#84827a;--g:#E2B404;--gb:rgba(226,180,4,.30);--gd:rgba(226,180,4,.08);
+  --font:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font);font-size:14px}
 a{color:inherit;text-decoration:none}
@@ -34,13 +36,16 @@ a{color:inherit;text-decoration:none}
 .main{flex:1;display:flex;flex-direction:column;min-width:0;overflow:hidden}
 .hdr{display:flex;align-items:center;gap:14px;padding:16px 24px;border-bottom:1px solid var(--line)}
 .hdr .dot{width:8px;height:8px;border-radius:50%;background:#39d353;box-shadow:0 0 9px #39d353}
-.hdr h1{margin:0;font-size:19px;font-weight:700}
-.hdr .sub{font-size:11.5px;color:var(--sec)}
-.hdr .pill{margin-left:auto;padding:6px 13px;border:1px solid var(--line);border-radius:8px;font-size:12px;color:var(--sec)}
-.runbtn{display:inline-flex;align-items:center;gap:8px;padding:9px 18px;border:none;border-radius:9px;font-family:var(--font);
-  font-weight:700;font-size:13px;color:#050505;cursor:pointer;background:linear-gradient(135deg,#F0C838,#B8860B);box-shadow:0 6px 18px rgba(226,180,4,.28)}
-.runbtn svg{width:13px;height:13px;fill:#050505}
-.hdr .last{font-size:11px;color:var(--sec)}
+.hdr h1{margin:0;font-size:22px;font-weight:800;letter-spacing:-.4px}
+.hdr .sub{font-size:12px;color:var(--sec);margin-top:2px}
+.hdr .pill{margin-left:auto;padding:8px 15px;border:1px solid var(--line);border-radius:9px;font-size:12.5px;color:var(--text);background:var(--card)}
+.runbtn{display:inline-flex;align-items:center;gap:8px;padding:10px 18px;border:none;border-radius:9px;font-family:var(--font);
+  font-weight:700;font-size:13px;color:#050505;cursor:pointer;background:linear-gradient(135deg,#F5CE3E,#C99A26)}
+.runbtn svg{width:12px;height:12px;fill:#050505}
+.hdr .last{font-size:11.5px;color:var(--sec)}
+.hicon{width:38px;height:38px;border-radius:10px;border:1px solid var(--line);background:none;color:var(--sec);display:grid;place-items:center;cursor:pointer}
+.hicon svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.havatar{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#E2B404,#7a5800);display:grid;place-items:center;font-size:12px;font-weight:700;color:#050505}
 /* search + filters */
 .searchrow{display:flex;align-items:center;gap:10px;padding:14px 24px 6px;flex-wrap:wrap}
 .selbox{display:flex;align-items:center;gap:7px;padding:10px 14px;background:var(--card);border:1px solid var(--line);border-radius:10px;font-size:13px;color:var(--sec);white-space:nowrap}
@@ -55,7 +60,7 @@ a{color:inherit;text-decoration:none}
 .stat{display:flex;align-items:center;gap:16px;padding:16px 24px;border-right:1px solid var(--line)}
 .stat .ring{width:44px;height:44px;border-radius:50%;border:1px solid var(--gb);background:rgba(226,180,4,.05);display:grid;place-items:center;flex-shrink:0}
 .stat .ring svg{width:18px;height:18px;stroke:var(--g);fill:none;stroke-width:1.6}
-.stat .v{font-size:26px;font-weight:800;letter-spacing:-.5px;line-height:1}
+.stat .v{font-size:30px;font-weight:800;letter-spacing:-1px;line-height:1}
 .stat .k{font-size:9.5px;font-weight:600;color:var(--sec);text-transform:uppercase;letter-spacing:1.3px;margin-top:5px;min-height:2.2em;display:flex;align-items:flex-start}
 /* source chips */
 .srcbar{display:flex;align-items:center;gap:8px;padding:11px 24px;border-bottom:1px solid var(--line);overflow-x:auto;
@@ -71,7 +76,7 @@ table{width:100%;border-collapse:collapse}
 thead th{text-align:left;font-size:11px;font-weight:600;color:var(--sec);text-transform:capitalize;padding:14px 20px;position:sticky;top:0;background:var(--bg);border-bottom:1px solid var(--line);z-index:2}
 tbody tr{border-bottom:1px solid var(--line);cursor:pointer;transition:background .12s}
 tbody tr:hover{background:rgba(226,180,4,.035)}
-tbody tr.sel{background:rgba(226,180,4,.07)}
+tbody tr.sel{background:rgba(226,180,4,.06);box-shadow:inset 3px 0 0 var(--g)}
 td{padding:14px 20px;font-size:13.5px;vertical-align:middle}
 .team{display:flex;align-items:center;gap:11px}
 .logo{width:34px;height:34px;border-radius:9px;object-fit:cover;flex-shrink:0;background:var(--card2);border:1px solid var(--line)}
@@ -142,15 +147,18 @@ td{padding:14px 20px;font-size:13.5px;vertical-align:middle}
   <div class="main">
     <div class="hdr">
       <span class="dot"></span>
-      <div><h1>Jobs Scrapers</h1><div class="sub">Wild Automations · <span id="agents">20</span> agents · all sources merged</div></div>
+      <div><h1>Jobs Scrapers</h1><div class="sub">Wild Automations · <span id="agents">20</span> agents registered across 4 categories</div></div>
       <span class="pill">Jobs</span>
       <button class="runbtn" onclick="runJobs()" id="runbtn"><svg viewBox="0 0 24 24"><polygon points="6 3 20 12 6 21 6 3"/></svg> Run Jobs</button>
       <span class="last" id="last">Ready</span>
+      <button class="hicon" aria-label="Theme"><svg viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg></button>
+      <button class="hicon" aria-label="Notifications"><svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></button>
+      <div class="havatar">WA</div>
     </div>
     <div class="searchrow">
-      <div class="selbox">▦ Jobs ▾</div>
-      <div class="inp">🔍 <input id="q" placeholder="Search by Job Title, Company, Location, and More" oninput="applyFilter()"/></div>
-      <div class="selbox everywhere">📍 Everywhere ▾</div>
+      <div class="selbox"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/></svg> Jobs <span style="opacity:.6">▾</span></div>
+      <div class="inp"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--sec)" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg> <input id="q" placeholder="Search by Job Title, Company, Location, and More" oninput="applyFilter()"/></div>
+      <div class="selbox everywhere"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-6-7-11a7 7 0 0 1 14 0c0 5-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg> Everywhere <span style="opacity:.6">▾</span></div>
       <button class="searchbtn" onclick="applyFilter()">Search</button>
     </div>
     <div class="chips2">
