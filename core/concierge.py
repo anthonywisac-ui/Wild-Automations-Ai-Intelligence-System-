@@ -206,15 +206,26 @@ async def analyze_cv(cv_text: str) -> Dict[str, Any]:
                 return data
     except Exception as exc:
         logger.info("concierge.analyze_cv LLM fallback: %s", exc)
-    # deterministic fallback
+    # deterministic fallback (title phrases first — most specific wins)
     low = text.lower()
     known = ["python", "javascript", "react", "node", "java", "sql", "aws", "docker",
-             "marketing", "sales", "accounting", "design", "seo", "flutter", "php"]
+             "agile", "scrum", "jira", "pmp", "prince2", "stakeholder", "delivery",
+             "digital transformation", "saas", "fintech", "kanban", "waterfall",
+             "marketing", "sales", "accounting", "design", "seo", "flutter", "php",
+             "budget", "roadmap", "sdlc", "devops"]
     skills = [s for s in known if s in low][:8]
-    role_m = re.search(r"(engineer|developer|manager|designer|analyst|accountant|"
-                       r"consultant|specialist|marketer|nurse|teacher)", low)
-    return {"role": (role_m.group(1).title() + "" if role_m else ""),
-            "skills": skills, "location": "", "seniority": ""}
+    _TITLES = ["senior project manager", "program manager", "programme manager",
+               "digital transformation manager", "technical project manager",
+               "delivery manager", "product delivery manager", "pmo manager",
+               "project manager", "product manager", "scrum master", "software engineer",
+               "data scientist", "data analyst", "devops engineer", "solutions architect",
+               "business analyst", "care assistant", "registered nurse", "accountant"]
+    role = next((t.title() for t in _TITLES if t in low), "")
+    if not role:
+        m = re.search(r"(engineer|developer|manager|designer|analyst|consultant|"
+                      r"specialist|nurse|teacher|architect)", low)
+        role = m.group(1).title() if m else ""
+    return {"role": role, "skills": skills, "location": "", "seniority": ""}
 
 
 _INTENT_KW = {

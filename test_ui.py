@@ -812,6 +812,84 @@ async def cv_upload(file: UploadFile = File(...)):
         return JSONResponse({"error": f"{type(exc).__name__}: {exc}"}, status_code=500)
 
 
+@app.post("/api/cv/match")
+async def cv_match(request: Request):
+    """CV-driven remote job match with strict filters: fully-remote, no visa/
+    sponsorship needed, no country restriction, international-friendly, senior
+    PM-type roles ranked against the CV. Excludes UK-sponsor-list pollution."""
+    import copy, re as _re
+    from core import concierge
+    body = await request.json()
+    cv_text = body.get("cv_text", "")
+    role = (body.get("role") or "").strip()
+    skills = body.get("skills") or []
+    if cv_text and (not role or not skills):
+        cv = await concierge.analyze_cv(cv_text)
+        role = role or cv.get("role", "")
+        skills = skills or cv.get("skills", [])
+    search = role or "project manager"
+
+    def patch(cfg):
+        c = copy.deepcopy(cfg or {})
+        for pk in ("jobspy_params", "gulftalent_params", "uk_jobs_params"):
+            p = c.get(pk)
+            if isinstance(p, dict):
+                for k in ("search_term", "keywords"):
+                    if k in p:
+                        p[k] = search
+                if "results_wanted" in p:
+                    p["results_wanted"] = 40
+                if "location" in p:
+                    p["location"] = "Remote"
+        return c
+
+    # remote-friendly job sources only — exclude the UK sponsor scraper (opposite of no-visa remote)
+    targets = [{**s, "config": patch(s.get("config"))} for s in SCRAPERS
+               if s.get("category") == "Jobs" and "UK Sponsored" not in s.get("name", "")]
+    results = await asyncio.gather(*[_run_one(t) for t in targets], return_exceptions=True)
+    raw = []
+    for t, r in zip(targets, results):
+        if isinstance(r, dict):
+            for rec in (r.get("results") or []):
+                raw.append(rec)
+
+    want = set(_re.findall(r"[a-z]{3,}", (search + " " + " ".join(skills)).lower()))
+    EXCL = ["us only", "usa only", "u.s. only", "must be based", "within the us",
+            "within the united", "eu only", "uk only", "eea", "citizens only",
+            "work authorization", "authorized to work", "no visa", "sponsorship not available",
+            "cannot sponsor", "not able to sponsor", "onsite", "on-site", "hybrid",
+            "select locations", "us-based", "based in the us"]
+    PM = ["project manager", "program manager", "programme manager", "delivery manager",
+          "transformation manager", "pmo", "scrum master", "product manager", "product delivery"]
+    out = []
+    for rec in raw:
+        md = rec.get("metadata") or {}
+        if md.get("type") == "uk_sponsor" or "Licensed Sponsor" in (rec.get("title") or ""):
+            continue
+        title = (rec.get("title") or "")
+        loc = (rec.get("location") or "")
+        blob = f"{title} {loc} {rec.get('description','')}".lower()
+        if "remote" not in blob:
+            continue
+        if any(x in blob for x in EXCL):
+            continue
+        if not any(p in title.lower() for p in PM):   # senior PM relevance gate
+            continue
+        toks = set(_re.findall(r"[a-z]{3,}", blob))
+        score = len(want & toks) / (len(want) or 1)
+        matched = sorted(want & toks)[:6]
+        out.append({
+            "title": title, "company": md.get("company") or "—", "location": loc or "Remote",
+            "remote_policy": "Fully remote", "visa": "No sponsorship required",
+            "restriction": "None (international)", "salary": md.get("salary") or rec.get("price") or "—",
+            "url": rec.get("source_url") or "", "posted": md.get("created_at") or rec.get("created_at") or "",
+            "why_match": ("Matches your profile on: " + ", ".join(matched)) if matched else "Senior PM remote role",
+            "match": round(min(1.0, 0.3 + score), 2), "source": md.get("source") or rec.get("_source") or "",
+        })
+    out.sort(key=lambda x: x["match"], reverse=True)
+    return JSONResponse({"role": role, "skills": skills, "count": len(out), "jobs": out[:25]})
+
+
 @app.post("/api/concierge/analyze-cv")
 async def concierge_analyze_cv(request: Request):
     """Extract role/skills/location/seniority from CV text (auto-fills job intake)."""

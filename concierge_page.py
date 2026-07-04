@@ -206,10 +206,26 @@ async function uploadCV(input){
   try{
     const r=await fetch('/api/cv/upload',{method:'POST',body:fd});const d=await r.json();
     if(d.error){bubble('Could not read the CV: '+d.error+'. You can paste the text instead.','ai');return;}
-    bubble('Got it — you look like a **'+(d.role||'candidate')+'**'+(d.location?' in '+d.location:'')+
-      (d.skills&&d.skills.length?' · skills: '+d.skills.slice(0,5).join(', '):'')+'. Searching matching jobs…','ai');
-    runFromChat({persona:'job_seeker',answers:{role:d.role||'',location:d.location||'',cv_text:d.cv_text||''}});
+    bubble('Got it — best-fit role: **'+(d.role||'candidate')+'**'+
+      (d.skills&&d.skills.length?' · skills: '+d.skills.slice(0,6).join(', '):'')+
+      '. Searching **fully-remote, no-visa, international** roles that match…','ai');
+    const m=await j('/api/cv/match',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({cv_text:d.cv_text||'',role:d.role||'',skills:d.skills||[]})});
+    renderCVJobs(m);
   }catch(e){bubble('Upload failed. Try pasting your CV text.','ai');}
+}
+function renderCVJobs(m){
+  const n=(m.jobs||[]).length;
+  bubble(n?('Found '+n+' remote roles matching your profile 👇'):'No fully-remote, no-visa matches right now for '+(m.role||'your profile')+'. Try again shortly (sources rotate).','ai');
+  const R=document.getElementById('results');
+  R.innerHTML='<h2>'+n+' remote matches · '+esc(m.role||'')+'</h2>'+(m.jobs||[]).map(function(x){
+    return '<div class="res"><div class="t">'+esc(x.title)+'</div>'+
+      '<div class="m"><span class="chip">'+Math.round(x.match*100)+'% match</span> '+esc(x.company)+' · 📍 '+esc(x.location)+'</div>'+
+      '<div style="font-size:12px;color:var(--muted);margin-top:6px">🌍 '+esc(x.remote_policy)+' · ✅ '+esc(x.visa)+(x.salary&&x.salary!=='—'?' · 💰 '+esc(x.salary):'')+'</div>'+
+      '<div style="font-size:12px;color:var(--muted);margin-top:4px">'+esc(x.why_match)+'</div>'+
+      (x.url?'<div style="margin-top:6px"><a class="chip" style="text-decoration:none" href="'+x.url+'" target="_blank">Apply ↗</a></div>':'')+
+      '</div>';}).join('');
+  R.scrollIntoView({behavior:'smooth'});
 }
 document.getElementById('chatin').addEventListener('keydown',e=>{if(e.key==='Enter')sendChat();});
 loadPersonas();
