@@ -57,7 +57,7 @@ async def analyze_profile(cv_text: str) -> Dict[str, Any]:
 
 
 async def rank(profile: Dict[str, Any], jobs: List[Dict[str, Any]],
-               keep_min: int = 45, top: int = 20) -> List[Dict[str, Any]]:
+               keep_min: int = 35, top: int = 20) -> List[Dict[str, Any]]:
     """LLM scores each job 0-100 for TRUE fit vs the profile (domain+seniority+skills
     aware, reading the description). Returns only genuinely-relevant jobs, each with
     a match% and a plain reason. Deterministic fallback if no LLM."""
@@ -87,20 +87,21 @@ async def rank(profile: Dict[str, Any], jobs: List[Dict[str, Any]],
             if m:
                 scored = json.loads(m.group(0))
                 by_i = {int(s["i"]): s for s in scored if "i" in s}
-                res = []
+                enriched = []
                 for i, j in enumerate(cand):
-                    s = by_i.get(i)
-                    if not s:
-                        continue
-                    sc = float(s.get("score", 0))
-                    if sc < keep_min:
-                        continue
+                    s = by_i.get(i, {})
+                    sc = float(s.get("score", 40))
                     j = dict(j)
                     j["match"] = round(sc / 100, 2)
-                    j["why_match"] = s.get("reason", j.get("why_match", ""))
-                    res.append(j)
-                res.sort(key=lambda x: x["match"], reverse=True)
-                return res[:top]
+                    j["why_match"] = s.get("reason") or j.get("why_match", "")
+                    enriched.append(j)
+                enriched.sort(key=lambda x: x["match"], reverse=True)
+                strong = [j for j in enriched if j["match"] * 100 >= keep_min]
+                # never collapse to too few — show at least the 6 best even if the
+                # model was harsh, so the user always has options to react to
+                if len(strong) < 6:
+                    strong = enriched[:max(6, len(strong))]
+                return strong[:top]
     except Exception as exc:
         logger.info("job_matcher.rank fallback: %s", exc)
     # deterministic fallback: keep as-is (already overlap-ranked upstream)

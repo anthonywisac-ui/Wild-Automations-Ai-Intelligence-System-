@@ -174,6 +174,7 @@ async function deliverIt(){
 }
 
 let CHAT=[];  // conversation history so the assistant never re-asks a known answer
+function esc(s){return String(s==null?'':s).replace(/[<>&]/g,function(c){return {'<':'&lt;','>':'&gt;','&':'&amp;'}[c];});}
 function bubble(t,cls){const el=document.createElement('div');el.className='bubble '+cls;el.innerHTML=(t||'').replace(/\*\*(.+?)\*\*/g,'<b>$1</b>');
   document.getElementById('chatlog').appendChild(el);el.scrollIntoView({behavior:'smooth'});}
 async function sendChat(){
@@ -209,9 +210,12 @@ async function uploadCV(input){
     bubble('Got it — best-fit role: **'+(d.role||'candidate')+'**'+
       (d.skills&&d.skills.length?' · skills: '+d.skills.slice(0,6).join(', '):'')+
       '. Searching **fully-remote, no-visa, international** roles that match…','ai');
-    const m=await j('/api/cv/match',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({cv_text:d.cv_text||'',role:d.role||'',skills:d.skills||[]})});
-    renderCVJobs(m);
+    let m;
+    try{
+      m=await j('/api/cv/match',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({cv_text:d.cv_text||'',role:d.role||'',skills:d.skills||[]})});
+    }catch(e2){bubble('Search hit a snag — say "search '+(d.role||'jobs')+' remote" and I\'ll retry.','ai');return;}
+    try{renderCVJobs(m);}catch(e3){bubble('Got matches but couldn\'t render them — reload and try again.','ai');}
   }catch(e){bubble('Upload failed. Try pasting your CV text.','ai');}
 }
 function renderCVJobs(m){
