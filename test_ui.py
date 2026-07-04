@@ -827,67 +827,19 @@ async def cv_match(request: Request):
         cv = await concierge.analyze_cv(cv_text)
         role = role or cv.get("role", "")
         skills = skills or cv.get("skills", [])
-    search = role or "project manager"
+    # general engine: worldwide remote by default for CV uploads (international)
+    from core import job_search
+    rs = await job_search.search(role or "jobs", body.get("location", ""),
+                                 body.get("job_type", "remote"), skills,
+                                 worldwide=body.get("worldwide", True))
+    jobs = [{"title": x["title"], "company": x["company"], "location": x["location"],
+             "remote_policy": ("Fully remote" if x.get("remote") else x.get("job_type", "—")),
+             "visa": "No sponsorship required", "restriction": "None (international)",
+             "salary": x["salary"], "url": x["url"], "posted": x["posted"],
+             "why_match": x["why_match"], "match": x["match"], "source": x["source"]}
+            for x in rs["jobs"]]
+    return JSONResponse({"role": role, "skills": skills, "count": len(jobs), "jobs": jobs})
 
-    def patch(cfg):
-        c = copy.deepcopy(cfg or {})
-        for pk in ("jobspy_params", "gulftalent_params", "uk_jobs_params"):
-            p = c.get(pk)
-            if isinstance(p, dict):
-                for k in ("search_term", "keywords"):
-                    if k in p:
-                        p[k] = search
-                if "results_wanted" in p:
-                    p["results_wanted"] = 40
-                if "location" in p:
-                    p["location"] = "Remote"
-        return c
-
-    # remote-friendly job sources only — exclude the UK sponsor scraper (opposite of no-visa remote)
-    targets = [{**s, "config": patch(s.get("config"))} for s in SCRAPERS
-               if s.get("category") == "Jobs" and "UK Sponsored" not in s.get("name", "")]
-    results = await asyncio.gather(*[_run_one(t) for t in targets], return_exceptions=True)
-    raw = []
-    for t, r in zip(targets, results):
-        if isinstance(r, dict):
-            for rec in (r.get("results") or []):
-                raw.append(rec)
-
-    want = set(_re.findall(r"[a-z]{3,}", (search + " " + " ".join(skills)).lower()))
-    EXCL = ["us only", "usa only", "u.s. only", "must be based", "within the us",
-            "within the united", "eu only", "uk only", "eea", "citizens only",
-            "work authorization", "authorized to work", "no visa", "sponsorship not available",
-            "cannot sponsor", "not able to sponsor", "onsite", "on-site", "hybrid",
-            "select locations", "us-based", "based in the us"]
-    PM = ["project manager", "program manager", "programme manager", "delivery manager",
-          "transformation manager", "pmo", "scrum master", "product manager", "product delivery"]
-    out = []
-    for rec in raw:
-        md = rec.get("metadata") or {}
-        if md.get("type") == "uk_sponsor" or "Licensed Sponsor" in (rec.get("title") or ""):
-            continue
-        title = (rec.get("title") or "")
-        loc = (rec.get("location") or "")
-        blob = f"{title} {loc} {rec.get('description','')}".lower()
-        if "remote" not in blob:
-            continue
-        if any(x in blob for x in EXCL):
-            continue
-        if not any(p in title.lower() for p in PM):   # senior PM relevance gate
-            continue
-        toks = set(_re.findall(r"[a-z]{3,}", blob))
-        score = len(want & toks) / (len(want) or 1)
-        matched = sorted(want & toks)[:6]
-        out.append({
-            "title": title, "company": md.get("company") or "—", "location": loc or "Remote",
-            "remote_policy": "Fully remote", "visa": "No sponsorship required",
-            "restriction": "None (international)", "salary": md.get("salary") or rec.get("price") or "—",
-            "url": rec.get("source_url") or "", "posted": md.get("created_at") or rec.get("created_at") or "",
-            "why_match": ("Matches your profile on: " + ", ".join(matched)) if matched else "Senior PM remote role",
-            "match": round(min(1.0, 0.3 + score), 2), "source": md.get("source") or rec.get("_source") or "",
-        })
-    out.sort(key=lambda x: x["match"], reverse=True)
-    return JSONResponse({"role": role, "skills": skills, "count": len(out), "jobs": out[:25]})
 
 
 @app.post("/api/concierge/analyze-cv")
@@ -926,12 +878,24 @@ async def concierge_run(request: Request):
         if not category:
             return JSONResponse({"error": f"unknown persona '{persona}'"}, status_code=400)
 
-        # job seekers: if a CV was pasted, auto-fill missing role/location
-        if persona == "job_seeker" and answers.get("cv_text") and not answers.get("role"):
-            cv = await concierge.analyze_cv(answers["cv_text"])
-            answers.setdefault("role", cv.get("role", ""))
-            if not answers.get("location"):
-                answers["location"] = cv.get("location", "")
+        # job seekers → the general job-search engine (any type, any role, Google + APIs)
+        if persona == "job_seeker":
+            if answers.get("cv_text") and not answers.get("role"):
+                cv = await concierge.analyze_cv(answers["cv_text"])
+                answers.setdefault("role", cv.get("role", ""))
+                answers.setdefault("skills", cv.get("skills", []))
+            from core import job_search
+            rs = await job_search.search(
+                answers.get("role", "") or answers.get("query", ""),
+                answers.get("location", ""), answers.get("job_type", ""),
+                answers.get("skills"), worldwide=bool(answers.get("worldwide")))
+            matches = [{"title": x["title"], "location": x["location"], "source_url": x["url"],
+                        "_match_score": x["match"],
+                        "metadata": {"company": x["company"], "why": x["why_match"],
+                                     "job_type": x["job_type"], "salary": x["salary"]}}
+                       for x in rs["jobs"]]
+            return JSONResponse({"persona": persona, "category": "Jobs",
+                                 "requirement": answers, "total": rs["count"], "matches": matches})
 
         targets = [{**s, "config": concierge.patch_config(s.get("config", {}), persona, answers)}
                    for s in SCRAPERS if s.get("category") == category]

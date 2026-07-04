@@ -238,50 +238,72 @@ _INTENT_KW = {
 }
 _COUNTRIES = ["united states", "usa", "america", "united kingdom", "uk", "england", "canada",
               "germany", "australia", "uae", "dubai", "abu dhabi", "sharjah", "ireland", "france",
-              "netherlands", "singapore", "qatar", "saudi", "pakistan", "india", "remote"]
-_KNOWN_ROLES = ["software engineer", "developer", "nurse", "accountant", "driver", "chef",
-                "care assistant", "care", "teacher", "designer", "marketing", "sales",
-                "data scientist", "data analyst", "engineer", "manager", "welder", "electrician"]
+              "netherlands", "singapore", "qatar", "saudi", "pakistan", "india"]
+_KNOWN_ROLES = ["senior project manager", "project manager", "program manager",
+                "programme manager", "delivery manager", "product manager", "scrum master",
+                "software engineer", "web developer", "developer", "data scientist",
+                "data analyst", "devops engineer", "solutions architect", "business analyst",
+                "graphic designer", "ui designer", "ux designer", "designer",
+                "customer support", "customer service", "virtual assistant", "recruiter",
+                "digital marketer", "content writer", "copywriter", "seo specialist",
+                "nurse", "accountant", "bookkeeper", "driver", "chef", "care assistant", "care",
+                "teacher", "marketing", "sales", "welder", "electrician", "engineer", "manager"]
+
+
+_JOBTYPE = {"remote": ["remote", "work from home", "wfh", "anywhere", "worldwide"],
+            "freelance": ["freelance", "freelancing", "contract", "gig", "self employed"],
+            "part-time": ["part time", "part-time", "parttime"],
+            "full-time": ["full time", "full-time", "permanent"],
+            "internship": ["internship", "intern ", "trainee"]}
 
 
 def _slots(history: Optional[List[Dict[str, str]]], message: str) -> Dict[str, str]:
-    """Read the WHOLE conversation and fill intent/location/role — so a filled slot
-    is never asked again (this is what kills the old loop)."""
+    """Read the WHOLE conversation and fill intent/location/role/job_type — so a
+    filled slot is never asked again (this is what kills the old loop)."""
     text = " ".join([h.get("content", "") for h in (history or [])] + [message]).lower()
     intent = next((k for k, kws in _INTENT_KW.items()
                    if any(w in text for w in kws)), "")
+    job_type = next((k for k, kws in _JOBTYPE.items() if any(w in text for w in kws)), "")
     location = next((c for c in _COUNTRIES if re.search(r"\b" + re.escape(c) + r"\b", text)), "")
     role = ""
     stop = {"i", "want", "a", "an", "the", "looking", "for", "need", "find", "get",
             "some", "me", "my", "please", "searching", "search", "would", "like", "to",
-            "want a", "any", "good", "best", "new"}
-    m = re.search(r"([a-z][a-z ]{2,40}?)\s+(?:job|jobs|role|roles|position)\b", text)
-    if m:
-        role = " ".join(w for w in m.group(1).split() if w not in stop).strip()
+            "any", "good", "best", "new", "remote", "worldwide", "anywhere", "freelance",
+            "freelancing", "part", "time", "full", "contract", "work", "internship", "intern", "gig"}
+    # known multi-word titles first (most specific), else the "<role> job" pattern
+    role = next((r for r in _KNOWN_ROLES if r in text), "")
     if not role:
-        role = next((r for r in _KNOWN_ROLES if r in text), "")
-    return {"intent": intent, "location": location.title(), "role": role.title()}
+        m = re.search(r"([a-z][a-z ]{2,40}?)\s+(?:job|jobs|role|roles|position)\b", text)
+        if m:
+            role = " ".join(w for w in m.group(1).split() if w not in stop).strip()
+    # any job signal (role, job-type, or job keyword) implies a job search
+    if not intent and (role or job_type):
+        intent = "job_seeker"
+    return {"intent": intent, "location": location.title(), "role": role.title(),
+            "job_type": job_type}
 
 
 async def chat(message: str, history: Optional[List[Dict[str, str]]] = None) -> Dict[str, Any]:
     """Human-like, stateful assistant. Returns {reply, action?}. Deterministic
     slot-filling (no LLM loop): once intent + location are known it ACTS."""
     s = _slots(history, message)
-    intent, loc, role = s["intent"], s["location"], s["role"]
-    label = {"job_seeker": "jobs", "student": "admissions",
+    intent, loc, role, jt = s["intent"], s["location"], s["role"], s.get("job_type", "")
+    label = {"job_seeker": ((jt + " jobs").strip() if jt else "jobs"), "student": "admissions",
              "travel_agent": "visa options", "car_dealer": "cars"}.get(intent, "")
 
     if not intent:
-        return {"reply": "Sure — tell me what you're after: a **job**, **study / admission**, "
-                         "**visa / travel**, or **cars**? Just say it in your own words."}
+        return {"reply": "Sure — tell me what you're after: a **job** (remote, freelance, "
+                         "full-time or part-time), **study / admission**, **visa / travel**, "
+                         "or **cars**? Just say it in your own words."}
 
-    # car dealer doesn't need a country to start
-    if not loc and intent != "car_dealer":
+    # remote/freelance jobs are worldwide → location not required; else ask once
+    worldwide = jt in ("remote", "freelance")
+    if not loc and not worldwide and intent != "car_dealer":
         what = f"{role} {label}".strip() if role else label
-        return {"reply": f"Got it — {what}. Which **country or city**? (e.g. USA, UK, Dubai, Remote)"}
+        return {"reply": f"Got it — {what}. Which **country or city**? (or say **remote** for worldwide)"}
 
     if intent == "job_seeker":
-        answers = {"role": role, "location": loc}
+        answers = {"role": role, "location": loc, "job_type": jt, "worldwide": worldwide}
     elif intent == "student":
         answers = {"country": loc, "field": role, "level": "Undergraduate"}
     elif intent == "travel_agent":
