@@ -656,6 +656,44 @@ async def leads_export(format: str = "json"):
         return JSONResponse({"error": f"{type(exc).__name__}: {exc}"}, status_code=500)
 
 
+# ── Jobs dashboard (aggregated jobs from every Jobs scraper) ──────────────────
+@app.get("/jobs", response_class=HTMLResponse)
+async def jobs_page():
+    from jobs_dashboard import JOBS_HTML
+    return HTMLResponse(JOBS_HTML)
+
+
+@app.get("/api/jobs/all")
+async def jobs_all():
+    """Run every Jobs-category scraper and merge into one normalized job list."""
+    targets = [s for s in SCRAPERS if s.get("category") == "Jobs"]
+    results = await asyncio.gather(*[_run_one(t) for t in targets], return_exceptions=True)
+    jobs, sources = [], []
+    for t, r in zip(targets, results):
+        if not isinstance(r, dict):
+            sources.append({"name": t.get("name"), "count": 0, "status": "error"})
+            continue
+        sources.append({"name": t.get("name"), "count": r.get("count", 0),
+                        "status": r.get("status"), "elapsed": r.get("elapsed")})
+        for rec in (r.get("results") or []):
+            md = rec.get("metadata") or {}
+            jobs.append({
+                "company": md.get("company") or "",
+                "position": rec.get("title") or "",
+                "location": rec.get("location") or "",
+                "salary": md.get("salary") or rec.get("price") or "",
+                "posted": md.get("created_at") or rec.get("created_at")
+                          or md.get("date_posted") or "",
+                "employees": md.get("employees") or md.get("company_size") or "",
+                "job_type": md.get("job_type") or "",
+                "source": t.get("name"),
+                "source_key": md.get("source") or "",
+                "url": rec.get("source_url") or "",
+                "description": rec.get("description") or "",
+            })
+    return JSONResponse({"total": len(jobs), "jobs": jobs, "sources": sources})
+
+
 # ── AI Concierge (persona intake → targeted run → match) ──────────────────────
 @app.get("/concierge", response_class=HTMLResponse)
 async def concierge_page():
