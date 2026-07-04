@@ -87,6 +87,16 @@ td{padding:14px 20px;font-size:13.5px;vertical-align:middle}
 .star{width:34px;text-align:center;color:var(--sec);font-size:16px}
 .star.on{color:var(--g)}
 .srctag{font-size:10px;color:var(--sec);border:1px solid var(--line);border-radius:6px;padding:2px 7px;margin-top:4px;display:inline-block}
+.vbadge{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:600;color:#5fd38a;border:1px solid rgba(52,211,120,.3);background:rgba(52,211,120,.1);border-radius:6px;padding:2px 7px;margin-top:4px;margin-left:5px}
+.d-verif{margin:16px 0;padding:14px;border:1px solid rgba(52,211,120,.3);background:rgba(52,211,120,.07);border-radius:12px}
+.d-verif .h{display:flex;align-items:center;gap:7px;color:#5fd38a;font-weight:700;font-size:13px}
+.d-verif .r{margin-top:8px;font-size:12px;color:#cfccc2}
+.d-notv{margin:16px 0;padding:12px 14px;border:1px solid var(--line);background:var(--card);border-radius:12px;color:var(--sec);font-size:12.5px}
+.d-scores{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0}
+.d-score{flex:1;min-width:90px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px}
+.d-score .v{font-size:17px;font-weight:800;color:var(--g)}
+.d-score .k{font-size:9.5px;color:var(--sec);text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
+.d-ev{font-size:11.5px;color:var(--sec);line-height:1.5;margin-top:6px}
 /* details panel */
 .details{width:390px;min-width:390px;border-left:1px solid var(--line);background:var(--panel);display:flex;flex-direction:column;overflow:hidden}
 .details.empty{align-items:center;justify-content:center;color:var(--sec);text-align:center;padding:30px}
@@ -168,8 +178,8 @@ td{padding:14px 20px;font-size:13.5px;vertical-align:middle}
     </div>
     <div class="stats">
       <div class="stat"><div class="ring"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18"/></svg></div><div><div class="v" id="s-found">0</div><div class="k">Jobs Found</div></div></div>
-      <div class="stat"><div class="ring"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10"/></svg></div><div><div class="v" id="s-rows">0</div><div class="k">Rows Extracted</div></div></div>
-      <div class="stat"><div class="ring"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></div><div><div class="v" id="s-pass">0</div><div class="k">Sources Passed</div></div></div>
+      <div class="stat"><div class="ring"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10"/></svg></div><div><div class="v" id="s-rows">0</div><div class="k">Sponsors Indexed</div></div></div>
+      <div class="stat"><div class="ring"><svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg></div><div><div class="v" id="s-pass">0</div><div class="k">Verified Sponsors</div></div></div>
       <div class="stat"><div class="ring"><svg viewBox="0 0 24 24"><path d="M13 2 3 14h7l-1 8 10-12h-7z"/></svg></div><div><div class="v" id="s-lat">0s</div><div class="k">Avg Latency</div></div></div>
     </div>
     <div class="srcbar" id="srcbar"><span class="lbl">Sources</span></div>
@@ -207,12 +217,11 @@ td{padding:14px 20px;font-size:13.5px;vertical-align:middle}
     document.getElementById('tbody').innerHTML='<tr><td colspan="6"><div class="center" style="padding:60px 0"><span class="spin"></span><div>Loading jobs…</div></div></td></tr>';
     fetch('/api/jobs/all').then(function(r){return r.json();}).then(function(d){
       JOBS=d.jobs||[]; VIEW=JOBS.slice();
-      var pass=(d.sources||[]).filter(function(s){return s.status==='ok';}).length;
       var lat=(d.sources||[]).map(function(s){return s.elapsed||0;});
       var avg=lat.length?(lat.reduce(function(a,b){return a+b;},0)/lat.length):0;
       document.getElementById('s-found').textContent=JOBS.length;
-      document.getElementById('s-rows').textContent=JOBS.length;
-      document.getElementById('s-pass').textContent=pass;
+      document.getElementById('s-rows').textContent=(d.sponsor_index&&d.sponsor_index.sponsors_indexed||0).toLocaleString();
+      document.getElementById('s-pass').textContent=d.verified_sponsors||0;
       document.getElementById('s-lat').textContent=avg.toFixed(1)+'s';
       document.getElementById('last').textContent='Last run '+new Date().toLocaleTimeString();
       document.getElementById('srcbar').innerHTML='<span class="lbl">'+(d.sources||[]).length+' sources</span>'+
@@ -233,7 +242,7 @@ td{padding:14px 20px;font-size:13.5px;vertical-align:middle}
     var start=(page-1)*per,slice=VIEW.slice(start,start+per);
     tb.innerHTML=slice.map(function(j,k){var idx=start+k;
       return '<tr onclick="openJob('+idx+',this)" class="'+(sel===idx?'sel':'')+'">'+
-        '<td class="team"><div class="team">'+logo(j.company,idx)+'<div><div class="co">'+esc(j.company||'—')+'</div><div class="srctag">'+esc(j.source||'')+'</div></div></div></td>'+
+        '<td class="team"><div class="team">'+logo(j.company,idx)+'<div><div class="co">'+esc(j.company||'—')+'</div><div><span class="srctag">'+esc(j.source||'')+'</span>'+(j.sponsor_verified?'<span class="vbadge">✓ Visa Verified'+(j.visa_routes&&j.visa_routes.length?' · '+esc(j.visa_routes[0]):'')+'</span>':'')+'</div></div></div></td>'+
         '<td class="pos"><div class="t">'+esc((j.position||'').slice(0,60))+'</div><div class="l">'+esc(j.location||'')+'</div></td>'+
         '<td class="emp muted">'+esc(j.employees||'—')+'</td>'+
         '<td class="sal">'+esc(j.salary||'—')+'</td>'+
@@ -247,6 +256,29 @@ td{padding:14px 20px;font-size:13.5px;vertical-align:middle}
   window.pg=function(d){var max=Math.ceil(VIEW.length/per)||1;page=Math.min(max,Math.max(1,page+d));render();};
   window.toggleSave=function(i,el){saved[i]=!saved[i];el.textContent=saved[i]?'★':'☆';el.classList.toggle('on',saved[i]);};
 
+  function sponsorBlock(j){
+    if(j.sponsor_verified){
+      var routes=(j.visa_routes||[]).map(esc).join(', ')||'Skilled Worker';
+      return '<div class="d-verif"><div class="h">🛡 Visa Sponsor — Verified</div>'+
+        '<div class="r"><b>'+esc(j.company)+'</b> is on the official UK Register of Licensed Sponsors.<br>'+
+        'Routes: '+routes+'</div>'+
+        '<div class="d-ev">Source: UK Gov Register of Licensed Sponsors (Workers)</div></div>';
+    }
+    return '<div class="d-notv">⚪ Sponsorship: <b>'+esc(j.sponsor_status||'Not Verified')+'</b> — no matching licence in the official register.</div>';
+  }
+  function intelBlock(j){
+    var ig=j.intelligence||{}; if(!ig.summary)return '';
+    function pc(x){return Math.round((x||0)*100);}
+    var ev=(ig.evidence||[]).map(function(e){return '• '+esc(e.detail||'');}).join('<br>');
+    return '<div class="d-h">AI Intelligence</div>'+
+      '<div class="d-scores">'+
+      '<div class="d-score"><div class="v">'+pc(ig.ai_score)+'</div><div class="k">AI Score</div></div>'+
+      '<div class="d-score"><div class="v">'+pc(ig.visa_score)+'</div><div class="k">Visa</div></div>'+
+      '<div class="d-score"><div class="v">'+pc(ig.salary_score)+'</div><div class="k">Salary</div></div>'+
+      '<div class="d-score"><div class="v">'+pc(ig.confidence)+'</div><div class="k">Confidence</div></div></div>'+
+      '<p class="d-p">'+esc(ig.summary)+'</p>'+
+      (ev?'<div class="d-ev"><b style="color:var(--sec)">Evidence</b><br>'+ev+'</div>':'');
+  }
   window.openJob=function(i,row){sel=i;var j=VIEW[i];if(!j)return;
     document.querySelectorAll('tbody tr').forEach(function(r){r.classList.remove('sel');});if(row)row.classList.add('sel');
     var desc=esc(j.description||'');var parts=desc.split(/[.!?]\s/).filter(Boolean);
@@ -259,6 +291,7 @@ td{padding:14px 20px;font-size:13.5px;vertical-align:middle}
       '<div class="d-meta"><div><div class="k">Employee</div><div class="v">'+esc(j.employees||'—')+'</div></div>'+
       '<div><div class="k">Salary</div><div class="v">'+esc(j.salary||'—')+'</div></div>'+
       '<div><div class="k">Posted</div><div class="v">'+esc(j.posted||'—')+'</div></div></div>'+
+      sponsorBlock(j)+intelBlock(j)+
       (about?'<div class="d-h">About '+esc(j.company||'the role')+'</div><p class="d-p">'+about+'.</p>':'')+
       (role?'<div class="d-h">What\'s the role?</div><p class="d-p">'+role+'.</p>':'')+
       (bullets.length?'<div class="d-h">In this role you will…</div>'+bullets.map(function(b){return '<div class="d-li"><span class="c">✓</span>'+b+'.</div>';}).join(''):'')+

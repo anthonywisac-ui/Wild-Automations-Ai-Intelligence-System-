@@ -685,12 +685,13 @@ def _bump_limits(cfg, want=30):
 
 @app.get("/api/jobs/all")
 async def jobs_all():
-    """Run every Jobs-category scraper and merge into one normalized job list
-    (up to ~100 jobs — each scraper's limit is raised)."""
+    """Run every Jobs-category scraper, then normalize → dedup → sponsor-verify →
+    score through the Job Intelligence engine. Returns enterprise-grade jobs with
+    gov-verified visa sponsorship + evidence + confidence."""
     targets = [{**s, "config": _bump_limits(s.get("config"), 30)}
                for s in SCRAPERS if s.get("category") == "Jobs"]
     results = await asyncio.gather(*[_run_one(t) for t in targets], return_exceptions=True)
-    jobs, sources = [], []
+    raw, sources = [], []
     for t, r in zip(targets, results):
         if not isinstance(r, dict):
             sources.append({"name": t.get("name"), "count": 0, "status": "error"})
@@ -698,22 +699,34 @@ async def jobs_all():
         sources.append({"name": t.get("name"), "count": r.get("count", 0),
                         "status": r.get("status"), "elapsed": r.get("elapsed")})
         for rec in (r.get("results") or []):
-            md = rec.get("metadata") or {}
-            jobs.append({
-                "company": md.get("company") or "",
-                "position": rec.get("title") or "",
-                "location": rec.get("location") or "",
-                "salary": md.get("salary") or rec.get("price") or "",
-                "posted": md.get("created_at") or rec.get("created_at")
-                          or md.get("date_posted") or "",
-                "employees": md.get("employees") or md.get("company_size") or "",
-                "job_type": md.get("job_type") or "",
-                "source": t.get("name"),
-                "source_key": md.get("source") or "",
-                "url": rec.get("source_url") or "",
-                "description": rec.get("description") or "",
-            })
-    return JSONResponse({"total": len(jobs), "jobs": jobs, "sources": sources})
+            rec.setdefault("_source", t.get("name"))
+            (rec.setdefault("metadata", {}))["source"] = t.get("name")
+            raw.append(rec)
+
+    from core import job_intelligence
+    intel = await job_intelligence.process(raw)
+
+    # flatten to the table shape the /jobs UI consumes (+ intelligence)
+    jobs = []
+    for j in intel["jobs"]:
+        sp = j.get("sponsor") or {}
+        ig = j.get("intelligence") or {}
+        jobs.append({
+            "company": j["employer"]["name"], "position": j["title"],
+            "location": j["location"], "salary": j["salary"]["display"],
+            "posted": j.get("posted") or "", "employees": j.get("employees") or "",
+            "source": j.get("source"), "url": j.get("url"),
+            "description": j.get("description"),
+            "seniority": j.get("seniority"), "skills": j.get("skills"),
+            "remote": j.get("remote"), "country": j.get("country_iso"),
+            "salary_usd": j["salary"].get("usd_annual"),
+            "sponsor_verified": ig.get("sponsor_verified", False),
+            "visa_routes": sp.get("routes", []) if sp.get("matched") else [],
+            "sponsor_status": sp.get("status", "Not Verified"),
+            "intelligence": ig,
+        })
+    return JSONResponse({"total": intel["total"], "verified_sponsors": intel["verified_sponsors"],
+                         "sponsor_index": intel["sponsor_index"], "jobs": jobs, "sources": sources})
 
 
 # ── AI Concierge (persona intake → targeted run → match) ──────────────────────
