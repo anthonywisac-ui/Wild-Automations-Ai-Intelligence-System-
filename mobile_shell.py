@@ -277,7 +277,9 @@ body.ms-nav .ms-side{transform:translateX(0)}
   }
   window.msNav=function(open){document.body.classList.toggle('ms-nav',open);};
   window.msConcierge=function(){msNav(false); if(window.wcOpen)wcOpen();};
-  window.msPick=function(c){cat=c; msNav(false); renderNav();
+  window.msPick=function(c){
+    if(c==='Jobs'){location.href='/jobs';return;}
+    cat=c; msNav(false); renderNav();
     $('ms-cur').textContent=c==='all'?'All Sources':((CAT_META[c]||{}).l||c);
     renderContent();};
 

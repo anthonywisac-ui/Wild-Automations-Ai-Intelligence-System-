@@ -663,10 +663,32 @@ async def jobs_page():
     return HTMLResponse(JOBS_HTML)
 
 
+def _bump_limits(cfg, want=30):
+    """Deep-copy a scraper config and raise its result limits so /api/jobs/all
+    can return up to ~100 merged jobs (was ~5 each)."""
+    import copy
+    c = copy.deepcopy(cfg or {})
+
+    def walk(d):
+        if not isinstance(d, dict):
+            return
+        for k, v in list(d.items()):
+            if isinstance(v, dict):
+                walk(v)
+            elif k in ("results_wanted", "limit", "results", "num_pages"):
+                d[k] = want
+            elif k == "max_pages":
+                d[k] = 4
+    walk(c)
+    return c
+
+
 @app.get("/api/jobs/all")
 async def jobs_all():
-    """Run every Jobs-category scraper and merge into one normalized job list."""
-    targets = [s for s in SCRAPERS if s.get("category") == "Jobs"]
+    """Run every Jobs-category scraper and merge into one normalized job list
+    (up to ~100 jobs — each scraper's limit is raised)."""
+    targets = [{**s, "config": _bump_limits(s.get("config"), 30)}
+               for s in SCRAPERS if s.get("category") == "Jobs"]
     results = await asyncio.gather(*[_run_one(t) for t in targets], return_exceptions=True)
     jobs, sources = [], []
     for t, r in zip(targets, results):
@@ -1228,7 +1250,7 @@ html,body{{height:100%;overflow:hidden;background:var(--bg);color:var(--white);f
       <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>
       <span class="sb-item-label">All</span>
     </button>
-    <button class="sb-item" data-cat="Jobs" onclick="setView('Jobs',this)">
+    <button class="sb-item" data-cat="Jobs" onclick="location.href='/jobs'">
       <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12h.01"/><path d="M16 6V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><path d="M22 13a18.15 18.15 0 0 1-20 0"/><rect width="20" height="14" x="2" y="6" rx="2"/></svg>
       <span class="sb-item-label">Jobs</span>
     </button>
