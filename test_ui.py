@@ -25,7 +25,7 @@ except ImportError:
     pass
 
 try:
-    from fastapi import FastAPI, Request
+    from fastapi import FastAPI, Request, UploadFile, File
     from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
     import uvicorn
 except ImportError:
@@ -81,7 +81,11 @@ SCRAPERS = [
             "portal_name": "ATS Jobs", "crawl_mode": "ats_jobs",
             "ats_params": {
                 "source": "all",
-                "companies": ["airbnb", "stripe", "shopify", "figma", "notion"],
+                "companies": ["airbnb", "stripe", "shopify", "figma", "notion",
+                    "coinbase", "datadog", "gitlab", "dropbox", "cloudflare", "elastic",
+                    "hashicorp", "twilio", "asana", "brex", "reddit", "robinhood",
+                    "instacart", "doordash", "pinterest", "affirm", "coursera",
+                    "databricks", "benchling", "samsara", "flexport", "gusto"],
                 "limit": 20,
             },
         },
@@ -683,6 +687,29 @@ def _bump_limits(cfg, want=30):
     return c
 
 
+@app.get("/api/jobs/detail")
+async def jobs_detail(url: str):
+    """Deep-fetch a job's own page and extract the full description text — called
+    lazily when a job's details panel opens (efficient: only for the opened job)."""
+    if not url.startswith("http"):
+        return JSONResponse({"error": "bad url"}, status_code=400)
+    try:
+        import httpx, re as _re
+        async with httpx.AsyncClient(timeout=15, verify=False, follow_redirects=True,
+                                     headers={"User-Agent": "Mozilla/5.0"}) as client:
+            r = await client.get(url)
+        html = r.text
+        # strip scripts/styles, take body text
+        html = _re.sub(r"(?is)<(script|style|nav|footer|header)[^>]*>.*?</\1>", " ", html)
+        text = _re.sub(r"(?s)<[^>]+>", " ", html)
+        text = _re.sub(r"\s+", " ", text).strip()
+        # pull the meatiest slice (job desc pages have the body mid-document)
+        full = text[:6000]
+        return JSONResponse({"description": full, "length": len(text)})
+    except Exception as exc:
+        return JSONResponse({"error": f"{type(exc).__name__}: {exc}"}, status_code=500)
+
+
 @app.get("/api/jobs/all")
 async def jobs_all():
     """Run every Jobs-category scraper, then normalize → dedup → sponsor-verify →
@@ -744,6 +771,47 @@ async def concierge_personas():
     return JSONResponse({"personas": concierge.personas()})
 
 
+def _extract_cv_text(name: str, data: bytes) -> str:
+    """Best-effort text extraction from txt/pdf/docx."""
+    n = (name or "").lower()
+    if n.endswith(".txt"):
+        return data.decode("utf-8", "ignore")
+    if n.endswith(".pdf"):
+        try:
+            import io as _io
+            from pypdf import PdfReader
+            reader = PdfReader(_io.BytesIO(data))
+            return "\n".join((p.extract_text() or "") for p in reader.pages)
+        except Exception:
+            return ""
+    if n.endswith(".docx"):
+        try:
+            import io as _io
+            from docx import Document
+            doc = Document(_io.BytesIO(data))
+            return "\n".join(p.text for p in doc.paragraphs)
+        except Exception:
+            return ""
+    return data.decode("utf-8", "ignore")
+
+
+@app.post("/api/cv/upload")
+async def cv_upload(file: UploadFile = File(...)):
+    """Upload a CV (pdf/docx/txt) → extract text → analyze → return role/skills/
+    location + cv_text so the client can run a CV-matched job search."""
+    try:
+        from core import concierge
+        data = await file.read()
+        text = _extract_cv_text(file.filename or "", data)
+        if not text.strip():
+            return JSONResponse({"error": "could not read text (try a .txt or paste it)"}, status_code=400)
+        cv = await concierge.analyze_cv(text)
+        cv["cv_text"] = text[:6000]
+        return JSONResponse(cv)
+    except Exception as exc:
+        return JSONResponse({"error": f"{type(exc).__name__}: {exc}"}, status_code=500)
+
+
 @app.post("/api/concierge/analyze-cv")
 async def concierge_analyze_cv(request: Request):
     """Extract role/skills/location/seniority from CV text (auto-fills job intake)."""
@@ -761,8 +829,8 @@ async def concierge_chat(request: Request):
     try:
         from core import concierge
         body = await request.json()
-        reply = await concierge.chat(body.get("message", ""), body.get("history"))
-        return JSONResponse({"reply": reply})
+        result = await concierge.chat(body.get("message", ""), body.get("history"))
+        return JSONResponse(result)   # {reply, action?}
     except Exception as exc:
         return JSONResponse({"error": f"{type(exc).__name__}: {exc}"}, status_code=500)
 
@@ -847,9 +915,17 @@ async def concierge_my_data(request: Request):
         except Exception:
             extra = {}
         facts = {"backend": store.backend_name(), "records_stored": total, **extra}
-        reply = await concierge.chat(
-            f"My CRM data facts: {facts}. Question: {question}. Answer briefly using only these facts.")
-        return JSONResponse({"facts": facts, "answer": reply})
+        answer = f"You have {total} records stored ({store.backend_name()})."
+        try:
+            from core.llm_client import get_llm
+            llm = get_llm()
+            if llm:
+                answer = await llm.complete(
+                    f"CRM facts: {facts}. Question: {question}. Answer briefly using ONLY these facts.",
+                    system="You answer only from the given facts. No speculation.")
+        except Exception:
+            pass
+        return JSONResponse({"facts": facts, "answer": answer})
     except Exception as exc:
         return JSONResponse({"error": f"{type(exc).__name__}: {exc}"}, status_code=500)
 

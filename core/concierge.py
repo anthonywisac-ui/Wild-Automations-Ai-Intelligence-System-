@@ -217,21 +217,67 @@ async def analyze_cv(cv_text: str) -> Dict[str, Any]:
             "skills": skills, "location": "", "seniority": ""}
 
 
-async def chat(message: str, history: Optional[List[Dict[str, str]]] = None) -> str:
-    """General assistant chat. Falls back to a helpful canned reply without an LLM."""
-    try:
-        from core.llm_client import get_llm
-        llm = get_llm()
-        if llm:
-            sys = ("You are Wild Automations' sales & discovery assistant. Be concise. "
-                   "Help users find jobs, admissions, visas, cars, or B2B leads. If they "
-                   "state a need, ask only the missing detail, then tell them to run it.")
-            convo = ""
-            for h in (history or [])[-6:]:
-                convo += f"{h.get('role','user')}: {h.get('content','')}\n"
-            return await llm.complete(convo + f"user: {message}", system=sys)
-    except Exception as exc:
-        logger.info("concierge.chat fallback: %s", exc)
-    return ("I can find jobs, admissions, visas, cars, or B2B leads for you. "
-            "Pick a persona (Student, Job Seeker, Travel Agent, Car Dealer) and I'll "
-            "ask what I need, then run a targeted search.")
+_INTENT_KW = {
+    "job_seeker": ["job", "jobs", "work", "hiring", "vacancy", "vacancies", "employment",
+                   "career", "careers", "naukri", "position", "roles", "recruit"],
+    "student": ["study", "studies", "admission", "admissions", "university", "universities",
+                "college", "student", "course", "degree", "scholarship", "masters", "phd", "bachelor"],
+    "travel_agent": ["visa", "visas", "immigration", "passport", "sponsorship", "relocate", "migrate", "travel"],
+    "car_dealer": ["car ", "cars", "auto", "autos", "vehicle", "vehicles", "dealer", "dealership"],
+}
+_COUNTRIES = ["united states", "usa", "america", "united kingdom", "uk", "england", "canada",
+              "germany", "australia", "uae", "dubai", "abu dhabi", "sharjah", "ireland", "france",
+              "netherlands", "singapore", "qatar", "saudi", "pakistan", "india", "remote"]
+_KNOWN_ROLES = ["software engineer", "developer", "nurse", "accountant", "driver", "chef",
+                "care assistant", "care", "teacher", "designer", "marketing", "sales",
+                "data scientist", "data analyst", "engineer", "manager", "welder", "electrician"]
+
+
+def _slots(history: Optional[List[Dict[str, str]]], message: str) -> Dict[str, str]:
+    """Read the WHOLE conversation and fill intent/location/role — so a filled slot
+    is never asked again (this is what kills the old loop)."""
+    text = " ".join([h.get("content", "") for h in (history or [])] + [message]).lower()
+    intent = next((k for k, kws in _INTENT_KW.items()
+                   if any(w in text for w in kws)), "")
+    location = next((c for c in _COUNTRIES if re.search(r"\b" + re.escape(c) + r"\b", text)), "")
+    role = ""
+    stop = {"i", "want", "a", "an", "the", "looking", "for", "need", "find", "get",
+            "some", "me", "my", "please", "searching", "search", "would", "like", "to",
+            "want a", "any", "good", "best", "new"}
+    m = re.search(r"([a-z][a-z ]{2,40}?)\s+(?:job|jobs|role|roles|position)\b", text)
+    if m:
+        role = " ".join(w for w in m.group(1).split() if w not in stop).strip()
+    if not role:
+        role = next((r for r in _KNOWN_ROLES if r in text), "")
+    return {"intent": intent, "location": location.title(), "role": role.title()}
+
+
+async def chat(message: str, history: Optional[List[Dict[str, str]]] = None) -> Dict[str, Any]:
+    """Human-like, stateful assistant. Returns {reply, action?}. Deterministic
+    slot-filling (no LLM loop): once intent + location are known it ACTS."""
+    s = _slots(history, message)
+    intent, loc, role = s["intent"], s["location"], s["role"]
+    label = {"job_seeker": "jobs", "student": "admissions",
+             "travel_agent": "visa options", "car_dealer": "cars"}.get(intent, "")
+
+    if not intent:
+        return {"reply": "Sure — tell me what you're after: a **job**, **study / admission**, "
+                         "**visa / travel**, or **cars**? Just say it in your own words."}
+
+    # car dealer doesn't need a country to start
+    if not loc and intent != "car_dealer":
+        what = f"{role} {label}".strip() if role else label
+        return {"reply": f"Got it — {what}. Which **country or city**? (e.g. USA, UK, Dubai, Remote)"}
+
+    if intent == "job_seeker":
+        answers = {"role": role, "location": loc}
+    elif intent == "student":
+        answers = {"country": loc, "field": role, "level": "Undergraduate"}
+    elif intent == "travel_agent":
+        answers = {"destination": loc, "nationality": ""}
+    else:  # car_dealer
+        answers = {"make": role, "model": "", "year": ""}
+
+    pretty = " ".join(x for x in [role, label, ("in " + loc) if loc else ""] if x).strip()
+    return {"reply": f"Perfect — searching **{pretty}** now. One moment…",
+            "action": {"persona": intent, "answers": answers}}

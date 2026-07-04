@@ -295,10 +295,18 @@ td{padding:14px 20px;font-size:13.5px;vertical-align:middle}
       (about?'<div class="d-h">About '+esc(j.company||'the role')+'</div><p class="d-p">'+about+'.</p>':'')+
       (role?'<div class="d-h">What\'s the role?</div><p class="d-p">'+role+'.</p>':'')+
       (bullets.length?'<div class="d-h">In this role you will…</div>'+bullets.map(function(b){return '<div class="d-li"><span class="c">✓</span>'+b+'.</div>';}).join(''):'')+
-      (!about&&!role?'<p class="d-p">'+(desc||'No description available for this listing.')+'</p>':'')+'</div>'+
+      (!about&&!role?'<p class="d-p">'+(desc||'No description available for this listing.')+'</p>':'')+
+      '<div id="d-full"></div></div>'+
       '<div class="d-foot"><span class="d-saved">'+(saved[i]?'★ Saved':'☆ Save')+'</span>'+
       '<button class="btn-ghost">Share</button>'+
       (j.url?'<a class="btn-gold" href="'+j.url+'" target="_blank">Apply Now</a>':'<button class="btn-gold">Apply Now</button>')+'</div>';
+    // lazy deep-fetch the full description from the source page
+    if(j.url){var fd=document.getElementById('d-full');fd.innerHTML='<div class="d-h">Full description</div><p class="d-p muted"><span class="spin" style="width:14px;height:14px"></span> Loading from source…</p>';
+      fetch('/api/jobs/detail?url='+encodeURIComponent(j.url)).then(function(r){return r.json();}).then(function(dd){
+        if(dd.description&&dd.description.length>(j.description||'').length){
+          fd.innerHTML='<div class="d-h">Full description <span class="muted" style="font-size:10px">· from source</span></div><p class="d-p">'+esc(dd.description)+'</p>';
+        } else {fd.innerHTML='';}
+      }).catch(function(){fd.innerHTML='';});}
   };
   window.closeJob=function(){var d=document.getElementById('details');d.classList.remove('show');d.classList.add('empty');
     d.innerHTML='<div><div style="font-size:30px">🗂</div><div style="margin-top:8px">Select a job to see details</div></div>';

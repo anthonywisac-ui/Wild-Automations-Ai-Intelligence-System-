@@ -80,8 +80,10 @@ CONCIERGE_HTML = r"""<!doctype html>
 <h2 style="margin-top:26px">Ask anything</h2>
 <div id="chatlog"></div>
 
+<input type="file" id="cvfile" accept=".pdf,.doc,.docx,.txt" style="display:none" onchange="uploadCV(this)"/>
 <div class="dock">
-  <input id="chatin" placeholder="Ask the assistant…" autocomplete="off"/>
+  <button class="btn ghost" style="padding:0 14px" onclick="document.getElementById('cvfile').click()" title="Upload CV">📎</button>
+  <input id="chatin" placeholder="Tell me what you need…" autocomplete="off"/>
   <button class="btn" onclick="sendChat()">Send</button>
 </div>
 
@@ -171,14 +173,43 @@ async function deliverIt(){
   b.disabled = d.sent;
 }
 
-function bubble(t,cls){const el=document.createElement('div');el.className='bubble '+cls;el.textContent=t;
+let CHAT=[];  // conversation history so the assistant never re-asks a known answer
+function bubble(t,cls){const el=document.createElement('div');el.className='bubble '+cls;el.innerHTML=(t||'').replace(/\*\*(.+?)\*\*/g,'<b>$1</b>');
   document.getElementById('chatlog').appendChild(el);el.scrollIntoView({behavior:'smooth'});}
 async function sendChat(){
   const inp=document.getElementById('chatin');const msg=inp.value.trim();if(!msg)return;
-  inp.value='';bubble(msg,'me');
+  inp.value='';bubble(msg,'me');CHAT.push({role:'user',content:msg});
   const d=await j('/api/concierge/chat',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({message:msg})});
-  bubble(d.reply||d.error||'…','ai');
+    body:JSON.stringify({message:msg,history:CHAT})});
+  const reply=d.reply||d.error||'…';bubble(reply,'ai');CHAT.push({role:'assistant',content:reply});
+  if(d.action){runFromChat(d.action);}
+}
+async function runFromChat(action){
+  bubble('🔎 Searching…','ai');
+  const d=await j('/api/concierge/run',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(action)});
+  if(d.error){bubble('Sorry — '+d.error,'ai');return;}
+  const n=(d.matches||[]).length;
+  bubble(n?('Found '+d.total+' results — top '+n+' below 👇'):'No strong matches — try a different city or role.','ai');
+  const R=document.getElementById('results');
+  R.innerHTML='<h2>'+(d.total||0)+' matches</h2>'+(d.matches||[]).map(function(m){
+    const md=m.metadata||{};const loc=m.location||md.country||'';
+    const sc=m._match_score!=null?'<span class="chip">'+Math.round(m._match_score*100)+'% match</span>':'';
+    const link=m.source_url?'<a href="'+m.source_url+'" target="_blank">Open ↗</a>':'';
+    return '<div class="res"><div class="t">'+(m.title||'').slice(0,90)+'</div><div class="m">'+(loc?'📍 '+loc:'')+' '+sc+' '+link+'</div></div>';}).join('');
+  R.scrollIntoView({behavior:'smooth'});
+}
+async function uploadCV(input){
+  const f=input.files&&input.files[0];if(!f)return;input.value='';
+  bubble('📎 '+f.name,'me');bubble('Reading your CV…','ai');
+  const fd=new FormData();fd.append('file',f);
+  try{
+    const r=await fetch('/api/cv/upload',{method:'POST',body:fd});const d=await r.json();
+    if(d.error){bubble('Could not read the CV: '+d.error+'. You can paste the text instead.','ai');return;}
+    bubble('Got it — you look like a **'+(d.role||'candidate')+'**'+(d.location?' in '+d.location:'')+
+      (d.skills&&d.skills.length?' · skills: '+d.skills.slice(0,5).join(', '):'')+'. Searching matching jobs…','ai');
+    runFromChat({persona:'job_seeker',answers:{role:d.role||'',location:d.location||'',cv_text:d.cv_text||''}});
+  }catch(e){bubble('Upload failed. Try pasting your CV text.','ai');}
 }
 document.getElementById('chatin').addEventListener('keydown',e=>{if(e.key==='Enter')sendChat();});
 loadPersonas();
