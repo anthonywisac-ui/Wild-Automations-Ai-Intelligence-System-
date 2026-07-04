@@ -284,8 +284,45 @@ def _slots(history: Optional[List[Dict[str, str]]], message: str) -> Dict[str, s
 
 
 async def chat(message: str, history: Optional[List[Dict[str, str]]] = None) -> Dict[str, Any]:
-    """Human-like, stateful assistant. Returns {reply, action?}. Deterministic
-    slot-filling (no LLM loop): once intent + location are known it ACTS."""
+    """LLM-first conversational concierge: analyzes the user's message in context,
+    handles feedback/refinement (e.g. 'not my kind of job' → asks what to change),
+    and only issues a search ACTION when it truly has enough. Deterministic slot-
+    filling is the fallback when no LLM is configured."""
+    import json as _json
+    try:
+        from core.llm_client import get_llm
+        llm = get_llm()
+        if llm:
+            sys = (
+                "You are Wild Automations' career & discovery concierge. Be concise, warm, and "
+                "ANALYZE the user's message in context — don't pattern-match. Handle feedback: if "
+                "a result isn't right (e.g. 'this is not my kind of job'), acknowledge it and ask "
+                "ONE targeted question to refine (industry/domain? seniority? location? remote vs "
+                "onsite?) — never just repeat the same search. If the user pastes a job description, "
+                "understand it as context (what they want or don't want), don't treat it as a query. "
+                "Domains you serve: jobs (remote/freelance/full-time/part-time), study/admission, "
+                "visa/travel, cars. When — and ONLY when — you genuinely have enough to search "
+                "(a role or field, plus remote OR a location for jobs), append a final line EXACTLY: "
+                'ACTION={"persona":"job_seeker|student|travel_agent|car_dealer","answers":{"role":"",'
+                '"location":"","job_type":"","worldwide":true|false,"query":""}}. '
+                "Otherwise just reply or ask. Never invent job listings yourself.")
+            convo = ""
+            for h in (history or [])[-10:]:
+                convo += f"{h.get('role','user')}: {h.get('content','')}\n"
+            out = await llm.complete(convo + f"user: {message}", system=sys, max_tokens=320)
+            m = re.search(r"ACTION\s*=\s*(\{.*\})", out, re.S)
+            if m:
+                try:
+                    action = _json.loads(m.group(1))
+                    reply = out[:m.start()].strip() or "On it — searching now…"
+                    return {"reply": reply, "action": action}
+                except Exception:
+                    pass
+            return {"reply": out.strip() or "Tell me a bit more about what you're looking for."}
+    except Exception as exc:
+        logger.info("concierge.chat LLM path failed, using slots: %s", exc)
+
+    # ── deterministic fallback (no LLM) ──
     s = _slots(history, message)
     intent, loc, role, jt = s["intent"], s["location"], s["role"], s.get("job_type", "")
     label = {"job_seeker": ((jt + " jobs").strip() if jt else "jobs"), "student": "admissions",

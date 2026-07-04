@@ -140,7 +140,7 @@ async def search(query: str, location: str = "", job_type: str = "",
             "url": rec.get("source_url") or "", "posted": nj.get("posted") or "",
             "skills": nj.get("skills"), "source": md.get("source") or rec.get("_source") or "",
             "why_match": ("Matches on: " + ", ".join(sorted(overlap)[:6])) if overlap else "Relevant to your query",
-            "match": score,
+            "match": score, "description": (rec.get("description") or "")[:400],
         })
 
     # dedup by title+company, keep best score

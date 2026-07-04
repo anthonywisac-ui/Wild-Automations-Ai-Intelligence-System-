@@ -817,28 +817,35 @@ async def cv_match(request: Request):
     """CV-driven remote job match with strict filters: fully-remote, no visa/
     sponsorship needed, no country restriction, international-friendly, senior
     PM-type roles ranked against the CV. Excludes UK-sponsor-list pollution."""
-    import copy, re as _re
-    from core import concierge
+    from core import job_search, job_matcher
     body = await request.json()
     cv_text = body.get("cv_text", "")
     role = (body.get("role") or "").strip()
     skills = body.get("skills") or []
-    if cv_text and (not role or not skills):
-        cv = await concierge.analyze_cv(cv_text)
-        role = role or cv.get("role", "")
-        skills = skills or cv.get("skills", [])
-    # general engine: worldwide remote by default for CV uploads (international)
-    from core import job_search
+
+    # 1. LLM reads the FULL CV -> rich profile (domain, seniority, alternates)
+    profile = await job_matcher.analyze_profile(cv_text) if cv_text else \
+        {"role": role, "skills": skills}
+    role = role or profile.get("role", "")
+    skills = skills or profile.get("skills", [])
+
+    # 2. broad candidate fetch (with descriptions) across role + APIs
     rs = await job_search.search(role or "jobs", body.get("location", ""),
                                  body.get("job_type", "remote"), skills,
-                                 worldwide=body.get("worldwide", True))
+                                 worldwide=body.get("worldwide", True), limit=40)
+
+    # 3. LLM semantic re-rank: reads each job DESCRIPTION, judges true domain/
+    #    seniority fit (IT PM != air-cooler PM) — drops mismatches, adds reasons
+    ranked = await job_matcher.rank(profile, rs["jobs"])
+
     jobs = [{"title": x["title"], "company": x["company"], "location": x["location"],
              "remote_policy": ("Fully remote" if x.get("remote") else x.get("job_type", "—")),
              "visa": "No sponsorship required", "restriction": "None (international)",
              "salary": x["salary"], "url": x["url"], "posted": x["posted"],
              "why_match": x["why_match"], "match": x["match"], "source": x["source"]}
-            for x in rs["jobs"]]
-    return JSONResponse({"role": role, "skills": skills, "count": len(jobs), "jobs": jobs})
+            for x in ranked]
+    return JSONResponse({"role": role, "skills": skills, "profile": profile,
+                         "count": len(jobs), "jobs": jobs})
 
 
 
