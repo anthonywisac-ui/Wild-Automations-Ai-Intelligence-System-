@@ -153,17 +153,65 @@ def detect_provider() -> Optional[LLMClient]:
     return None
 
 
-_LLM_SINGLETON: Optional[LLMClient] = None
+def _all_clients() -> List["LLMClient"]:
+    """Every configured provider, in priority order — used for fallback."""
+    forced = (os.getenv("LLM_PROVIDER") or "").lower().strip()
+    order = ([forced] if forced in _PROVIDERS else []) + \
+        ["groq", "openrouter", "gemini", "cerebras", "mistral", "perplexity", "openai", "ollama"]
+    seen, clients = set(), []
+    for prov in order:
+        if prov in seen or prov not in _PROVIDERS:
+            continue
+        seen.add(prov)
+        candidates, base_url, model, needs_key = _PROVIDERS[prov]
+        key = _env_val(candidates)
+        if needs_key and key:
+            clients.append(LLMClient(prov, base_url, key, model))
+        elif not needs_key:
+            host = key or os.getenv("OLLAMA_HOST")
+            if host:
+                base = host if host.startswith("http") else f"http://{host}"
+                clients.append(LLMClient(prov, f"{base}/v1", None, model))
+    return clients
+
+
+class MultiLLM:
+    """Tries each configured provider in turn — if one errors / rate-limits, the
+    next one answers. So all the user's keys act as redundancy and the LLM never
+    silently falls back to keyword matching."""
+
+    def __init__(self, clients: List["LLMClient"]):
+        self.clients = clients
+        self.provider = "+".join(c.provider for c in clients[:4]) or "none"
+        self.model = clients[0].model if clients else ""
+
+    async def complete(self, *args, **kwargs) -> str:
+        last = None
+        for c in self.clients:
+            try:
+                out = await c.complete(*args, **kwargs)
+                if out and out.strip():
+                    return out
+            except Exception as exc:
+                last = exc
+                logger.info("llm_client: %s failed (%s) → next", c.provider, exc)
+        if last:
+            raise last
+        raise RuntimeError("no LLM provider available")
+
+
+_LLM_SINGLETON: Optional["MultiLLM"] = None
 _LLM_RESOLVED = False
 
 
-def get_llm() -> Optional[LLMClient]:
+def get_llm() -> Optional["MultiLLM"]:
     global _LLM_SINGLETON, _LLM_RESOLVED
     if not _LLM_RESOLVED:
-        _LLM_SINGLETON = detect_provider()
+        clients = _all_clients()
+        _LLM_SINGLETON = MultiLLM(clients) if clients else None
         _LLM_RESOLVED = True
         if _LLM_SINGLETON:
-            logger.info("llm_client: using %s (model=%s)", _LLM_SINGLETON.provider, _LLM_SINGLETON.model)
+            logger.info("llm_client: chain = %s", _LLM_SINGLETON.provider)
         else:
             logger.info("llm_client: no LLM provider key found")
     return _LLM_SINGLETON
