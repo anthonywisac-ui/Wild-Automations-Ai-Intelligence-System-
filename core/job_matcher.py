@@ -15,6 +15,7 @@ returns nothing.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import re
@@ -126,6 +127,8 @@ async def rank(profile: Dict[str, Any], jobs: List[Dict[str, Any]],
     # deterministic fallback: keep as-is (already overlap-ranked upstream) —
     # tag honestly so the UI can show these are keyword scores, not AI judgment
     return [dict(j, match_type="keyword") for j in cand[:top]]
+
+
 
 
 async def _full_desc(url: str) -> str:

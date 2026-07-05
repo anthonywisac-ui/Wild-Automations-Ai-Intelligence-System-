@@ -234,7 +234,7 @@ function renderCVJobs(m){
     (m.jobs||[]).slice(0,8).map(function(x,i){return (i+1)+'. '+x.title+' @ '+x.company+' ('+x.location+') — '+(x.why_match||'')+(x.salary&&x.salary!=='—'?' · '+x.salary:'');}).join('\n');
   bubble(n?('Found '+n+' remote roles matching your profile 👇'):'No fully-remote, no-visa matches right now for '+(m.role||'your profile')+'. Try again shortly (sources rotate).','ai');
   const R=document.getElementById('results');
-  R.innerHTML='<h2>'+n+' remote matches · '+esc(m.role||'')+'</h2>'+(m.jobs||[]).map(function(x,i){
+  var card=function(x,i){
     var f=x.fit||{};
     var fitRow=(f.skill||f.seniority||f.domain)?
       '<div style="font-size:12px;margin-top:6px;display:flex;flex-wrap:wrap;gap:6px">'+
@@ -256,7 +256,18 @@ function renderCVJobs(m){
       (x.url?'<div style="margin-top:6px"><a class="chip" style="text-decoration:none" href="'+x.url+'" target="_blank">Apply ↗</a></div>':'')+
       tools+
       '<div id="tool-'+i+'" style="margin-top:8px"></div>'+
-      '</div>';}).join('');
+      '</div>';};
+  // strong (≥60%) headline · moderate (40-59%) collapsible · weak (<40%) collapsed
+  var strong=[],mod=[],weak=[];
+  (m.jobs||[]).forEach(function(x,i){
+    var s=(x.match||0)*100;
+    if(s>=60)strong.push([x,i]);else if(s>=40)mod.push([x,i]);else weak.push([x,i]);
+  });
+  var sec=function(list){return list.map(function(p){return card(p[0],p[1]);}).join('');};
+  R.innerHTML='<h2>'+strong.length+' strong matches · '+esc(m.role||'')+'</h2>'+
+    (strong.length?sec(strong):'<div style="color:var(--muted);font-size:13px;margin:8px 0">No 60%+ matches this round — check the sections below or refine via chat.</div>')+
+    (mod.length?'<details style="margin-top:14px"><summary style="cursor:pointer;color:var(--muted)">🔍 '+mod.length+' moderate matches (40–59%)</summary>'+sec(mod)+'</details>':'')+
+    (weak.length?'<details style="margin-top:10px"><summary style="cursor:pointer;color:var(--muted)">🕯 '+weak.length+' weak matches (&lt;40%)</summary><div style="opacity:.75">'+sec(weak)+'</div></details>':'');
   R.scrollIntoView({behavior:'smooth'});
 }
 async function gapJob(i){

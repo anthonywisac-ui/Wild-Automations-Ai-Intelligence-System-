@@ -8,6 +8,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 import sys
 import time
 from datetime import datetime, timezone
@@ -965,6 +966,81 @@ async def jobs_track_status(request: Request):
         return JSONResponse(job_tracker.set_status(b.get("job_key", ""), b.get("status", "")))
     except Exception as exc:
         return JSONResponse({"error": f"{type(exc).__name__}: {exc}"}, status_code=500)
+
+
+@app.get("/api/jobs/sources-health")
+async def sources_health(q: str = "project manager"):
+    """Per-source truth: raw jobs, gate-pass count, timing, and the ACTUAL error
+    — so failures are diagnosed with evidence, not guesses."""
+    import time as _t
+    import httpx as _hx
+    from core import jobspy_client, gulftalent_client, board_scraper
+    from core import remote_companies_client as rcc
+
+    results: dict = {}
+    qtoks = [t for t in re.findall(r"[a-z]{3,}", q.lower())]
+
+    def _gate(rows):
+        n = 0
+        for r in rows:
+            title = (r.get("title") or "").lower()
+            if not qtoks or any(t in title for t in qtoks):
+                n += 1
+        return n
+
+    async def _run(name, coro, timeout=50):
+        t0 = _t.time()
+        try:
+            rows = await asyncio.wait_for(coro, timeout=timeout) or []
+            results[name] = {
+                "raw_jobs": len(rows), "title_gate_pass": _gate(rows),
+                "time_sec": round(_t.time() - t0, 1), "error": None,
+                "sample": (rows[0].get("title", "")[:60] if rows else ""),
+                "status": "success" if rows else "no_jobs"}
+        except Exception as e:
+            results[name] = {"raw_jobs": 0, "title_gate_pass": 0,
+                             "time_sec": round(_t.time() - t0, 1),
+                             "error": f"{e.__class__.__name__}: {e}"[:200],
+                             "sample": "", "status": "error"}
+
+    tasks = []
+    for site in ("indeed", "google", "linkedin"):
+        cfg = {"portal_name": "health", "crawl_mode": "jobspy", "jobspy_params": {
+            "site_names": [site], "search_term": q,
+            "google_search_term": f"{q} remote jobs", "location": "Remote",
+            "results_wanted": 10, "is_remote": True, "country_indeed": "usa"}}
+        tasks.append(_run(f"jobspy_{site}", jobspy_client.fetch_jobspy(cfg)))
+    tasks.append(_run("gulftalent", gulftalent_client.fetch_gulftalent(
+        {"portal_name": "remote", "crawl_mode": "gulftalent",
+         "gulftalent_params": {"category": q, "results_wanted": 20}})))
+
+    async with _hx.AsyncClient(
+            headers={"User-Agent": "Mozilla/5.0"}, verify=False,
+            follow_redirects=True) as client:
+        for fname in ("_remotive", "_remoteok", "_jobicy", "_arbeitnow",
+                      "_themuse", "_wwr", "_himalayas", "_workingnomads",
+                      "_jobspresso", "_adzuna", "_jooble", "_usajobs",
+                      "_careerjet"):
+            fn = getattr(rcc, fname, None)
+            if fn:
+                tasks.append(_run(f"api{fname}", fn(client, q), timeout=30))
+        tasks.append(_run("company_boards", rcc._company_boards(client, q)))
+        for b in board_scraper.BOARDS:
+            tasks.append(_run(f"board_{b['name']}",
+                              board_scraper._one_board(client, b, q)))
+        await asyncio.gather(*tasks)
+
+    ok = [k for k, v in results.items() if v["raw_jobs"] > 0]
+    return JSONResponse({
+        "query": q,
+        "summary": {"sources_tested": len(results), "sources_with_jobs": len(ok),
+                    "sources_failed": sum(1 for v in results.values()
+                                          if v["status"] == "error"),
+                    "total_raw_jobs": sum(v["raw_jobs"] for v in results.values()),
+                    "total_gate_pass": sum(v["title_gate_pass"]
+                                           for v in results.values()),
+                    "company_boards_indexed": len(rcc._BOARDS)},
+        "sources": results})
 
 
 @app.get("/api/version")

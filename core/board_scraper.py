@@ -75,14 +75,16 @@ async def _get(client: httpx.AsyncClient, url: str, via: str) -> str:
     try:
         if via == "direct":
             r = await client.get(url, timeout=15)
-            if r.status_code == 200 and len(r.text) > 500:
-                return r.text
+            if r.status_code == 200 and len(r.content) > 500:
+                # decode as UTF-8 ourselves — httpx guessing wrong charsets is
+                # what produced 'â€"' mojibake in titles/companies
+                return r.content.decode("utf-8", errors="ignore")
             if r.status_code not in (403, 429, 503):
                 return ""
         # jina route (also the fallback when direct is blocked)
         r = await client.get(f"https://r.jina.ai/{url}",
                              headers={"X-Return-Format": "html"}, timeout=25)
-        return r.text if r.status_code == 200 else ""
+        return r.content.decode("utf-8", errors="ignore") if r.status_code == 200 else ""
     except Exception:
         return ""
 
@@ -90,9 +92,12 @@ async def _get(client: httpx.AsyncClient, url: str, via: str) -> str:
 def _anchors(html: str, base: str) -> List[Tuple[str, str]]:
     """(text, absolute-href) for every meaningful anchor on the page."""
     out = []
+    import html as _html
     for m in re.finditer(r'(?is)<a\s[^>]*href="([^"#]+)"[^>]*>(.*?)</a>', html):
         href, inner = m.group(1), re.sub(r"(?s)<[^>]+>", " ", m.group(2))
-        text = re.sub(r"\s+", " ", inner).strip()
+        text = _html.unescape(re.sub(r"\s+", " ", inner)).strip()
+        # strip decorative separators/mojibake remnants at the edges
+        text = text.strip("—–|·•-· ").strip()
         if not (8 <= len(text) <= 120):
             continue
         if href.startswith("/"):
@@ -146,13 +151,13 @@ async def _llm_extract(board: str, picked: List[Tuple[str, str]],
                 for s in json.loads(m.group(0)):
                     i = int(s.get("i", -1))
                     if 0 <= i < len(picked) and s.get("title"):
-                        rows.append(_rec(s["title"], s.get("company"),
+                        rows.append(_rec(s["title"], s.get("company") or f"via {board}",
                                          s.get("location"), picked[i][1], board))
                 return rows
     except Exception as exc:
         logger.info("board_scraper llm extract (%s) skipped: %s", board, exc)
     # fallback: anchor text as title (still real links, just less clean)
-    return [_rec(t, "", "", h, board) for t, h in picked[:20]]
+    return [_rec(t, f"via {board}", "", h, board) for t, h in picked[:20]]
 
 
 async def _one_board(client, board: Dict[str, Any], query: str) -> List[Dict[str, Any]]:

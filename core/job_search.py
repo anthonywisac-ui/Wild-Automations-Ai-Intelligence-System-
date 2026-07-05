@@ -105,7 +105,7 @@ async def search(query: str, location: str = "", job_type: str = "",
     async def _rc():
         try:
             from core import remote_companies_client
-            return await asyncio.wait_for(remote_companies_client.fetch(query, limit=60), timeout=35)
+            return await asyncio.wait_for(remote_companies_client.fetch(query, limit=120), timeout=40)
         except Exception as exc:
             logger.info("remote_companies source failed: %s", exc)
             return []
@@ -160,9 +160,14 @@ async def search(query: str, location: str = "", job_type: str = "",
         # worldwide-remote: drop country-restricted / visa-required listings
         if worldwide and any(x in blob for x in _RESTRICT):
             continue
-        # relevance: at least one query token must appear in the title
-        if qtoks and not any(t in title.lower() for t in qtoks):
-            continue
+        # relevance: query token in the TITLE, or (looser) ≥2 distinct query
+        # tokens anywhere in the blob — so a "Delivery Lead (project management)"
+        # style post still reaches the semantic ranker instead of dying here
+        if qtoks:
+            tl = title.lower()
+            if not any(t in tl for t in qtoks) and \
+               sum(1 for t in set(qtoks) if t in blob) < 2:
+                continue
 
         toks = set(re.findall(r"[a-z]{3,}", blob))
         overlap = want & toks
