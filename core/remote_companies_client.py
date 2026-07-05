@@ -119,6 +119,39 @@ async def _adzuna(client, q) -> List[Dict[str, Any]]:
     return out
 
 
+async def _workingnomads(client, q) -> List[Dict[str, Any]]:
+    """Working Nomads — public JSON API (keyless, worldwide remote)."""
+    try:
+        r = await client.get("https://www.workingnomads.com/api/exposed_jobs/", timeout=15)
+        if r.status_code != 200:
+            return []
+        return [_rec(j.get("title"), j.get("company_name"),
+                     j.get("location") or "Remote", j.get("url"),
+                     j.get("description"))
+                for j in (r.json() or [])[:60]]
+    except Exception:
+        return []
+
+
+async def _jobspresso(client, q) -> List[Dict[str, Any]]:
+    """Jobspresso — curated remote jobs via public RSS (keyless)."""
+    try:
+        r = await client.get("https://jobspresso.co/feed/?post_type=job_listing", timeout=15)
+        if r.status_code != 200:
+            return []
+        out = []
+        for item in re.findall(r"(?s)<item>(.*?)</item>", r.text)[:40]:
+            def _tag(t):
+                m = re.search(rf"(?s)<{t}>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?</{t}>", item)
+                return (m.group(1) if m else "").strip()
+            out.append(_rec(_tag("title"), _tag("job_listing_company") or "via Jobspresso",
+                            _tag("job_listing_location") or "Remote",
+                            _tag("link"), _tag("description")))
+        return out
+    except Exception:
+        return []
+
+
 async def _himalayas(client, q) -> List[Dict[str, Any]]:
     """Himalayas — keyless remote-jobs API (100k+ listings, has location
     restrictions per job which feeds our honest-eligibility labels)."""
@@ -244,13 +277,57 @@ _PROBED = False
 _PROBING = False
 
 
-def _slugs() -> List[str]:
+def _company_names() -> List[str]:
+    """All company names from remote_companies.txt + remote_companies.csv."""
+    names: List[str] = []
     try:
         with open(_LIST_PATH, encoding="utf-8") as f:
-            names = [l.strip() for l in f if l.strip() and not l.startswith("#")]
-        return sorted({re.sub(r"[^a-z0-9]", "", n.lower()) for n in names if n})
+            names += [l.strip() for l in f if l.strip() and not l.startswith("#")]
     except Exception:
-        return []
+        pass
+    try:
+        import csv as _csv
+        with open(_LIST_PATH.replace(".txt", ".csv"), encoding="utf-8") as f:
+            names += [row.get("company_name", "").strip()
+                      for row in _csv.DictReader(f)]
+    except Exception:
+        pass
+    return sorted({n for n in names if n})
+
+
+def _slugs() -> List[str]:
+    return sorted({re.sub(r"[^a-z0-9]", "", n.lower())
+                   for n in _company_names() if n})
+
+
+async def _ai_guess_slugs(missed: List[str]) -> Dict[str, str]:
+    """For companies whose name-slug 404'd, ask the LLM for their REAL public
+    ATS board slug (e.g. 'Epic Games' -> greenhouse 'epicgames'). Returns
+    {guessed_slug: company} to probe — guesses are still verified, never trusted."""
+    if not missed:
+        return {}
+    try:
+        from core.llm_client import get_llm
+        llm = get_llm()
+        if not llm:
+            return {}
+        out = await llm.complete(
+            "For each company, give its most likely PUBLIC Greenhouse or Lever job "
+            "board slug (the id in boards-api.greenhouse.io/v1/boards/<slug>/jobs or "
+            "api.lever.co/v0/postings/<slug>). Lowercase, no spaces. If unsure, guess "
+            "the most common convention. Return ONLY a JSON object "
+            "{\"company\":\"slug\"}. Companies: " + ", ".join(missed[:40]),
+            system="You output only compact valid JSON.", max_tokens=600)
+        import json as _j
+        m = re.search(r"\{.*\}", out, re.S)
+        if not m:
+            return {}
+        guesses = _j.loads(m.group(0))
+        return {re.sub(r"[^a-z0-9-]", "", str(v).lower()): k
+                for k, v in guesses.items() if v}
+    except Exception as exc:
+        logger.info("ai slug guessing skipped: %s", exc)
+        return {}
 
 
 async def _probe_boards() -> None:
@@ -291,7 +368,14 @@ async def _probe_boards() -> None:
                             _BOARDS[slug] = "lever"
                     except Exception:
                         pass
-            await asyncio.gather(*[_one(s) for s in _slugs()])
+            slugs = _slugs()
+            await asyncio.gather(*[_one(s) for s in slugs])
+            # second pass: AI suggests the REAL slug for companies that 404'd
+            # (e.g. 'epicgames' vs 'epic-games') — suggestions are re-verified
+            missed = [s for s in slugs if s not in _BOARDS]
+            for guess in (await _ai_guess_slugs(missed)):
+                if guess and guess not in _BOARDS:
+                    await _one(guess)
         _PROBED = True
         try:
             with open(_CACHE_PATH, "w", encoding="utf-8") as f:
@@ -373,6 +457,7 @@ async def fetch(query: str = "", limit: int = 80, companies: List[str] = None) -
                 _wwr(client, q), _company_boards(client, q),
                 _himalayas(client, q), _jooble(client, q),
                 _usajobs(client, q), _careerjet(client, q),
+                _workingnomads(client, q), _jobspresso(client, q),
                 return_exceptions=True)
         for lst in lists:
             if not isinstance(lst, list):

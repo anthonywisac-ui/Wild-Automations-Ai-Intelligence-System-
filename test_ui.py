@@ -911,6 +911,28 @@ async def cv_match(request: Request):
                          "count": len(jobs), "jobs": jobs})
 
 
+@app.get("/api/jobs/search")
+async def jobs_search(q: str = "", country: str = "", type: str = "", limit: int = 30):
+    """Live filtered search for the /jobs dashboard: when the user applies
+    filters, fetch FRESH jobs matching them (not just re-filter the cache)."""
+    try:
+        from core import job_search
+        jt = {"remote": "remote", "onsite": "", "hybrid": ""}.get(type, type)
+        rs = await job_search.search(q or "jobs", country, jt,
+                                     worldwide=not country, limit=limit)
+        # dashboard row shape
+        jobs = [{"company": j["company"], "position": j["title"],
+                 "location": j["location"], "salary": j["salary"],
+                 "source": j["source"], "remote": j.get("remote"),
+                 "url": j.get("url", ""), "posted": j.get("posted", ""),
+                 "sponsor_verified": False, "match": j.get("match")}
+                for j in rs["jobs"]]
+        return JSONResponse({"count": len(jobs), "jobs": jobs})
+    except Exception as exc:
+        # NB: `type` param shadows the builtin here — use __class__ instead
+        return JSONResponse({"error": f"{exc.__class__.__name__}: {exc}"}, status_code=500)
+
+
 @app.post("/api/jobs/track")
 async def jobs_track(request: Request):
     """Save a job to the tracker (Supabase, fail-soft)."""

@@ -302,7 +302,27 @@ body.jnav .jscrim{opacity:1;pointer-events:auto}
     FILT.type=document.getElementById('jf-type').value;FILT.verified=document.getElementById('jf-verified').checked;
     FILT.salary=document.getElementById('jf-salary').checked;
     var qi=document.getElementById('q');if(qi)qi.value=FILT.q;
-    document.getElementById('jsheet').classList.remove('on');applyFilter();};
+    document.getElementById('jsheet').classList.remove('on');applyFilter();
+    jFetchFresh();};
+  // live search: filters also FETCH new jobs matching them (not just re-filter cache)
+  window.jFetchFresh=function(){
+    if(!(FILT.q||FILT.country||FILT.type))return;
+    var pg=document.getElementById('pginfo');var old=pg?pg.textContent:'';
+    if(pg)pg.textContent=old+' · searching fresh jobs…';
+    fetch('/api/jobs/search?q='+encodeURIComponent(FILT.q)+'&country='+encodeURIComponent(FILT.country)+'&type='+encodeURIComponent(FILT.type))
+      .then(function(r){return r.json();})
+      .then(function(d){
+        var added=0,keys={};
+        JOBS.forEach(function(j){keys[((j.position||'')+'|'+(j.company||'')).toLowerCase()]=1;});
+        (d.jobs||[]).forEach(function(j){
+          var k=((j.position||'')+'|'+(j.company||'')).toLowerCase();
+          if(!keys[k]){keys[k]=1;JOBS.push(j);added++;}
+        });
+        if(added)applyFilter();
+        if(pg&&added)pg.textContent=pg.textContent.replace(' · searching fresh jobs…',' · +'+added+' fresh');
+        else if(pg)pg.textContent=pg.textContent.replace(' · searching fresh jobs…','');
+      })
+      .catch(function(){if(pg)pg.textContent=pg.textContent.replace(' · searching fresh jobs…','');});};
 
   function render(){
     var tb=document.getElementById('tbody');
