@@ -83,11 +83,16 @@ async def _get(client: httpx.AsyncClient, url: str, via: str) -> str:
                 return _dec(r)
             if r.status_code not in (403, 429, 503):
                 return ""
-        # Jina Reader with retries + backoff (rate-limits are transient)
+        # Jina Reader with retries + backoff (rate-limits are transient).
+        # Optional JINA_API_KEY env (free at jina.ai) lifts the anon rate-limit.
+        import os as _o
+        jheads = {"X-Return-Format": "html"}
+        if _o.getenv("JINA_API_KEY"):
+            jheads["Authorization"] = f"Bearer {_o.getenv('JINA_API_KEY')}"
         for attempt in range(3):
             try:
                 r = await client.get(f"https://r.jina.ai/{url}",
-                                     headers={"X-Return-Format": "html"}, timeout=25)
+                                     headers=jheads, timeout=25)
                 if r.status_code == 200 and len(r.content) > 500:
                     return _dec(r)
                 if r.status_code in (429, 451, 503):

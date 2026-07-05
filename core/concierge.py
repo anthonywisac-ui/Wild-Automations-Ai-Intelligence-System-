@@ -303,8 +303,14 @@ async def chat(message: str, history: Optional[List[Dict[str, str]]] = None,
                 "onsite?) — never just repeat the same search. If the user pastes a job description, "
                 "understand it as context (what they want or don't want), don't treat it as a query. "
                 "Domains you serve: jobs (remote/freelance/full-time/part-time), study/admission, "
-                "visa/travel, cars. When — and ONLY when — you genuinely have enough to search "
-                "(a role or field, plus remote OR a location for jobs), append a final line EXACTLY: "
+                "visa/travel, cars. SEARCH-FIRST RULE: once you know a role/field AND "
+                "(remote OR a location), SEARCH IMMEDIATELY — do NOT ask further refining "
+                "questions (industry, specialization, tech stack); the results themselves are "
+                "the best refinement, and the user can react to them. Ask at most ONE "
+                "clarifying question in an entire conversation, and only when role or "
+                "location is genuinely unknown. When the user ADDS a preference mid-chat "
+                "(e.g. 'freelance bhi chalega'), update the parameters and search again "
+                "right away instead of asking anything. When you search, append a final line EXACTLY: "
                 'ACTION={"persona":"job_seeker|student|travel_agent|car_dealer","answers":{"role":"",'
                 '"location":"","job_type":"","worldwide":true|false,"query":""}}. '
                 "Otherwise just reply or ask. Never invent job listings yourself. "
