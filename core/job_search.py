@@ -110,6 +110,17 @@ async def search(query: str, location: str = "", job_type: str = "",
             logger.info("remote_companies source failed: %s", exc)
             return []
     tasks.append(_rc())
+    # universal board scraper: HTML-only boards (NoDesk/JustRemote/DailyRemote/
+    # Remote.co/Remoters) + IP-blocked boards routed via Jina Reader (Bayt/
+    # NaukriGulf/Wellfound) — adaptive LLM extraction, 2h cache, fail-soft
+    async def _bs():
+        try:
+            from core import board_scraper
+            return await asyncio.wait_for(board_scraper.fetch_all(query, limit=50), timeout=48)
+        except Exception as exc:
+            logger.info("board_scraper source failed: %s", exc)
+            return []
+    tasks.append(_bs())
     # multi-model coverage: also search related titles the LLM suggests
     for alt in await expand_terms(query):
         ac = {"portal_name": "search", "crawl_mode": "jobspy", "jobspy_params": {
