@@ -313,7 +313,11 @@ async def chat(message: str, history: Optional[List[Dict[str, str]]] = None,
                 "right away instead of asking anything. When you search, append a final line EXACTLY: "
                 'ACTION={"persona":"job_seeker|student|travel_agent|car_dealer","answers":{"role":"",'
                 '"location":"","job_type":"","worldwide":true|false,"query":""}}. '
-                "Otherwise just reply or ask. Never invent job listings yourself. "
+                "Otherwise just reply or ask. NEVER write job listings, job titles with "
+                "company names, or numbered job lists in your reply text — you have no job "
+                "data; the system fetches real jobs from the ACTION line and shows them "
+                "separately. When searching, your reply must be ONE short line like "
+                "'Searching remote graphic designer jobs now…' and nothing more. "
                 "LANGUAGE: always reply in the language the user writes in (Urdu, Hindi, "
                 "Roman Urdu, Arabic, etc. — mirror their language and script); if they "
                 "write in English or it's unclear, reply in English.")
