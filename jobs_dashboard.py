@@ -273,7 +273,27 @@ body.jnav .jscrim{opacity:1;pointer-events:auto}
       document.getElementById('srcbar').innerHTML='<span class="lbl">'+(d.sources||[]).length+' sources</span>'+srcHtml;
       var de=document.getElementById('drawer-src');if(de)de.innerHTML='<div style="font-weight:600;color:var(--text);margin-bottom:8px">Sources</div>'+srcHtml+'<div style="margin-top:12px">✓ '+(d.verified_sponsors||0)+' verified sponsors · '+((d.sponsor_index&&d.sponsor_index.sponsors_indexed)||0).toLocaleString()+' indexed</div>';
       page=1; render();
+      jBootExtra();
     }).catch(function(){document.getElementById('tbody').innerHTML='<tr><td colspan="6"><div class="center" style="padding:50px"><div style="font-size:28px">⚡</div><div>Couldn\'t load jobs</div><button class="searchbtn" style="margin-top:10px" onclick="location.reload()">Retry</button></div></td></tr>';});
+  }
+  // after the fast first paint, pull the FULL multi-source engine in the
+  // background (Himalayas/WWR/boards/Adzuna/…) and merge into the table
+  var BOOTED=false;
+  function jBootExtra(){
+    if(BOOTED)return; BOOTED=true;
+    var sb=document.getElementById('srcbar');
+    if(sb)sb.innerHTML+='<span class="src"><span class="spin" style="width:10px;height:10px"></span> loading more sources…</span>';
+    fetch('/api/jobs/search?q=&type=remote').then(function(r){return r.json();}).then(function(d){
+      var added=0,keys={};
+      JOBS.forEach(function(j){keys[((j.position||'')+'|'+(j.company||'')).toLowerCase()]=1;});
+      (d.jobs||[]).forEach(function(j){
+        var k=((j.position||'')+'|'+(j.company||'')).toLowerCase();
+        if(!keys[k]){keys[k]=1;JOBS.push(j);added++;}
+      });
+      if(added){document.getElementById('s-found').textContent=JOBS.length;applyFilter();}
+      if(sb)sb.innerHTML=sb.innerHTML.replace(/<span class="src"><span class="spin"[^<]*<\/span> loading more sources…<\/span>/,
+        added?'<span class="src"><span class="ok"></span>Global engine (+'+added+')</span>':'');
+    }).catch(function(){});
   }
   window.runJobs=function(){var b=document.getElementById('runbtn');b.innerHTML='<span class="spin" style="width:13px;height:13px"></span> Running…';b.disabled=true;
     fetch('/api/jobs/all').then(function(r){return r.json();}).then(function(){b.innerHTML='<svg viewBox="0 0 24 24"><polygon points="6 3 20 12 6 21 6 3"/></svg> Run Jobs';b.disabled=false;load();})

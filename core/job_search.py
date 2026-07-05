@@ -137,6 +137,9 @@ async def search(query: str, location: str = "", job_type: str = "",
     # before the semantic re-ranker ever sees them
     _gate_src = query + " " + " ".join(alt_titles)
     qtoks = [t for t in re.findall(r"[a-z]{3,}", _gate_src.lower()) if len(t) > 2]
+    # generic browse ("jobs") = no meaningful tokens → don't title-gate at all
+    if set(qtoks) <= {"jobs", "job", "remote"}:
+        qtoks = []
     spec = _TYPE.get(jt)
 
     out: List[Dict[str, Any]] = []
