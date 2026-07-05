@@ -319,7 +319,10 @@ async def chat(message: str, history: Optional[List[Dict[str, str]]] = None,
                 "separately. When searching, your reply text is ONE short line like "
                 "'Searching remote graphic designer jobs now…' — no lists, no details — "
                 "and then you MUST still append the ACTION line (the ACTION line is what "
-                "actually runs the search; without it nothing happens). "
+                "actually runs the search; without it nothing happens). Consistency rule: "
+                "say 'searching' ONLY when you are appending an ACTION line; if you are "
+                "not searching (e.g. role unknown), ask your one clarifying question "
+                "instead — never claim to search without the ACTION line. "
                 "LANGUAGE: always reply in the language the user writes in (Urdu, Hindi, "
                 "Roman Urdu, Arabic, etc. — mirror their language and script); if they "
                 "write in English or it's unclear, reply in English.")
