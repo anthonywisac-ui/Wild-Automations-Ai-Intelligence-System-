@@ -695,7 +695,12 @@ async def llm_status():
     keys = {p: bool(_os.getenv(v)) for p, v in {
         "groq": "GROQ_API_KEY", "openrouter": "OPENROUTER_API_KEY",
         "gemini": "GEMINI_API_KEY", "mistral": "MISTRAL_API_KEY",
-        "perplexity": "PERPLEXITY_API_KEY", "openai": "OPENAI_API_KEY"}.items()}
+        "cerebras": "CEREBRAS_API_KEY", "perplexity": "PERPLEXITY_API_KEY",
+        "openai": "OPENAI_API_KEY", "ollama_host": "OLLAMA_HOST"}.items()}
+    # also show ALL env var names that look like keys (helps spot typos/quotes)
+    keylike = sorted([k for k in _os.environ
+                      if any(t in k.upper() for t in ("API_KEY", "GEMINI", "MISTRAL",
+                                                      "CEREBRAS", "GROQ", "PERPLEX", "OPENROUTER"))])
     try:
         from core.llm_client import get_llm
         llm = get_llm()
@@ -707,7 +712,8 @@ async def llm_status():
             out = await llm.complete("Reply with the single word: OK",
                                      system="You output one word.", max_tokens=5, timeout=20)
             return JSONResponse({"llm": "WORKING", "chain": chain,
-                                 "test_reply": (out or "").strip()[:40], "keys_present": keys})
+                                 "test_reply": (out or "").strip()[:40],
+                                 "keys_present": keys, "env_keys_found": keylike})
         except Exception as exc:
             return JSONResponse({"llm": "CONFIGURED_BUT_FAILING", "chain": chain,
                                  "error": f"{type(exc).__name__}: {exc}"[:200], "keys_present": keys})
