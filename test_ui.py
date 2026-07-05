@@ -687,6 +687,34 @@ def _bump_limits(cfg, want=30):
     return c
 
 
+@app.get("/api/llm/status")
+async def llm_status():
+    """Live health of the AI chain — which providers are configured and whether a
+    real call succeeds (proves the CV matcher will use the LLM, not keyword match)."""
+    import os as _os
+    keys = {p: bool(_os.getenv(v)) for p, v in {
+        "groq": "GROQ_API_KEY", "openrouter": "OPENROUTER_API_KEY",
+        "gemini": "GEMINI_API_KEY", "mistral": "MISTRAL_API_KEY",
+        "perplexity": "PERPLEXITY_API_KEY", "openai": "OPENAI_API_KEY"}.items()}
+    try:
+        from core.llm_client import get_llm
+        llm = get_llm()
+        if not llm:
+            return JSONResponse({"llm": "NONE", "keys_present": keys,
+                                 "note": "no provider key found → keyword-match fallback"})
+        chain = getattr(llm, "provider", "?")
+        try:
+            out = await llm.complete("Reply with the single word: OK",
+                                     system="You output one word.", max_tokens=5, timeout=20)
+            return JSONResponse({"llm": "WORKING", "chain": chain,
+                                 "test_reply": (out or "").strip()[:40], "keys_present": keys})
+        except Exception as exc:
+            return JSONResponse({"llm": "CONFIGURED_BUT_FAILING", "chain": chain,
+                                 "error": f"{type(exc).__name__}: {exc}"[:200], "keys_present": keys})
+    except Exception as exc:
+        return JSONResponse({"llm": "ERROR", "error": str(exc)[:200], "keys_present": keys})
+
+
 @app.get("/api/jobs/detail")
 async def jobs_detail(url: str):
     """Deep-fetch a job's own page and extract the full description text — called
