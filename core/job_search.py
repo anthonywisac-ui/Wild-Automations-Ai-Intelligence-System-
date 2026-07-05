@@ -100,6 +100,15 @@ async def search(query: str, location: str = "", job_type: str = "",
 
     tasks = [_safe(jobspy_client.fetch_jobspy, jcfg),
              _safe(gulftalent_client.fetch_gulftalent, gcfg)]
+    # remote-first companies' own ATS (Greenhouse/Lever/Ashby) — global, unblocked
+    async def _rc():
+        try:
+            from core import remote_companies_client
+            return await asyncio.wait_for(remote_companies_client.fetch(query, limit=60), timeout=35)
+        except Exception as exc:
+            logger.info("remote_companies source failed: %s", exc)
+            return []
+    tasks.append(_rc())
     # multi-model coverage: also search related titles the LLM suggests
     for alt in await expand_terms(query):
         ac = {"portal_name": "search", "crawl_mode": "jobspy", "jobspy_params": {
