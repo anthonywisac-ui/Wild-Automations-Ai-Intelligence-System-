@@ -50,6 +50,17 @@ def _extract_certs(text: str) -> List[str]:
         if re.search(pat, text, re.I if name not in ("CSM", "PSM", "CISM", "CISA") else 0):
             if name not in found:
                 found.append(name)
+    # generic "<Something> Certified" (e.g. "Scrum Fundamentals Certified -
+    # SCRUMstudy") — names the fixed list can't know about
+    for m in re.finditer(r"\b([A-Z][\w+#./-]*(?:\s+[A-Z&][\w+#./-]*){0,4})\s+Certified\b", text):
+        name = re.sub(r"\s+", " ", m.group(1)).strip()
+        # drop section headers that leak into the capture
+        name = re.sub(r"^(Licenses?( & | and )?|Certifications?|Training|Education)\s*",
+                      "", name, flags=re.I).strip()
+        if 2 < len(name) < 45:
+            label = f"{name} Certified"
+            if label not in found and not any(name.lower() in f.lower() for f in found):
+                found.append(label)
     return found[:6]
 
 
