@@ -119,6 +119,99 @@ async def _adzuna(client, q) -> List[Dict[str, Any]]:
     return out
 
 
+async def _himalayas(client, q) -> List[Dict[str, Any]]:
+    """Himalayas — keyless remote-jobs API (100k+ listings, has location
+    restrictions per job which feeds our honest-eligibility labels)."""
+    try:
+        r = await client.get("https://himalayas.app/jobs/api?limit=50", timeout=15)
+        if r.status_code != 200:
+            return []
+        data = r.json()
+        out = []
+        for j in (data.get("jobs") or data.get("data") or []):
+            locs = j.get("locationRestrictions") or []
+            loc = ", ".join(locs) if locs else "Remote (Worldwide)"
+            sal = ""
+            if j.get("minSalary"):
+                sal = f"{j['minSalary']}-{j.get('maxSalary', j['minSalary'])} {j.get('currency','USD')}"
+            out.append(_rec(j.get("title"), j.get("companyName"), loc,
+                            j.get("applicationLink") or j.get("guid"),
+                            j.get("description") or j.get("excerpt"), sal))
+        return out
+    except Exception:
+        return []
+
+
+async def _jooble(client, q) -> List[Dict[str, Any]]:
+    """Jooble — free API key (jooble.org/api/about). Env: JOOBLE_API_KEY."""
+    import os as _o
+    key = _o.getenv("JOOBLE_API_KEY")
+    if not key:
+        return []
+    try:
+        r = await client.post(f"https://jooble.org/api/{key}",
+                              json={"keywords": q or "remote", "page": 1}, timeout=15)
+        if r.status_code != 200:
+            return []
+        return [_rec(j.get("title"), j.get("company"), j.get("location", ""),
+                     j.get("link"), j.get("snippet"), j.get("salary", ""))
+                for j in (r.json().get("jobs") or [])]
+    except Exception:
+        return []
+
+
+async def _usajobs(client, q) -> List[Dict[str, Any]]:
+    """USAJobs — free US-gov API. Env: USAJOBS_API_KEY + USAJOBS_EMAIL."""
+    import os as _o
+    key, email = _o.getenv("USAJOBS_API_KEY"), _o.getenv("USAJOBS_EMAIL")
+    if not (key and email):
+        return []
+    try:
+        r = await client.get(
+            "https://data.usajobs.gov/api/search",
+            params={"Keyword": q or "remote", "ResultsPerPage": 25},
+            headers={"Authorization-Key": key, "User-Agent": email,
+                     "Host": "data.usajobs.gov"}, timeout=15)
+        if r.status_code != 200:
+            return []
+        items = ((r.json().get("SearchResult") or {}).get("SearchResultItems") or [])
+        out = []
+        for it in items:
+            d = it.get("MatchedObjectDescriptor") or {}
+            pay = (d.get("PositionRemuneration") or [{}])[0]
+            sal = (f"{pay.get('MinimumRange','')}-{pay.get('MaximumRange','')} "
+                   f"{pay.get('RateIntervalCode','')}").strip("- ")
+            out.append(_rec(d.get("PositionTitle"), d.get("OrganizationName"),
+                            d.get("PositionLocationDisplay", "USA"),
+                            d.get("PositionURI"),
+                            ((d.get("UserArea") or {}).get("Details") or {}).get("JobSummary", ""),
+                            sal))
+        return out
+    except Exception:
+        return []
+
+
+async def _careerjet(client, q) -> List[Dict[str, Any]]:
+    """Careerjet — free public API with affiliate id. Env: CAREERJET_AFFID."""
+    import os as _o
+    affid = _o.getenv("CAREERJET_AFFID")
+    if not affid:
+        return []
+    try:
+        r = await client.get(
+            "http://public.api.careerjet.net/search",
+            params={"keywords": q or "remote", "location": "remote", "affid": affid,
+                    "user_ip": "1.1.1.1", "user_agent": "Mozilla/5.0",
+                    "locale_code": "en_US", "pagesize": 30}, timeout=15)
+        if r.status_code != 200:
+            return []
+        return [_rec(j.get("title"), j.get("company"), j.get("locations", ""),
+                     j.get("url"), j.get("description"), j.get("salary", ""))
+                for j in (r.json().get("jobs") or [])]
+    except Exception:
+        return []
+
+
 async def _wwr(client, q) -> List[Dict[str, Any]]:
     """WeWorkRemotely — public RSS feed (keyless, global)."""
     try:
@@ -278,6 +371,8 @@ async def fetch(query: str = "", limit: int = 80, companies: List[str] = None) -
                 _remotive(client, q), _remoteok(client, q), _jobicy(client, q),
                 _arbeitnow(client, q), _themuse(client, q), _adzuna(client, q),
                 _wwr(client, q), _company_boards(client, q),
+                _himalayas(client, q), _jooble(client, q),
+                _usajobs(client, q), _careerjet(client, q),
                 return_exceptions=True)
         for lst in lists:
             if not isinstance(lst, list):
