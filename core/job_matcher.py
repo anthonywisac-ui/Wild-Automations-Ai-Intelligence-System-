@@ -126,3 +126,82 @@ async def rank(profile: Dict[str, Any], jobs: List[Dict[str, Any]],
     # deterministic fallback: keep as-is (already overlap-ranked upstream) —
     # tag honestly so the UI can show these are keyword scores, not AI judgment
     return [dict(j, match_type="keyword") for j in cand[:top]]
+
+
+async def _full_desc(url: str) -> str:
+    """Fetch a job page and extract its body text (fail-soft, '' on any error)."""
+    if not (url or "").startswith("http"):
+        return ""
+    try:
+        import httpx
+        async with httpx.AsyncClient(timeout=10, verify=False, follow_redirects=True,
+                                     headers={"User-Agent": "Mozilla/5.0"}) as client:
+            r = await client.get(url)
+        html = re.sub(r"(?is)<(script|style|nav|footer|header)[^>]*>.*?</\1>", " ", r.text)
+        text = re.sub(r"(?s)<[^>]+>", " ", html)
+        return re.sub(r"\s+", " ", text).strip()[:2500]
+    except Exception:
+        return ""
+
+
+async def deep_rescore(profile: Dict[str, Any], ranked: List[Dict[str, Any]],
+                       top_n: int = 6) -> List[Dict[str, Any]]:
+    """Precision pass for the top N: fetch each job's FULL description page and
+    re-judge fit on the complete JD (the first rank pass only saw a snippet).
+    Fail-soft at every step — on any failure the original ranking is returned."""
+    if not ranked:
+        return ranked
+    import asyncio
+    head, tail = ranked[:top_n], ranked[top_n:]
+    try:
+        from core.llm_client import get_llm
+        llm = get_llm()
+        if not llm:
+            return ranked
+        fulls = await asyncio.wait_for(
+            asyncio.gather(*[_full_desc(j.get("url", "")) for j in head],
+                           return_exceptions=True), timeout=15)
+        lines, any_full = [], False
+        for i, j in enumerate(head):
+            fd = fulls[i] if isinstance(fulls[i], str) else ""
+            if len(fd) > len(j.get("description") or ""):
+                any_full = True
+            desc = fd or (j.get("description") or "")[:600]
+            lines.append(f"[{i}] {j.get('title','')} @ {j.get('company','')} — {desc[:1800]}")
+        if not any_full:
+            return ranked   # nothing new to judge — keep the snippet-based scores
+        out = await llm.complete(
+            f"Candidate: role={profile.get('role')}, domain={profile.get('domain')}, "
+            f"seniority={profile.get('seniority')}, skills={profile.get('skills')}. "
+            "These are the FULL job descriptions. Re-score each 0-100 for true fit "
+            "and give skill_fit/seniority_fit/domain_fit (<=8 words each). Return ONLY "
+            "a JSON array [{\"i\":<index>,\"score\":<0-100>,\"skill_fit\":\"..\","
+            "\"seniority_fit\":\"..\",\"domain_fit\":\"..\"}]. Jobs:\n" + "\n".join(lines),
+            system="You output only a JSON array.", max_tokens=700)
+        m = re.search(r"\[.*\]", out, re.S)
+        if not m:
+            return ranked
+        by_i = {int(s["i"]): s for s in json.loads(m.group(0)) if "i" in s}
+        rescored = []
+        for i, j in enumerate(head):
+            s = by_i.get(i)
+            j = dict(j)
+            if s:
+                j["match"] = round(float(s.get("score", j["match"] * 100)) / 100, 2)
+                fit = {"skill": (s.get("skill_fit") or "").strip(),
+                       "seniority": (s.get("seniority_fit") or "").strip(),
+                       "domain": (s.get("domain_fit") or "").strip()}
+                j["fit"] = fit
+                parts = [f"Skills: {fit['skill']}" if fit["skill"] else "",
+                         f"Level: {fit['seniority']}" if fit["seniority"] else "",
+                         f"Domain: {fit['domain']}" if fit["domain"] else ""]
+                j["why_match"] = " · ".join(p for p in parts if p) or j.get("why_match", "")
+                j["match_type"] = "ai"
+                j["deep"] = True   # scored on the full JD, not just the snippet
+            rescored.append(j)
+        merged = rescored + [dict(j) for j in tail]
+        merged.sort(key=lambda x: x["match"], reverse=True)
+        return merged
+    except Exception as exc:
+        logger.info("job_matcher.deep_rescore skipped: %s", exc)
+        return ranked

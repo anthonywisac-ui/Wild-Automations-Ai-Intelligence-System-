@@ -875,6 +875,10 @@ async def cv_match(request: Request):
     #    seniority fit (IT PM != air-cooler PM) — drops mismatches, adds reasons
     ranked = await job_matcher.rank(profile, rs["jobs"])
 
+    # 3b. precision pass: fetch the FULL job description for the top 6 and
+    #     re-score on complete text (fail-soft — keeps original ranking on error)
+    ranked = await job_matcher.deep_rescore(profile, ranked, top_n=6)
+
     # honest eligibility: derive from the listing text — never assert what the
     # listing doesn't say (a wrong "eligible" label is worse than "not stated")
     from core.job_search import _RESTRICT
@@ -900,6 +904,7 @@ async def cv_match(request: Request):
                      "salary": x["salary"], "url": x["url"], "posted": x["posted"],
                      "why_match": x["why_match"], "fit": x.get("fit") or {},
                      "match_type": x.get("match_type") or "keyword",
+                     "deep": bool(x.get("deep")),
                      "description": (x.get("description") or "")[:600],
                      "match": x["match"], "source": x["source"]})
     return JSONResponse({"role": role, "skills": skills, "profile": profile,
