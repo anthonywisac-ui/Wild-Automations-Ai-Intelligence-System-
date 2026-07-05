@@ -55,7 +55,7 @@ def _extract_certs(text: str) -> List[str]:
     for m in re.finditer(r"\b([A-Z][\w+#./-]*(?:\s+[A-Z&][\w+#./-]*){0,4})\s+Certified\b", text):
         name = re.sub(r"\s+", " ", m.group(1)).strip()
         # drop section headers that leak into the capture
-        name = re.sub(r"^(Licenses?( & | and )?|Certifications?|Training|Education)\s*",
+        name = re.sub(r"^((Licenses?|Certifications?|Training|Education)(\s*&\s*|\s+and\s+|\s+))+",
                       "", name, flags=re.I).strip()
         if 2 < len(name) < 45:
             label = f"{name} Certified"
