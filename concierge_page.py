@@ -83,6 +83,7 @@ CONCIERGE_HTML = r"""<!doctype html>
 <input type="file" id="cvfile" accept=".pdf,.doc,.docx,.txt" style="display:none" onchange="uploadCV(this)"/>
 <div class="dock">
   <button class="btn ghost" style="padding:0 14px" onclick="document.getElementById('cvfile').click()" title="Upload CV">📎</button>
+  <button class="btn ghost" style="padding:0 14px" onclick="myJobs()" title="My saved jobs">📋</button>
   <input id="chatin" placeholder="Tell me what you need…" autocomplete="off"/>
   <button class="btn" onclick="sendChat()">Send</button>
 </div>
@@ -242,11 +243,12 @@ function renderCVJobs(m){
       (f.domain?'<span class="chip" title="Domain fit">🏢 '+esc(f.domain)+'</span>':'')+
       '</div>':
       '<div style="font-size:12px;color:var(--muted);margin-top:4px">'+esc(x.why_match)+'</div>';
-    var tools=window.CVTEXT?
-      '<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">'+
+    var tools='<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">'+
+      '<button class="chip" style="cursor:pointer;border:0" onclick="saveJob('+i+',this)">💾 Save</button>'+
+      (window.CVTEXT?
       '<button class="chip" style="cursor:pointer;border:0" onclick="gapJob('+i+')">🧩 Gap check</button>'+
-      '<button class="chip" style="cursor:pointer;border:0" onclick="tailorJob('+i+')">✍️ Tailor CV</button>'+
-      '</div>':'';
+      '<button class="chip" style="cursor:pointer;border:0" onclick="tailorJob('+i+')">✍️ Tailor CV</button>':'')+
+      '</div>';
     return '<div class="res"><div class="t">'+esc(x.title)+'</div>'+
       '<div class="m"><span class="chip" title="'+(x.match_type==='ai'?'AI judged this score from your CV + job description':'Approximate keyword score (AI ranking unavailable)')+'">'+(x.match_type==='ai'?'✦ ':'≈ ')+Math.round(x.match*100)+'% match</span> '+esc(x.company)+' · 📍 '+esc(x.location)+'</div>'+
       '<div style="font-size:12px;color:var(--muted);margin-top:6px">🌍 '+esc(x.remote_policy)+' · ✅ '+esc(x.visa)+(x.salary&&x.salary!=='—'?' · 💰 '+esc(x.salary):'')+'</div>'+
@@ -283,6 +285,38 @@ async function tailorJob(i){
       ((d.bullets||[]).length?'<ul style="margin:6px 0 0 16px;padding:0">'+d.bullets.map(function(b){return '<li>'+esc(b)+'</li>';}).join('')+'</ul>':'')+
       '</div>';
   }catch(e){box.innerHTML='<span style="color:var(--muted);font-size:12px">Tailoring failed — try again.</span>';}
+}
+async function saveJob(i,btn){
+  var x=(window.CVJOBS||[])[i];if(!x)return;
+  if(btn){btn.disabled=true;btn.textContent='Saving…';}
+  try{
+    var d=await j('/api/jobs/track',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({job:x})});
+    if(btn)btn.textContent=d.ok?'✅ Saved':'⚠️ Failed';
+  }catch(e){if(btn)btn.textContent='⚠️ Failed';}
+}
+async function myJobs(){
+  const R=document.getElementById('results');
+  R.innerHTML='<h2>📋 My jobs</h2><span style="color:var(--muted);font-size:13px">Loading…</span>';
+  try{
+    var d=await j('/api/jobs/tracked',{});
+    var rows=d.jobs||[];
+    if(!rows.length){R.innerHTML='<h2>📋 My jobs</h2><span style="color:var(--muted);font-size:13px">Nothing saved yet — press 💾 Save on any match.</span>';return;}
+    var opts=(d.statuses||[]);
+    R.innerHTML='<h2>📋 My jobs · '+rows.length+'</h2>'+rows.map(function(x){
+      var sel='<select onchange="trackStatus(\''+x.job_key+'\',this.value)" style="background:transparent;color:inherit;border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:2px 6px;font-size:12px">'+
+        opts.map(function(s){return '<option value="'+s+'"'+(s===x.status?' selected':'')+'>'+s+'</option>';}).join('')+'</select>';
+      return '<div class="res"><div class="t">'+esc(x.title)+'</div>'+
+        '<div class="m">'+esc(x.company)+' · 📍 '+esc(x.location||'')+(x.match?' · '+Math.round(x.match*100)+'%':'')+'</div>'+
+        '<div style="font-size:12px;margin-top:6px;display:flex;gap:8px;align-items:center">'+sel+
+        (x.url?'<a class="chip" style="text-decoration:none" href="'+x.url+'" target="_blank">Open ↗</a>':'')+'</div>'+
+        '</div>';}).join('');
+    R.scrollIntoView({behavior:'smooth'});
+  }catch(e){R.innerHTML='<h2>📋 My jobs</h2><span style="color:var(--muted);font-size:13px">Could not load — try again.</span>';}
+}
+async function trackStatus(key,status){
+  try{await j('/api/jobs/track/status',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({job_key:key,status:status})});}catch(e){}
 }
 document.getElementById('chatin').addEventListener('keydown',e=>{if(e.key==='Enter')sendChat();});
 loadPersonas();

@@ -906,6 +906,40 @@ async def cv_match(request: Request):
                          "count": len(jobs), "jobs": jobs})
 
 
+@app.post("/api/jobs/track")
+async def jobs_track(request: Request):
+    """Save a job to the tracker (Supabase, fail-soft)."""
+    try:
+        from core import job_tracker
+        b = await request.json()
+        return JSONResponse(job_tracker.save_job(b.get("job") or {}))
+    except Exception as exc:
+        return JSONResponse({"error": f"{type(exc).__name__}: {exc}"}, status_code=500)
+
+
+@app.get("/api/jobs/tracked")
+async def jobs_tracked(status: str = ""):
+    """All tracked jobs, newest first; optional ?status=applied filter."""
+    try:
+        from core import job_tracker
+        rows = job_tracker.list_jobs(status)
+        return JSONResponse({"count": len(rows), "statuses": job_tracker.STATUSES,
+                             "jobs": rows})
+    except Exception as exc:
+        return JSONResponse({"error": f"{type(exc).__name__}: {exc}"}, status_code=500)
+
+
+@app.post("/api/jobs/track/status")
+async def jobs_track_status(request: Request):
+    """Move a tracked job to a new status (saved/applied/interview/offer/rejected)."""
+    try:
+        from core import job_tracker
+        b = await request.json()
+        return JSONResponse(job_tracker.set_status(b.get("job_key", ""), b.get("status", "")))
+    except Exception as exc:
+        return JSONResponse({"error": f"{type(exc).__name__}: {exc}"}, status_code=500)
+
+
 @app.get("/api/version")
 async def api_version():
     """Which code is live? Railway injects the git SHA at deploy time — one look
