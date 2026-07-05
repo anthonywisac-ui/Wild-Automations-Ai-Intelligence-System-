@@ -119,6 +119,142 @@ async def _adzuna(client, q) -> List[Dict[str, Any]]:
     return out
 
 
+async def _wwr(client, q) -> List[Dict[str, Any]]:
+    """WeWorkRemotely — public RSS feed (keyless, global)."""
+    try:
+        r = await client.get("https://weworkremotely.com/remote-jobs.rss", timeout=15)
+        if r.status_code != 200:
+            return []
+        out = []
+        for item in re.findall(r"(?s)<item>(.*?)</item>", r.text)[:60]:
+            def _tag(t):
+                m = re.search(rf"(?s)<{t}>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?</{t}>", item)
+                return (m.group(1) if m else "").strip()
+            title = _tag("title")            # "Company: Job Title"
+            comp, _, role = title.partition(":")
+            out.append(_rec(role.strip() or title, comp.strip(),
+                            _tag("region") or "Remote", _tag("link"), _tag("description")))
+        return out
+    except Exception:
+        return []
+
+
+# ── Company ATS boards (user-curated list — probed ONCE, so no 404 spam) ─────
+import json as _json
+import os as _os
+
+_LIST_PATH = _os.path.join(_os.path.dirname(_os.path.dirname(__file__)),
+                           "data", "remote_companies.txt")
+_CACHE_PATH = _os.path.join(_os.path.dirname(_LIST_PATH), "company_boards_cache.json")
+_BOARDS: Dict[str, str] = {}          # slug -> "greenhouse" | "lever"
+_PROBED = False
+_PROBING = False
+
+
+def _slugs() -> List[str]:
+    try:
+        with open(_LIST_PATH, encoding="utf-8") as f:
+            names = [l.strip() for l in f if l.strip() and not l.startswith("#")]
+        return sorted({re.sub(r"[^a-z0-9]", "", n.lower()) for n in names if n})
+    except Exception:
+        return []
+
+
+async def _probe_boards() -> None:
+    """One-time discovery of which companies expose a public Greenhouse/Lever
+    board. Runs in the background on first fetch; cached to disk + memory."""
+    global _PROBED, _PROBING
+    if _PROBED or _PROBING:
+        return
+    _PROBING = True
+    try:
+        try:
+            with open(_CACHE_PATH, encoding="utf-8") as f:
+                _BOARDS.update(_json.load(f))
+            _PROBED = True
+            logger.info("company boards: %d loaded from cache", len(_BOARDS))
+            return
+        except Exception:
+            pass
+        sem = asyncio.Semaphore(12)
+        async with httpx.AsyncClient(headers=_UA, verify=False,
+                                     follow_redirects=True) as client:
+            async def _one(slug):
+                async with sem:
+                    try:
+                        r = await client.get(
+                            f"https://boards-api.greenhouse.io/v1/boards/{slug}/jobs",
+                            timeout=8)
+                        if r.status_code == 200 and (r.json().get("jobs") is not None):
+                            _BOARDS[slug] = "greenhouse"
+                            return
+                    except Exception:
+                        pass
+                    try:
+                        r = await client.get(
+                            f"https://api.lever.co/v0/postings/{slug}?mode=json&limit=1",
+                            timeout=8)
+                        if r.status_code == 200 and isinstance(r.json(), list):
+                            _BOARDS[slug] = "lever"
+                    except Exception:
+                        pass
+            await asyncio.gather(*[_one(s) for s in _slugs()])
+        _PROBED = True
+        try:
+            with open(_CACHE_PATH, "w", encoding="utf-8") as f:
+                _json.dump(_BOARDS, f)
+        except Exception:
+            pass
+        logger.info("company boards: probed — %d valid boards found", len(_BOARDS))
+    finally:
+        _PROBING = False
+
+
+async def _company_boards(client, q) -> List[Dict[str, Any]]:
+    """Live jobs from the user's companies with CONFIRMED ATS boards only.
+    First-ever call kicks the probe off in the background (returns [] once);
+    afterwards every search pulls real jobs from valid boards — zero 404s."""
+    if not _PROBED:
+        asyncio.ensure_future(_probe_boards())
+        return []
+    out: List[Dict[str, Any]] = []
+    sem = asyncio.Semaphore(10)
+
+    async def _gh(slug):
+        async with sem:
+            try:
+                r = await client.get(
+                    f"https://boards-api.greenhouse.io/v1/boards/{slug}/jobs?content=true",
+                    timeout=10)
+                for j in (r.json().get("jobs") or [])[:15]:
+                    out.append(_rec(j.get("title"), slug.title(),
+                                    (j.get("location") or {}).get("name", "Remote"),
+                                    j.get("absolute_url"), j.get("content", "")))
+            except Exception:
+                pass
+
+    async def _lv(slug):
+        async with sem:
+            try:
+                r = await client.get(
+                    f"https://api.lever.co/v0/postings/{slug}?mode=json&limit=15",
+                    timeout=10)
+                for j in (r.json() or []):
+                    out.append(_rec(j.get("text"), slug.title(),
+                                    (j.get("categories") or {}).get("location", "Remote"),
+                                    j.get("hostedUrl"), j.get("descriptionPlain", "")))
+            except Exception:
+                pass
+
+    tasks = [(_gh(s) if src == "greenhouse" else _lv(s)) for s, src in _BOARDS.items()]
+    if tasks:
+        try:
+            await asyncio.wait_for(asyncio.gather(*tasks), timeout=25)
+        except Exception:
+            pass
+    return out
+
+
 async def _arbeitnow(client, q) -> List[Dict[str, Any]]:
     try:
         r = await client.get("https://www.arbeitnow.com/api/job-board-api", timeout=15)
@@ -141,6 +277,7 @@ async def fetch(query: str = "", limit: int = 80, companies: List[str] = None) -
             lists = await asyncio.gather(
                 _remotive(client, q), _remoteok(client, q), _jobicy(client, q),
                 _arbeitnow(client, q), _themuse(client, q), _adzuna(client, q),
+                _wwr(client, q), _company_boards(client, q),
                 return_exceptions=True)
         for lst in lists:
             if not isinstance(lst, list):

@@ -307,7 +307,10 @@ async def chat(message: str, history: Optional[List[Dict[str, str]]] = None,
                 "(a role or field, plus remote OR a location for jobs), append a final line EXACTLY: "
                 'ACTION={"persona":"job_seeker|student|travel_agent|car_dealer","answers":{"role":"",'
                 '"location":"","job_type":"","worldwide":true|false,"query":""}}. '
-                "Otherwise just reply or ask. Never invent job listings yourself.")
+                "Otherwise just reply or ask. Never invent job listings yourself. "
+                "LANGUAGE: always reply in the language the user writes in (Urdu, Hindi, "
+                "Roman Urdu, Arabic, etc. — mirror their language and script); if they "
+                "write in English or it's unclear, reply in English.")
             convo = ""
             for h in (history or [])[-10:]:
                 convo += f"{h.get('role','user')}: {h.get('content','')}\n"

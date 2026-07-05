@@ -1,0 +1,160 @@
+# Remote-first companies (user-provided list) — one name per line.
+# Used by remote_companies_client._company_boards(): each name is slugified and
+# probed ONCE against public ATS APIs (Greenhouse/Lever); only valid boards are
+# fetched afterwards (no 404 spam). Add more names any time.
+10up
+15Five
+17hats
+1Password
+42Technologies
+Ably
+AbstractAPI
+Acquia
+ActiveCampaign
+Adaface
+Adeva
+AEStudio
+Aerolab
+AgFlow
+Aha
+Airbank
+Airbyte
+AirGarage
+Alami
+ALICE
+Alight Solutions
+Alley
+AlphaSights
+Amazon
+Andela
+Animalz
+Anomali
+Appinio
+Applaudo
+Appwrite
+Argyle
+Arkency
+Articulate
+Astronomer
+Atlassian
+Axios
+Bairesdev
+Balena
+Balsamiq
+Bandcamp
+BandLab
+Bandzoogle
+Baremetrics
+Basecamp
+BeBanjo
+BeenVerified
+BetterUp
+BeyondPricing
+Big Cartel
+Bill
+Bitnami
+Bitovi
+Blameless
+Bonsai
+Bounteous
+Brainstorm Force
+Brikl
+BriteCore
+Buffer
+Bugfender
+BuySellAds
+Cabify
+Calamari
+Calibre
+Canonical
+Capchase
+Capital One
+Carbon Black
+CareCru
+CareMessage
+CartoDB
+CartStack
+Casumo
+Celsius
+ChainLink Labs
+Chargify
+Chef
+Chess
+Chroma
+CircleCI
+CivicActions
+Civo
+Clevertech
+ClickUp
+Clootrack
+Close
+CloudApp
+Coalition Technologies
+CodePen
+CodeSandbox
+Codeship
+Cofense
+Coinbase
+Collabora
+Comet
+Compose
+Continu
+Convert
+Coursera
+Crossover
+Crowdstrike
+CrowdTangle
+Customer.io
+Cuvette
+CVS Health
+CWT
+DappRadar
+Dashlane
+DataCamp
+Datadog
+DataStax
+Datica
+DealDash
+Envato
+Envoy
+Epam
+Epic Games
+Episource
+Ergeon
+Estately
+Etch
+Etsy
+Evil Martians
+Evrone
+Eyeo
+FactorialHR
+Fairwinds
+Faithlife
+Fastly
+FATMAP
+Fauna
+Featurist
+Fetlife
+FFW Agency
+FingerprintJS
+Fiverr
+Flexera
+FlightAware
+Flip
+Flowing
+Fly.io
+FMX
+Formidable
+Formstack
+Four Kitchens
+Fraudio
+Freeagent
+Freeletics
+FullFabric
+Functionize
+Gaggle
+GeckoBoard
+General Assembly
+GFT
+Ghost Foundation
+Ghost Inspector
