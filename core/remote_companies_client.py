@@ -77,6 +77,48 @@ async def _jobicy(client, q) -> List[Dict[str, Any]]:
         return []
 
 
+async def _themuse(client, q) -> List[Dict[str, Any]]:
+    try:
+        out = []
+        for page in (0, 1):
+            r = await client.get(
+                f"https://www.themuse.com/api/public/jobs?page={page}", timeout=15)
+            if r.status_code != 200:
+                break
+            for j in (r.json().get("results") or []):
+                locs = ", ".join(l.get("name", "") for l in (j.get("locations") or [])) or "Flexible"
+                out.append(_rec(j.get("name"), (j.get("company") or {}).get("name"),
+                                locs, (j.get("refs") or {}).get("landing_page"), j.get("contents")))
+        return out
+    except Exception:
+        return []
+
+
+async def _adzuna(client, q) -> List[Dict[str, Any]]:
+    import os as _os
+    app_id, app_key = _os.getenv("ADZUNA_APP_ID"), _os.getenv("ADZUNA_APP_KEY")
+    if not (app_id and app_key):
+        return []
+    out = []
+    for cc in ("gb", "us"):
+        try:
+            r = await client.get(
+                f"https://api.adzuna.com/v1/api/jobs/{cc}/search/1",
+                params={"app_id": app_id, "app_key": app_key, "what": q or "remote",
+                        "results_per_page": 40, "content-type": "application/json"}, timeout=15)
+            if r.status_code != 200:
+                continue
+            for j in (r.json().get("results") or []):
+                sal = (f"{int(j['salary_min'])}-{int(j.get('salary_max', j['salary_min']))}"
+                       if j.get("salary_min") else "")
+                out.append(_rec(j.get("title"), (j.get("company") or {}).get("display_name"),
+                                (j.get("location") or {}).get("display_name"),
+                                j.get("redirect_url"), j.get("description"), sal))
+        except Exception:
+            continue
+    return out
+
+
 async def _arbeitnow(client, q) -> List[Dict[str, Any]]:
     try:
         r = await client.get("https://www.arbeitnow.com/api/job-board-api", timeout=15)
@@ -97,8 +139,9 @@ async def fetch(query: str = "", limit: int = 80, companies: List[str] = None) -
     try:
         async with httpx.AsyncClient(headers=_UA, verify=False, follow_redirects=True) as client:
             lists = await asyncio.gather(
-                _remotive(client, q), _remoteok(client, q),
-                _jobicy(client, q), _arbeitnow(client, q), return_exceptions=True)
+                _remotive(client, q), _remoteok(client, q), _jobicy(client, q),
+                _arbeitnow(client, q), _themuse(client, q), _adzuna(client, q),
+                return_exceptions=True)
         for lst in lists:
             if not isinstance(lst, list):
                 continue
