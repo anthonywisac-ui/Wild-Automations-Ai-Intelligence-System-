@@ -867,7 +867,8 @@ async def concierge_chat(request: Request):
     try:
         from core import concierge
         body = await request.json()
-        result = await concierge.chat(body.get("message", ""), body.get("history"))
+        result = await concierge.chat(body.get("message", ""), body.get("history"),
+                                      body.get("context", ""))
         return JSONResponse(result)   # {reply, action?}
     except Exception as exc:
         return JSONResponse({"error": f"{type(exc).__name__}: {exc}"}, status_code=500)

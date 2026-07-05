@@ -174,6 +174,7 @@ async function deliverIt(){
 }
 
 let CHAT=[];  // conversation history so the assistant never re-asks a known answer
+let CTX='';   // profile + jobs already shown → so follow-ups ('why is this good for me') work
 function esc(s){return String(s==null?'':s).replace(/[<>&]/g,function(c){return {'<':'&lt;','>':'&gt;','&':'&amp;'}[c];});}
 function bubble(t,cls){const el=document.createElement('div');el.className='bubble '+cls;el.innerHTML=(t||'').replace(/\*\*(.+?)\*\*/g,'<b>$1</b>');
   document.getElementById('chatlog').appendChild(el);el.scrollIntoView({behavior:'smooth'});}
@@ -181,7 +182,7 @@ async function sendChat(){
   const inp=document.getElementById('chatin');const msg=inp.value.trim();if(!msg)return;
   inp.value='';bubble(msg,'me');CHAT.push({role:'user',content:msg});
   const d=await j('/api/concierge/chat',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({message:msg,history:CHAT})});
+    body:JSON.stringify({message:msg,history:CHAT,context:CTX})});
   const reply=d.reply||d.error||'…';bubble(reply,'ai');CHAT.push({role:'assistant',content:reply});
   if(d.action){runFromChat(d.action);}
 }
@@ -191,6 +192,7 @@ async function runFromChat(action){
     body:JSON.stringify(action)});
   if(d.error){bubble('Sorry — '+d.error,'ai');return;}
   const n=(d.matches||[]).length;
+  CTX='Search: '+JSON.stringify(action.answers||{})+'\nJobs shown:\n'+(d.matches||[]).slice(0,8).map(function(m,i){var md=m.metadata||{};return (i+1)+'. '+m.title+' @ '+(md.company||'')+' ('+m.location+') — '+(md.why||'');}).join('\n');
   bubble(n?('Found '+d.total+' results — top '+n+' below 👇'):'No strong matches — try a different city or role.','ai');
   const R=document.getElementById('results');
   R.innerHTML='<h2>'+(d.total||0)+' matches</h2>'+(d.matches||[]).map(function(m){
@@ -223,6 +225,8 @@ async function uploadCV(input){
 }
 function renderCVJobs(m){
   const n=(m.jobs||[]).length;
+  CTX='Candidate profile: '+(m.role||'')+'. Skills: '+((m.skills||[]).join(', '))+'.\nJobs shown:\n'+
+    (m.jobs||[]).slice(0,8).map(function(x,i){return (i+1)+'. '+x.title+' @ '+x.company+' ('+x.location+') — '+(x.why_match||'')+(x.salary&&x.salary!=='—'?' · '+x.salary:'');}).join('\n');
   bubble(n?('Found '+n+' remote roles matching your profile 👇'):'No fully-remote, no-visa matches right now for '+(m.role||'your profile')+'. Try again shortly (sources rotate).','ai');
   const R=document.getElementById('results');
   R.innerHTML='<h2>'+n+' remote matches · '+esc(m.role||'')+'</h2>'+(m.jobs||[]).map(function(x){

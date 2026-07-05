@@ -283,11 +283,13 @@ def _slots(history: Optional[List[Dict[str, str]]], message: str) -> Dict[str, s
             "job_type": job_type}
 
 
-async def chat(message: str, history: Optional[List[Dict[str, str]]] = None) -> Dict[str, Any]:
-    """LLM-first conversational concierge: analyzes the user's message in context,
-    handles feedback/refinement (e.g. 'not my kind of job' → asks what to change),
-    and only issues a search ACTION when it truly has enough. Deterministic slot-
-    filling is the fallback when no LLM is configured."""
+async def chat(message: str, history: Optional[List[Dict[str, str]]] = None,
+               context: str = "") -> Dict[str, Any]:
+    """LLM-first conversational concierge: analyzes the user's message in context
+    (their CV profile + the jobs already shown), handles feedback/refinement
+    (e.g. 'not my kind of job' → asks what to change; 'why is this good for me' →
+    explains using the matched jobs), and only issues a search ACTION when it truly
+    has enough. Deterministic slot-filling is the fallback when no LLM is set."""
     import json as _json
     try:
         from core.llm_client import get_llm
@@ -309,7 +311,10 @@ async def chat(message: str, history: Optional[List[Dict[str, str]]] = None) -> 
             convo = ""
             for h in (history or [])[-10:]:
                 convo += f"{h.get('role','user')}: {h.get('content','')}\n"
-            out = await llm.complete(convo + f"user: {message}", system=sys, max_tokens=320)
+            ctx = (f"CONTEXT — the user's profile and the jobs already shown to them "
+                   f"(use this to answer 'why is this good for me', compare, or refine):\n{context}\n\n"
+                   if context else "")
+            out = await llm.complete(ctx + convo + f"user: {message}", system=sys, max_tokens=320)
             m = re.search(r"ACTION\s*=\s*(\{.*\})", out, re.S)
             if m:
                 try:

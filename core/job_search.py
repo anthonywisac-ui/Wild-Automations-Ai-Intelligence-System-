@@ -83,9 +83,17 @@ async def search(query: str, location: str = "", job_type: str = "",
     from core import jobspy_client, gulftalent_client, job_intelligence
 
     loc = location or ("Remote" if jt == "remote" else "")
+    # Indeed is country-locked; for worldwide-remote (no country given) use a broad
+    # market instead of the UAE default so results aren't UAE-only.
+    _CC = {"united kingdom": "uk", "uk": "uk", "usa": "usa", "united states": "usa",
+           "america": "usa", "canada": "canada", "australia": "australia",
+           "germany": "germany", "india": "india", "uae": "united arab emirates",
+           "dubai": "united arab emirates", "pakistan": "pakistan"}
+    country_indeed = _CC.get(location.lower(), "usa" if (worldwide or jt == "remote") else "usa")
     jcfg = {"portal_name": "search", "crawl_mode": "jobspy", "jobspy_params": {
         "site_names": ["indeed", "google", "linkedin"], "search_term": query,
-        "google_search_term": f"{query} {jt} jobs {location}".strip(),
+        "google_search_term": f"{query} {jt} jobs {location or 'worldwide'}".strip(),
+        "country_indeed": country_indeed,
         "location": loc, "results_wanted": 30, "is_remote": jt == "remote"}}
     gcfg = {"portal_name": "remote", "crawl_mode": "gulftalent",
             "gulftalent_params": {"category": query, "results_wanted": 40}}
