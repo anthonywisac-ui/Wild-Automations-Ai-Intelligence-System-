@@ -58,7 +58,8 @@ BOARDS: List[Dict[str, Any]] = [
 ]
 
 _CACHE: Dict[Tuple[str, str], Tuple[float, List[Dict[str, Any]]]] = {}
-_TTL = 7200   # 2 h
+_TTL_HIT = 86400   # successful fetches: 24 h (protects Jina rate-limits)
+_TTL_MISS = 1800   # empty results: retry after 30 min (transient failures)
 
 
 def _rec(title, company, location, url, source):
@@ -70,21 +71,37 @@ def _rec(title, company, location, url, source):
 
 
 async def _get(client: httpx.AsyncClient, url: str, via: str) -> str:
-    """Fetch a page directly, or through Jina Reader for blocked sites.
-    Direct fetches that come back blocked (403/429/503) retry via Jina."""
+    """Fetch a page: direct first (fast), Jina Reader with retry+backoff for
+    blocked/JS sites, and a last-chance direct attempt for jina-routed boards
+    (some don't actually block). All bodies force-decoded as UTF-8."""
+    def _dec(r):
+        return r.content.decode("utf-8", errors="ignore")
     try:
         if via == "direct":
             r = await client.get(url, timeout=15)
             if r.status_code == 200 and len(r.content) > 500:
-                # decode as UTF-8 ourselves — httpx guessing wrong charsets is
-                # what produced 'â€"' mojibake in titles/companies
-                return r.content.decode("utf-8", errors="ignore")
+                return _dec(r)
             if r.status_code not in (403, 429, 503):
                 return ""
-        # jina route (also the fallback when direct is blocked)
-        r = await client.get(f"https://r.jina.ai/{url}",
-                             headers={"X-Return-Format": "html"}, timeout=25)
-        return r.content.decode("utf-8", errors="ignore") if r.status_code == 200 else ""
+        # Jina Reader with retries + backoff (rate-limits are transient)
+        for attempt in range(3):
+            try:
+                r = await client.get(f"https://r.jina.ai/{url}",
+                                     headers={"X-Return-Format": "html"}, timeout=25)
+                if r.status_code == 200 and len(r.content) > 500:
+                    return _dec(r)
+                if r.status_code in (429, 451, 503):
+                    await asyncio.sleep(1.5 * (attempt + 1))
+                    continue
+                break
+            except Exception:
+                await asyncio.sleep(1.5 * (attempt + 1))
+        # last chance: some 'blocked' boards actually serve plain HTML
+        if via != "direct":
+            r = await client.get(url, timeout=15)
+            if r.status_code == 200 and len(r.content) > 500:
+                return _dec(r)
+        return ""
     except Exception:
         return ""
 
@@ -163,7 +180,7 @@ async def _llm_extract(board: str, picked: List[Tuple[str, str]],
 async def _one_board(client, board: Dict[str, Any], query: str) -> List[Dict[str, Any]]:
     key = (board["name"], query.lower())
     hit = _CACHE.get(key)
-    if hit and time.time() - hit[0] < _TTL:
+    if hit and time.time() - hit[0] < (_TTL_HIT if hit[1] else _TTL_MISS):
         return hit[1]
     q_slug = re.sub(r"\s+", "-", (query or "remote").strip().lower())
     url = board["url"].replace("{q}", q_slug)

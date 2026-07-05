@@ -397,6 +397,30 @@ async def _run_one(s: Dict) -> Dict:
 
 app = FastAPI(title="WildAutomations CRM", docs_url=None, redoc_url=None)
 
+
+@app.on_event("startup")
+async def _warmup():
+    """Warm the job-source caches right after deploy so the FIRST user search
+    is already fast and complete: company-ATS-board probe + board-scraper
+    pre-fetch, then a refresh every 6 h (cache-miss problem gone)."""
+    async def _cycle():
+        while True:
+            try:
+                from core import remote_companies_client as rcc, board_scraper
+                await rcc._probe_boards()                       # 36+ ATS boards index
+                import httpx as _hx
+                async with _hx.AsyncClient(
+                        headers={"User-Agent": "Mozilla/5.0"}, verify=False,
+                        follow_redirects=True) as client:
+                    await rcc._company_boards(client, "")        # board jobs warm
+                await board_scraper.fetch_all("project manager") # scraper cache warm
+                logging.getLogger(__name__).info(
+                    "warmup: boards=%d, scraper cache primed", len(rcc._BOARDS))
+            except Exception as exc:
+                logging.getLogger(__name__).info("warmup cycle failed: %s", exc)
+            await asyncio.sleep(6 * 3600)
+    asyncio.create_task(_cycle())
+
 _images_dir = Path(__file__).resolve().parent / "images"
 if _images_dir.exists():
     from fastapi.staticfiles import StaticFiles

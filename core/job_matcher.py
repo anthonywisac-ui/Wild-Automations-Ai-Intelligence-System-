@@ -24,6 +24,35 @@ from typing import Any, Dict, List, Optional
 logger = logging.getLogger(__name__)
 
 
+# well-known certifications: regex safety-net so certs never come back empty
+# just because the LLM skipped them (word-boundary matched, case-aware)
+_CERT_PATTERNS = [
+    (r"\bPMP\b|Project Management Professional", "PMP"),
+    (r"\bPRINCE2\b", "PRINCE2"),
+    (r"\bPMI-ACP\b", "PMI-ACP"),
+    (r"\bCSM\b|Certified Scrum ?Master", "CSM"),
+    (r"\bPSM\b|Professional Scrum Master", "PSM"),
+    (r"\bSAFe\b", "SAFe"),
+    (r"\bITIL\b", "ITIL"),
+    (r"\bSix Sigma\b|\bLean Six\b", "Six Sigma"),
+    (r"AWS Certified|\bAWS SA\b", "AWS Certified"),
+    (r"Azure (Certified|Administrator|Architect|Fundamentals)", "Azure Certified"),
+    (r"Google Cloud (Certified|Professional)|\bGCP Certified\b", "GCP Certified"),
+    (r"\bCISSP\b", "CISSP"), (r"\bCISM\b", "CISM"), (r"\bCISA\b", "CISA"),
+    (r"\bCEH\b", "CEH"), (r"\bCompTIA\b", "CompTIA"),
+    (r"\bCAPM\b", "CAPM"), (r"\bCBAP\b", "CBAP"),
+]
+
+
+def _extract_certs(text: str) -> List[str]:
+    found = []
+    for pat, name in _CERT_PATTERNS:
+        if re.search(pat, text, re.I if name not in ("CSM", "PSM", "CISM", "CISA") else 0):
+            if name not in found:
+                found.append(name)
+    return found[:6]
+
+
 async def analyze_profile(cv_text: str) -> Dict[str, Any]:
     """LLM → rich candidate profile from the full CV."""
     text = (cv_text or "").strip()
@@ -49,6 +78,10 @@ async def analyze_profile(cv_text: str) -> Dict[str, Any]:
                 p.setdefault("skills", [])
                 p.setdefault("education", "")
                 p.setdefault("certifications", [])
+                # regex safety-net: catch well-known certs the LLM missed
+                for c in _extract_certs(text):
+                    if c not in p["certifications"]:
+                        p["certifications"].append(c)
                 p["_source"] = "llm"
                 return p
     except Exception as exc:
@@ -58,7 +91,8 @@ async def analyze_profile(cv_text: str) -> Dict[str, Any]:
     cv = await analyze_cv(text)
     return {"role": cv.get("role", ""), "alternate_roles": [], "domain": "",
             "seniority": cv.get("seniority", ""), "skills": cv.get("skills", []),
-            "education": "", "certifications": [], "summary": "", "_source": "fallback"}
+            "education": "", "certifications": _extract_certs(text),
+            "summary": "", "_source": "fallback"}
 
 
 async def rank(profile: Dict[str, Any], jobs: List[Dict[str, Any]],
