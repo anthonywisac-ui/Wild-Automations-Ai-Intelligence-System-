@@ -864,25 +864,59 @@ async def cv_match(request: Request):
     role = role or profile.get("role", "")
     skills = skills or profile.get("skills", [])
 
-    # 2. broad candidate fetch (with descriptions) across role + APIs
+    # 2. broad candidate fetch (with descriptions) across role + APIs; alternate
+    #    titles widen the title-gate so synonym roles reach the semantic ranker
     rs = await job_search.search(role or "jobs", body.get("location", ""),
                                  body.get("job_type", "remote"), skills,
-                                 worldwide=body.get("worldwide", True), limit=40)
+                                 worldwide=body.get("worldwide", True), limit=40,
+                                 alt_titles=profile.get("alternate_roles") or [])
 
     # 3. LLM semantic re-rank: reads each job DESCRIPTION, judges true domain/
     #    seniority fit (IT PM != air-cooler PM) — drops mismatches, adds reasons
     ranked = await job_matcher.rank(profile, rs["jobs"])
 
-    jobs = [{"title": x["title"], "company": x["company"], "location": x["location"],
-             "remote_policy": ("Fully remote" if x.get("remote") else x.get("job_type", "—")),
-             "visa": "No sponsorship required", "restriction": "None (international)",
-             "salary": x["salary"], "url": x["url"], "posted": x["posted"],
-             "why_match": x["why_match"], "fit": x.get("fit") or {},
-             "description": (x.get("description") or "")[:600],
-             "match": x["match"], "source": x["source"]}
-            for x in ranked]
+    # honest eligibility: derive from the listing text — never assert what the
+    # listing doesn't say (a wrong "eligible" label is worse than "not stated")
+    from core.job_search import _RESTRICT
+    def _eligibility(x):
+        blob = f"{x.get('title','')} {x.get('location','')} {x.get('description','')}".lower()
+        hits = [p for p in _RESTRICT if p in blob]
+        restriction = ("Mentions: " + ", ".join(hits[:2])) if hits else "None found in listing"
+        if any(p in blob for p in ("no visa", "cannot sponsor", "not able to sponsor",
+                                   "sponsorship not available")):
+            visa = "No sponsorship (stated in listing)"
+        elif "sponsor" in blob:
+            visa = "Sponsorship mentioned — check listing"
+        else:
+            visa = "Not stated in listing"
+        return visa, restriction
+
+    jobs = []
+    for x in ranked:
+        visa, restriction = _eligibility(x)
+        jobs.append({"title": x["title"], "company": x["company"], "location": x["location"],
+                     "remote_policy": ("Fully remote" if x.get("remote") else x.get("job_type", "—")),
+                     "visa": visa, "restriction": restriction,
+                     "salary": x["salary"], "url": x["url"], "posted": x["posted"],
+                     "why_match": x["why_match"], "fit": x.get("fit") or {},
+                     "match_type": x.get("match_type") or "keyword",
+                     "description": (x.get("description") or "")[:600],
+                     "match": x["match"], "source": x["source"]})
     return JSONResponse({"role": role, "skills": skills, "profile": profile,
                          "count": len(jobs), "jobs": jobs})
+
+
+@app.get("/api/version")
+async def api_version():
+    """Which code is live? Railway injects the git SHA at deploy time — one look
+    here settles every 'did my fix deploy?' question."""
+    import os as _os, time as _time
+    return JSONResponse({
+        "commit": (_os.getenv("RAILWAY_GIT_COMMIT_SHA") or "unknown")[:12],
+        "branch": _os.getenv("RAILWAY_GIT_BRANCH") or "unknown",
+        "deployment_id": _os.getenv("RAILWAY_DEPLOYMENT_ID") or "",
+        "checked_at": _time.strftime("%Y-%m-%d %H:%M:%S UTC", _time.gmtime()),
+    })
 
 
 @app.post("/api/cv/gap")

@@ -248,7 +248,7 @@ function renderCVJobs(m){
       '<button class="chip" style="cursor:pointer;border:0" onclick="tailorJob('+i+')">✍️ Tailor CV</button>'+
       '</div>':'';
     return '<div class="res"><div class="t">'+esc(x.title)+'</div>'+
-      '<div class="m"><span class="chip">'+Math.round(x.match*100)+'% match</span> '+esc(x.company)+' · 📍 '+esc(x.location)+'</div>'+
+      '<div class="m"><span class="chip" title="'+(x.match_type==='ai'?'AI judged this score from your CV + job description':'Approximate keyword score (AI ranking unavailable)')+'">'+(x.match_type==='ai'?'✦ ':'≈ ')+Math.round(x.match*100)+'% match</span> '+esc(x.company)+' · 📍 '+esc(x.location)+'</div>'+
       '<div style="font-size:12px;color:var(--muted);margin-top:6px">🌍 '+esc(x.remote_policy)+' · ✅ '+esc(x.visa)+(x.salary&&x.salary!=='—'?' · 💰 '+esc(x.salary):'')+'</div>'+
       fitRow+
       (x.url?'<div style="margin-top:6px"><a class="chip" style="text-decoration:none" href="'+x.url+'" target="_blank">Apply ↗</a></div>':'')+

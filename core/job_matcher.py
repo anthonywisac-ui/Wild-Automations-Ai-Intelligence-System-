@@ -100,6 +100,7 @@ async def rank(profile: Dict[str, Any], jobs: List[Dict[str, Any]],
                     sc = float(s.get("score", 40))
                     j = dict(j)
                     j["match"] = round(sc / 100, 2)
+                    j["match_type"] = "ai"   # LLM-judged score (vs keyword overlap)
                     fit = {
                         "skill": (s.get("skill_fit") or "").strip(),
                         "seniority": (s.get("seniority_fit") or "").strip(),
@@ -122,5 +123,6 @@ async def rank(profile: Dict[str, Any], jobs: List[Dict[str, Any]],
                 return strong[:top]
     except Exception as exc:
         logger.info("job_matcher.rank fallback: %s", exc)
-    # deterministic fallback: keep as-is (already overlap-ranked upstream)
-    return cand[:top]
+    # deterministic fallback: keep as-is (already overlap-ranked upstream) —
+    # tag honestly so the UI can show these are keyword scores, not AI judgment
+    return [dict(j, match_type="keyword") for j in cand[:top]]

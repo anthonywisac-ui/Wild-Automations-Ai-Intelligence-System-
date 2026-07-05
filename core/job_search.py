@@ -75,9 +75,10 @@ async def expand_terms(query: str) -> List[str]:
 
 async def search(query: str, location: str = "", job_type: str = "",
                  skills: Optional[List[str]] = None, worldwide: bool = False,
-                 limit: int = 30) -> Dict[str, Any]:
+                 limit: int = 30, alt_titles: Optional[List[str]] = None) -> Dict[str, Any]:
     query = (query or "").strip() or "jobs"
     skills = skills or []
+    alt_titles = alt_titles or []
     jt = (job_type or "").lower().strip()
 
     from core import jobspy_client, gulftalent_client, job_intelligence
@@ -120,7 +121,11 @@ async def search(query: str, location: str = "", job_type: str = "",
     raw = [r for lst in lists for r in (lst or [])]
 
     want = set(re.findall(r"[a-z]{3,}", (query + " " + " ".join(skills)).lower()))
-    qtoks = [t for t in re.findall(r"[a-z]{3,}", query.lower()) if len(t) > 2]
+    # title-gate tokens: the query PLUS known-equivalent titles (e.g. a PM's
+    # "Delivery Lead" / "Programme Manager") so synonym roles aren't dropped
+    # before the semantic re-ranker ever sees them
+    _gate_src = query + " " + " ".join(alt_titles)
+    qtoks = [t for t in re.findall(r"[a-z]{3,}", _gate_src.lower()) if len(t) > 2]
     spec = _TYPE.get(jt)
 
     out: List[Dict[str, Any]] = []
