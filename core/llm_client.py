@@ -37,8 +37,8 @@ _PROVIDERS = {
     "openrouter": (
         ["OPENROUTER_API_KEY", "OPENROUTER"],
         "https://openrouter.ai/api/v1",
-        # override with LLM_MODEL, e.g. perplexity/sonar, google/gemini-2.0-flash-exp
-        "google/gemini-2.0-flash-exp:free",
+        # override with LLM_MODEL, e.g. perplexity/sonar, google/gemini-2.0-flash-001
+        "google/gemini-flash-1.5",
         True,
     ),
     "perplexity": (
@@ -128,8 +128,16 @@ class LLMClient:
 
 
 def detect_provider() -> Optional[LLMClient]:
-    """Return an LLMClient for the first available provider, or None."""
-    for prov in _PRIORITY:
+    """Return an LLMClient for the first available provider, or None.
+    LLM_PROVIDER env forces a specific one (groq/openrouter/perplexity/gemini/…)."""
+    forced = (os.getenv("LLM_PROVIDER") or "").lower().strip()
+    order = ([forced] if forced in _PROVIDERS else []) + \
+        ["groq", "openrouter", "gemini", "cerebras", "mistral", "perplexity", "openai", "ollama"]
+    seen = set()
+    for prov in order:
+        if prov in seen or prov not in _PROVIDERS:
+            continue
+        seen.add(prov)
         candidates, base_url, model, needs_key = _PROVIDERS[prov]
         key = _env_val(candidates)
         if needs_key:

@@ -207,9 +207,12 @@ async function uploadCV(input){
   try{
     const r=await fetch('/api/cv/upload',{method:'POST',body:fd});const d=await r.json();
     if(d.error){bubble('Could not read the CV: '+d.error+'. You can paste the text instead.','ai');return;}
-    bubble('Got it — best-fit role: **'+(d.role||'candidate')+'**'+
-      (d.skills&&d.skills.length?' · skills: '+d.skills.slice(0,6).join(', '):'')+
-      '. Searching **fully-remote, no-visa, international** roles that match…','ai');
+    bubble('Read your full CV — **'+(d.role||'candidate')+'**'+
+      (d.seniority?' · '+d.seniority:'')+(d.years?' · ~'+d.years+' yrs':'')+
+      (d.domain?' · '+esc(d.domain):'')+
+      (d.summary?'<br><span style="color:var(--muted)">'+esc(d.summary)+'</span>':'')+
+      (d.skills&&d.skills.length?'<br><span style="color:var(--muted)">Skills: '+d.skills.slice(0,8).map(esc).join(', ')+'</span>':'')+
+      '<br>Now matching roles that **truly fit your experience** (reading each job description)…','ai');
     let m;
     try{
       m=await j('/api/cv/match',{method:'POST',headers:{'Content-Type':'application/json'},

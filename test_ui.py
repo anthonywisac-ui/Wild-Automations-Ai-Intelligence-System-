@@ -800,12 +800,13 @@ async def cv_upload(file: UploadFile = File(...)):
     """Upload a CV (pdf/docx/txt) → extract text → analyze → return role/skills/
     location + cv_text so the client can run a CV-matched job search."""
     try:
-        from core import concierge
+        from core import job_matcher
         data = await file.read()
         text = _extract_cv_text(file.filename or "", data)
         if not text.strip():
             return JSONResponse({"error": "could not read text (try a .txt or paste it)"}, status_code=400)
-        cv = await concierge.analyze_cv(text)
+        # LLM reads the WHOLE CV → role, domain, seniority, years, skills, summary
+        cv = await job_matcher.analyze_profile(text)
         cv["cv_text"] = text[:6000]
         return JSONResponse(cv)
     except Exception as exc:
