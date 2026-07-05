@@ -209,11 +209,14 @@ async function uploadCV(input){
   try{
     const r=await fetch('/api/cv/upload',{method:'POST',body:fd});const d=await r.json();
     if(d.error){bubble('Could not read the CV: '+d.error+'. You can paste the text instead.','ai');return;}
+    window.CVTEXT=d.cv_text||'';
     bubble('Read your full CV — **'+(d.role||'candidate')+'**'+
       (d.seniority?' · '+d.seniority:'')+(d.years?' · ~'+d.years+' yrs':'')+
       (d.domain?' · '+esc(d.domain):'')+
       (d.summary?'<br><span style="color:var(--muted)">'+esc(d.summary)+'</span>':'')+
       (d.skills&&d.skills.length?'<br><span style="color:var(--muted)">Skills: '+d.skills.slice(0,8).map(esc).join(', ')+'</span>':'')+
+      (d.education?'<br><span style="color:var(--muted)">🎓 '+esc(d.education)+'</span>':'')+
+      (d.certifications&&d.certifications.length?'<br><span style="color:var(--muted)">📜 '+d.certifications.slice(0,5).map(esc).join(', ')+'</span>':'')+
       '<br>Now matching roles that **truly fit your experience** (reading each job description)…','ai');
     let m;
     try{
@@ -225,18 +228,61 @@ async function uploadCV(input){
 }
 function renderCVJobs(m){
   const n=(m.jobs||[]).length;
+  window.CVJOBS=m.jobs||[];
   CTX='Candidate profile: '+(m.role||'')+'. Skills: '+((m.skills||[]).join(', '))+'.\nJobs shown:\n'+
     (m.jobs||[]).slice(0,8).map(function(x,i){return (i+1)+'. '+x.title+' @ '+x.company+' ('+x.location+') — '+(x.why_match||'')+(x.salary&&x.salary!=='—'?' · '+x.salary:'');}).join('\n');
   bubble(n?('Found '+n+' remote roles matching your profile 👇'):'No fully-remote, no-visa matches right now for '+(m.role||'your profile')+'. Try again shortly (sources rotate).','ai');
   const R=document.getElementById('results');
-  R.innerHTML='<h2>'+n+' remote matches · '+esc(m.role||'')+'</h2>'+(m.jobs||[]).map(function(x){
+  R.innerHTML='<h2>'+n+' remote matches · '+esc(m.role||'')+'</h2>'+(m.jobs||[]).map(function(x,i){
+    var f=x.fit||{};
+    var fitRow=(f.skill||f.seniority||f.domain)?
+      '<div style="font-size:12px;margin-top:6px;display:flex;flex-wrap:wrap;gap:6px">'+
+      (f.skill?'<span class="chip" title="Skills fit">🧩 '+esc(f.skill)+'</span>':'')+
+      (f.seniority?'<span class="chip" title="Seniority fit">📈 '+esc(f.seniority)+'</span>':'')+
+      (f.domain?'<span class="chip" title="Domain fit">🏢 '+esc(f.domain)+'</span>':'')+
+      '</div>':
+      '<div style="font-size:12px;color:var(--muted);margin-top:4px">'+esc(x.why_match)+'</div>';
+    var tools=window.CVTEXT?
+      '<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">'+
+      '<button class="chip" style="cursor:pointer;border:0" onclick="gapJob('+i+')">🧩 Gap check</button>'+
+      '<button class="chip" style="cursor:pointer;border:0" onclick="tailorJob('+i+')">✍️ Tailor CV</button>'+
+      '</div>':'';
     return '<div class="res"><div class="t">'+esc(x.title)+'</div>'+
       '<div class="m"><span class="chip">'+Math.round(x.match*100)+'% match</span> '+esc(x.company)+' · 📍 '+esc(x.location)+'</div>'+
       '<div style="font-size:12px;color:var(--muted);margin-top:6px">🌍 '+esc(x.remote_policy)+' · ✅ '+esc(x.visa)+(x.salary&&x.salary!=='—'?' · 💰 '+esc(x.salary):'')+'</div>'+
-      '<div style="font-size:12px;color:var(--muted);margin-top:4px">'+esc(x.why_match)+'</div>'+
+      fitRow+
       (x.url?'<div style="margin-top:6px"><a class="chip" style="text-decoration:none" href="'+x.url+'" target="_blank">Apply ↗</a></div>':'')+
+      tools+
+      '<div id="tool-'+i+'" style="margin-top:8px"></div>'+
       '</div>';}).join('');
   R.scrollIntoView({behavior:'smooth'});
+}
+async function gapJob(i){
+  var x=(window.CVJOBS||[])[i];if(!x)return;
+  var box=document.getElementById('tool-'+i);box.innerHTML='<span style="color:var(--muted);font-size:12px">Analyzing gap…</span>';
+  try{
+    var d=await j('/api/cv/gap',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({cv_text:window.CVTEXT||'',job_description:x.description||'',job_title:x.title||''})});
+    if(d.error||(!d.matched.length&&!d.missing.length)){box.innerHTML='<span style="color:var(--muted);font-size:12px">'+esc(d.note||'No gap data.')+'</span>';return;}
+    box.innerHTML='<div style="font-size:12px;border-top:1px solid rgba(255,255,255,.06);padding-top:6px">'+
+      (d.matched.length?'<div>✅ <b>You have:</b> '+d.matched.map(esc).join(', ')+'</div>':'')+
+      (d.missing.length?'<div style="margin-top:4px;color:#f0a">➖ <b>Missing:</b> '+d.missing.map(esc).join(', ')+'</div>':'')+
+      (d.suggestions&&d.suggestions.length?'<div style="margin-top:4px;color:var(--muted)">💡 '+d.suggestions.map(esc).join('<br>💡 ')+'</div>':'')+
+      '</div>';
+  }catch(e){box.innerHTML='<span style="color:var(--muted);font-size:12px">Gap check failed — try again.</span>';}
+}
+async function tailorJob(i){
+  var x=(window.CVJOBS||[])[i];if(!x)return;
+  var box=document.getElementById('tool-'+i);box.innerHTML='<span style="color:var(--muted);font-size:12px">Tailoring your CV…</span>';
+  try{
+    var d=await j('/api/cv/tailor',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({cv_text:window.CVTEXT||'',job_description:x.description||'',job_title:x.title||''})});
+    if(d.error||(!d.summary&&!(d.bullets||[]).length)){box.innerHTML='<span style="color:var(--muted);font-size:12px">'+esc(d.note||'No tailoring data.')+'</span>';return;}
+    box.innerHTML='<div style="font-size:12px;border-top:1px solid rgba(255,255,255,.06);padding-top:6px">'+
+      (d.summary?'<div><b>Summary:</b> '+esc(d.summary)+'</div>':'')+
+      ((d.bullets||[]).length?'<ul style="margin:6px 0 0 16px;padding:0">'+d.bullets.map(function(b){return '<li>'+esc(b)+'</li>';}).join('')+'</ul>':'')+
+      '</div>';
+  }catch(e){box.innerHTML='<span style="color:var(--muted);font-size:12px">Tailoring failed — try again.</span>';}
 }
 document.getElementById('chatin').addEventListener('keydown',e=>{if(e.key==='Enter')sendChat();});
 loadPersonas();

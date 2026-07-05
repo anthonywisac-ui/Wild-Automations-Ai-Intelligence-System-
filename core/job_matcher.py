@@ -36,14 +36,18 @@ async def analyze_profile(cv_text: str) -> Dict[str, Any]:
                 "Read this CV and return ONLY JSON with keys: "
                 "role (best-fit current job title), alternate_roles (array of 3 realistic "
                 "adjacent titles), domain (industry/field, e.g. 'IT / software delivery'), "
-                "seniority (junior/mid/senior/lead), years (number), "
-                "skills (array of up to 8), summary (one sentence). CV:\n" + text[:7000],
-                system="You output only compact valid JSON.", max_tokens=400)
+                "seniority (junior/mid/senior/lead), years (number of years of experience), "
+                "skills (array of up to 8), education (highest degree + field, one string, "
+                "'' if none), certifications (array of up to 5 named certs, [] if none), "
+                "summary (one sentence). CV:\n" + text[:7000],
+                system="You output only compact valid JSON.", max_tokens=460)
             m = re.search(r"\{.*\}", out, re.S)
             if m:
                 p = json.loads(m.group(0))
                 p.setdefault("alternate_roles", [])
                 p.setdefault("skills", [])
+                p.setdefault("education", "")
+                p.setdefault("certifications", [])
                 p["_source"] = "llm"
                 return p
     except Exception as exc:
@@ -53,7 +57,7 @@ async def analyze_profile(cv_text: str) -> Dict[str, Any]:
     cv = await analyze_cv(text)
     return {"role": cv.get("role", ""), "alternate_roles": [], "domain": "",
             "seniority": cv.get("seniority", ""), "skills": cv.get("skills", []),
-            "summary": "", "_source": "fallback"}
+            "education": "", "certifications": [], "summary": "", "_source": "fallback"}
 
 
 async def rank(profile: Dict[str, Any], jobs: List[Dict[str, Any]],
@@ -78,11 +82,14 @@ async def rank(profile: Dict[str, Any], jobs: List[Dict[str, Any]],
                 f"seniority={profile.get('seniority')}, skills={profile.get('skills')}. "
                 "Score each job 0-100 for TRUE fit. Same domain/industry AND seniority AND "
                 "skills = high; a different industry (e.g. manufacturing vs IT) or wrong "
-                "seniority = low, even if the job title is similar. Return ONLY a JSON array "
-                "[{\"i\":<index>,\"score\":<0-100>,\"reason\":\"<short why>\"}]. Jobs:\n"
+                "seniority = low, even if the job title is similar. For each job give three "
+                "short fit phrases (<=8 words each): skill_fit (which skills match/miss), "
+                "seniority_fit (level match), domain_fit (industry match). Return ONLY a JSON "
+                "array [{\"i\":<index>,\"score\":<0-100>,\"skill_fit\":\"<..>\","
+                "\"seniority_fit\":\"<..>\",\"domain_fit\":\"<..>\"}]. Jobs:\n"
                 + "\n".join(lines))
             out = await llm.complete(prompt, system="You output only a JSON array.",
-                                     max_tokens=900)
+                                     max_tokens=1100)
             m = re.search(r"\[.*\]", out, re.S)
             if m:
                 scored = json.loads(m.group(0))
@@ -93,7 +100,18 @@ async def rank(profile: Dict[str, Any], jobs: List[Dict[str, Any]],
                     sc = float(s.get("score", 40))
                     j = dict(j)
                     j["match"] = round(sc / 100, 2)
-                    j["why_match"] = s.get("reason") or j.get("why_match", "")
+                    fit = {
+                        "skill": (s.get("skill_fit") or "").strip(),
+                        "seniority": (s.get("seniority_fit") or "").strip(),
+                        "domain": (s.get("domain_fit") or "").strip(),
+                    }
+                    j["fit"] = fit
+                    # readable one-line summary for backward-compatible UIs
+                    parts = [f"Skills: {fit['skill']}" if fit["skill"] else "",
+                             f"Level: {fit['seniority']}" if fit["seniority"] else "",
+                             f"Domain: {fit['domain']}" if fit["domain"] else ""]
+                    summary = " · ".join(p for p in parts if p)
+                    j["why_match"] = summary or s.get("reason") or j.get("why_match", "")
                     enriched.append(j)
                 enriched.sort(key=lambda x: x["match"], reverse=True)
                 strong = [j for j in enriched if j["match"] * 100 >= keep_min]

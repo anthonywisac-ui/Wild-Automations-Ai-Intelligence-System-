@@ -877,10 +877,36 @@ async def cv_match(request: Request):
              "remote_policy": ("Fully remote" if x.get("remote") else x.get("job_type", "—")),
              "visa": "No sponsorship required", "restriction": "None (international)",
              "salary": x["salary"], "url": x["url"], "posted": x["posted"],
-             "why_match": x["why_match"], "match": x["match"], "source": x["source"]}
+             "why_match": x["why_match"], "fit": x.get("fit") or {},
+             "description": (x.get("description") or "")[:600],
+             "match": x["match"], "source": x["source"]}
             for x in ranked]
     return JSONResponse({"role": role, "skills": skills, "profile": profile,
                          "count": len(jobs), "jobs": jobs})
+
+
+@app.post("/api/cv/gap")
+async def cv_gap(request: Request):
+    """On-demand ATS keyword-gap for ONE job (fired by the 'Gap' button)."""
+    try:
+        from core import cv_tools
+        b = await request.json()
+        return JSONResponse(await cv_tools.keyword_gap(
+            b.get("cv_text", ""), b.get("job_description", ""), b.get("job_title", "")))
+    except Exception as exc:
+        return JSONResponse({"error": f"{type(exc).__name__}: {exc}"}, status_code=500)
+
+
+@app.post("/api/cv/tailor")
+async def cv_tailor(request: Request):
+    """On-demand CV tailoring for ONE job (fired by the 'Tailor' button)."""
+    try:
+        from core import cv_tools
+        b = await request.json()
+        return JSONResponse(await cv_tools.tailor_cv(
+            b.get("cv_text", ""), b.get("job_description", ""), b.get("job_title", "")))
+    except Exception as exc:
+        return JSONResponse({"error": f"{type(exc).__name__}: {exc}"}, status_code=500)
 
 
 
