@@ -316,8 +316,10 @@ async def chat(message: str, history: Optional[List[Dict[str, str]]] = None,
                 "Otherwise just reply or ask. NEVER write job listings, job titles with "
                 "company names, or numbered job lists in your reply text — you have no job "
                 "data; the system fetches real jobs from the ACTION line and shows them "
-                "separately. When searching, your reply must be ONE short line like "
-                "'Searching remote graphic designer jobs now…' and nothing more. "
+                "separately. When searching, your reply text is ONE short line like "
+                "'Searching remote graphic designer jobs now…' — no lists, no details — "
+                "and then you MUST still append the ACTION line (the ACTION line is what "
+                "actually runs the search; without it nothing happens). "
                 "LANGUAGE: always reply in the language the user writes in (Urdu, Hindi, "
                 "Roman Urdu, Arabic, etc. — mirror their language and script); if they "
                 "write in English or it's unclear, reply in English.")
