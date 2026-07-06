@@ -187,17 +187,36 @@ async def rank(profile: Dict[str, Any], jobs: List[Dict[str, Any]],
 
 
 async def _full_desc(url: str) -> str:
-    """Fetch a job page and extract its body text (fail-soft, '' on any error)."""
+    """Fetch a job page and extract its body text. Direct first; blocked or
+    thin pages retry through Jina Reader (JINA_API_KEY lifts its rate-limit).
+    Fail-soft: '' on any error."""
     if not (url or "").startswith("http"):
         return ""
-    try:
-        import httpx
-        async with httpx.AsyncClient(timeout=10, verify=False, follow_redirects=True,
-                                     headers={"User-Agent": "Mozilla/5.0"}) as client:
-            r = await client.get(url)
-        html = re.sub(r"(?is)<(script|style|nav|footer|header)[^>]*>.*?</\1>", " ", r.text)
+    def _strip(html: str) -> str:
+        html = re.sub(r"(?is)<(script|style|nav|footer|header)[^>]*>.*?</\1>", " ", html)
         text = re.sub(r"(?s)<[^>]+>", " ", html)
         return re.sub(r"\s+", " ", text).strip()[:2500]
+    try:
+        import httpx
+        import os as _o
+        async with httpx.AsyncClient(timeout=20, verify=False, follow_redirects=True,
+                                     headers={"User-Agent": "Mozilla/5.0"}) as client:
+            try:
+                r = await client.get(url, timeout=10)
+                if r.status_code == 200:
+                    text = _strip(r.text)
+                    if len(text) > 400:
+                        return text
+            except Exception:
+                pass
+            # blocked / JS-rendered / thin → Jina Reader (renders + bypasses IP block)
+            jheads = {}
+            if _o.getenv("JINA_API_KEY"):
+                jheads["Authorization"] = f"Bearer {_o.getenv('JINA_API_KEY')}"
+            r = await client.get(f"https://r.jina.ai/{url}", headers=jheads, timeout=20)
+            if r.status_code == 200 and len(r.text) > 400:
+                return re.sub(r"\s+", " ", r.text).strip()[:2500]
+        return ""
     except Exception:
         return ""
 
@@ -218,7 +237,7 @@ async def deep_rescore(profile: Dict[str, Any], ranked: List[Dict[str, Any]],
             return ranked
         fulls = await asyncio.wait_for(
             asyncio.gather(*[_full_desc(j.get("url", "")) for j in head],
-                           return_exceptions=True), timeout=15)
+                           return_exceptions=True), timeout=35)
         lines, any_full = [], False
         for i, j in enumerate(head):
             fd = fulls[i] if isinstance(fulls[i], str) else ""
