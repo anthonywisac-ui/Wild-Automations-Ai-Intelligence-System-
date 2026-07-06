@@ -366,6 +366,43 @@ async def _probe_boards() -> None:
                             timeout=8)
                         if r.status_code == 200 and isinstance(r.json(), list):
                             _BOARDS[slug] = "lever"
+                            return
+                    except Exception:
+                        pass
+                    try:
+                        r = await client.get(
+                            f"https://api.ashbyhq.com/posting-api/job-board/{slug}",
+                            timeout=8)
+                        if r.status_code == 200 and (r.json().get("jobs") is not None):
+                            _BOARDS[slug] = "ashby"
+                            return
+                    except Exception:
+                        pass
+                    try:
+                        r = await client.get(
+                            f"https://apply.workable.com/api/v1/widget/accounts/{slug}?details=false",
+                            timeout=8)
+                        # require actual postings — widget may 200 on unknown accounts
+                        if r.status_code == 200 and (r.json().get("jobs") or []):
+                            _BOARDS[slug] = "workable"
+                            return
+                    except Exception:
+                        pass
+                    try:
+                        r = await client.get(
+                            f"https://api.smartrecruiters.com/v1/companies/{slug}/postings?limit=1",
+                            timeout=8)
+                        # SR returns 200 + totalFound:0 for ANY slug — require real postings
+                        if r.status_code == 200 and (r.json().get("totalFound") or 0) > 0:
+                            _BOARDS[slug] = "smartrecruiters"
+                            return
+                    except Exception:
+                        pass
+                    try:
+                        r = await client.get(
+                            f"https://{slug}.recruitee.com/api/offers/", timeout=8)
+                        if r.status_code == 200 and (r.json().get("offers") is not None):
+                            _BOARDS[slug] = "recruitee"
                     except Exception:
                         pass
             slugs = _slugs()
@@ -423,7 +460,64 @@ async def _company_boards(client, q) -> List[Dict[str, Any]]:
             except Exception:
                 pass
 
-    tasks = [(_gh(s) if src == "greenhouse" else _lv(s)) for s, src in _BOARDS.items()]
+    async def _ab(slug):
+        async with sem:
+            try:
+                r = await client.get(
+                    f"https://api.ashbyhq.com/posting-api/job-board/{slug}", timeout=10)
+                for j in (r.json().get("jobs") or [])[:15]:
+                    out.append(_rec(j.get("title"), slug.title(),
+                                    j.get("location") or "Remote",
+                                    j.get("jobUrl") or j.get("applyUrl") or "",
+                                    j.get("descriptionPlain") or ""))
+            except Exception:
+                pass
+
+    async def _wk(slug):
+        async with sem:
+            try:
+                r = await client.get(
+                    f"https://apply.workable.com/api/v1/widget/accounts/{slug}?details=false",
+                    timeout=10)
+                for j in (r.json().get("jobs") or [])[:15]:
+                    loc = ", ".join(x for x in (j.get("city"), j.get("country")) if x) or "Remote"
+                    out.append(_rec(j.get("title"), slug.title(), loc,
+                                    j.get("url") or
+                                    f"https://apply.workable.com/{slug}/j/{j.get('shortcode','')}",
+                                    j.get("description") or ""))
+            except Exception:
+                pass
+
+    async def _sr(slug):
+        async with sem:
+            try:
+                r = await client.get(
+                    f"https://api.smartrecruiters.com/v1/companies/{slug}/postings?limit=15",
+                    timeout=10)
+                for j in (r.json().get("content") or []):
+                    loc = (j.get("location") or {})
+                    loc_s = ", ".join(x for x in (loc.get("city"), loc.get("country")) if x) or "Remote"
+                    out.append(_rec(j.get("name"), slug.title(), loc_s,
+                                    f"https://jobs.smartrecruiters.com/{slug}/{j.get('id','')}",
+                                    ""))
+            except Exception:
+                pass
+
+    async def _rt(slug):
+        async with sem:
+            try:
+                r = await client.get(f"https://{slug}.recruitee.com/api/offers/", timeout=10)
+                for j in (r.json().get("offers") or [])[:15]:
+                    out.append(_rec(j.get("title"), slug.title(),
+                                    j.get("location") or "Remote",
+                                    j.get("careers_url") or "",
+                                    re.sub(r"<[^>]+>", " ", j.get("description") or "")[:400]))
+            except Exception:
+                pass
+
+    _FETCHERS = {"greenhouse": _gh, "lever": _lv, "ashby": _ab,
+                 "workable": _wk, "smartrecruiters": _sr, "recruitee": _rt}
+    tasks = [_FETCHERS[src](s) for s, src in _BOARDS.items() if src in _FETCHERS]
     if tasks:
         try:
             await asyncio.wait_for(asyncio.gather(*tasks), timeout=25)
