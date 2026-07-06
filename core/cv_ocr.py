@@ -36,46 +36,65 @@ def _pdf_to_pngs(data: bytes) -> list:
     return out
 
 
+# vision-capable providers, tried in order (same fallback philosophy as the
+# text chain): env key -> (base_url, model)
+_VISION_CHAIN = [
+    ("GROQ_API_KEY", "https://api.groq.com/openai/v1",
+     "meta-llama/llama-4-scout-17b-16e-instruct"),
+    ("GEMINI_API_KEY", "https://generativelanguage.googleapis.com/v1beta/openai",
+     "gemini-2.0-flash"),
+    ("MISTRAL_API_KEY", "https://api.mistral.ai/v1", "pixtral-12b-2409"),
+]
+
+
 async def ocr_pdf(data: bytes) -> str:
-    """Transcribe an image-based PDF via Gemini vision. '' on any failure."""
+    """Transcribe an image-based PDF via a vision-model fallback chain
+    (GROQ Llama-4 Scout → Gemini → Mistral Pixtral). '' on total failure."""
     global LAST_ERROR
     LAST_ERROR = ""
-    key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
-    if not key:
-        LAST_ERROR = "no GEMINI_API_KEY in env"
-        return ""
     if not data:
         LAST_ERROR = "empty file"
         return ""
     try:
         pngs = _pdf_to_pngs(data)
-        if not pngs:
-            LAST_ERROR = "pdf rendered 0 pages"
-            return ""
-        content = [{"type": "text", "text":
-                    "Transcribe ALL text from this resume exactly as written "
-                    "(names, roles, dates, skills, education, certifications). "
-                    "Output plain text only, no commentary."}]
-        for png in pngs:
-            content.append({"type": "image_url",
-                            "image_url": {"url": f"data:image/png;base64,{png}"}})
-        import httpx
-        async with httpx.AsyncClient(timeout=90) as client:
-            r = await client.post(
-                "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
-                headers={"Authorization": f"Bearer {key}"},
-                json={"model": "gemini-2.0-flash",
-                      "messages": [{"role": "user", "content": content}],
-                      "max_tokens": 4000})
-            if r.status_code != 200:
-                LAST_ERROR = f"gemini vision http {r.status_code}: {r.text[:180]}"
-                logger.info("cv_ocr: %s", LAST_ERROR)
-                return ""
-            text = (r.json()["choices"][0]["message"]["content"] or "").strip()
-            logger.info("cv_ocr: extracted %d chars from %d page(s)",
-                        len(text), len(pngs))
-            return text
     except Exception as exc:
-        LAST_ERROR = f"{type(exc).__name__}: {exc}"
-        logger.info("cv_ocr failed: %s", exc)
+        LAST_ERROR = f"render: {type(exc).__name__}: {exc}"
         return ""
+    if not pngs:
+        LAST_ERROR = "pdf rendered 0 pages"
+        return ""
+    content = [{"type": "text", "text":
+                "Transcribe ALL text from this resume exactly as written "
+                "(names, roles, dates, skills, education, certifications). "
+                "Output plain text only, no commentary."}]
+    for png in pngs:
+        content.append({"type": "image_url",
+                        "image_url": {"url": f"data:image/png;base64,{png}"}})
+    import httpx
+    errors = []
+    async with httpx.AsyncClient(timeout=90) as client:
+        for env, base, model in _VISION_CHAIN:
+            key = os.getenv(env)
+            if not key:
+                continue
+            try:
+                r = await client.post(
+                    f"{base}/chat/completions",
+                    headers={"Authorization": f"Bearer {key}"},
+                    json={"model": model,
+                          "messages": [{"role": "user", "content": content}],
+                          "max_tokens": 4000})
+                if r.status_code != 200:
+                    errors.append(f"{model}:http{r.status_code}")
+                    continue
+                text = (r.json()["choices"][0]["message"]["content"] or "").strip()
+                if len(text) > 60:
+                    logger.info("cv_ocr: %s extracted %d chars from %d page(s)",
+                                model, len(text), len(pngs))
+                    return text
+                errors.append(f"{model}:empty")
+            except Exception as exc:
+                errors.append(f"{model}:{type(exc).__name__}")
+    LAST_ERROR = "all vision models failed — " + "; ".join(errors[:4])
+    logger.info("cv_ocr: %s", LAST_ERROR)
+    return ""
