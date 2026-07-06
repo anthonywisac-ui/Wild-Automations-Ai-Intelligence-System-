@@ -281,6 +281,19 @@ SCRAPERS = [
             "eu_visa_params": {"source": "stats"},
         },
     },
+    {
+        "name": "Visa News · UKVI / Home Office / PIE",
+        "bot": "RSS Aggregator",
+        "emoji": "🗞️",
+        "category": "Visa",
+        "mode": "RSS Feed",
+        "module": "core.visa_news_client",
+        "fn": "fetch_visa_news",
+        "config": {
+            "portal_name": "Visa News", "crawl_mode": "visa_news",
+            "news_params": {"sources": ["ukvi", "home_office", "pie", "icef"], "limit": 20},
+        },
+    },
 
     # ── AUTOMOBILES ───────────────────────────────────────────────────────────
     {
@@ -1188,10 +1201,19 @@ async def concierge_run(request: Request):
             matches = [{"title": x["title"], "location": x["location"], "source_url": x["url"],
                         "_match_score": x["match"],
                         "metadata": {"company": x["company"], "why": x["why_match"],
-                                     "job_type": x["job_type"], "salary": x["salary"]}}
+                                     "job_type": x["job_type"], "salary": x["salary"],
+                                     "posted_ago": x.get("posted_ago", ""),
+                                     "fresh": x.get("fresh", False)}}
                        for x in rs["jobs"]]
+            # trial/plan gate (only when a user id is sent — dashboard stays open)
+            sub = None
+            if body.get("user"):
+                from core import subscriptions
+                sub = subscriptions.allowed_results(body["user"], len(matches))
+                matches = matches[:sub["allowed"]]
             return JSONResponse({"persona": persona, "category": "Jobs",
-                                 "requirement": answers, "total": rs["count"], "matches": matches})
+                                 "requirement": answers, "total": rs["count"],
+                                 "matches": matches, "subscription": sub})
 
         targets = [{**s, "config": concierge.patch_config(s.get("config", {}), persona, answers)}
                    for s in SCRAPERS if s.get("category") == category]
@@ -1206,8 +1228,15 @@ async def concierge_run(request: Request):
         ranked = concierge.rank(records, persona, answers)
         top = ranked[:20]
 
+        # trial/plan gate (only when a user id is sent — dashboard stays open)
+        sub = None
+        if body.get("user"):
+            from core import subscriptions
+            sub = subscriptions.allowed_results(body["user"], len(top))
+            top = top[:sub["allowed"]]
+
         delivery = None
-        if body.get("deliver"):
+        if body.get("deliver") and top:
             from core import concierge_delivery
             delivery = await concierge_delivery.deliver_matches(
                 persona, answers, top, to=body.get("to"))
@@ -1216,6 +1245,7 @@ async def concierge_run(request: Request):
             "persona": persona, "category": category,
             "requirement": answers, "sources": sources,
             "total": len(ranked), "matches": top, "delivery": delivery,
+            "subscription": sub,
         })
     except Exception as exc:
         return JSONResponse({"error": f"{type(exc).__name__}: {exc}"}, status_code=500)
@@ -1264,6 +1294,66 @@ async def concierge_my_data(request: Request):
         except Exception:
             pass
         return JSONResponse({"facts": facts, "answer": answer})
+    except Exception as exc:
+        return JSONResponse({"error": f"{type(exc).__name__}: {exc}"}, status_code=500)
+
+
+# ── Subscriptions & Trial ────────────────────────────────────────────────────
+
+@app.get("/api/plans")
+async def api_plans():
+    """Plan catalogue (3 tiers + trial terms). Prices TBA."""
+    from core import subscriptions
+    return JSONResponse(subscriptions.plans())
+
+
+@app.post("/api/trial/start")
+async def api_trial_start(request: Request):
+    """Start the 3-day free trial (2 matches/day) for a phone/email id."""
+    try:
+        from core import subscriptions
+        body = await request.json()
+        return JSONResponse(subscriptions.start_trial(body.get("user", "")))
+    except Exception as exc:
+        return JSONResponse({"error": f"{type(exc).__name__}: {exc}"}, status_code=500)
+
+
+@app.get("/api/subscription/status")
+async def api_subscription_status(user: str = ""):
+    from core import subscriptions
+    return JSONResponse(subscriptions.get_status(user))
+
+
+@app.post("/api/subscription/activate")
+async def api_subscription_activate(request: Request):
+    """Manual plan activation (admin only — payment gateway comes later).
+    Requires ADMIN_KEY env to be set and matched."""
+    try:
+        from core import subscriptions
+        body = await request.json()
+        admin_key = os.getenv("ADMIN_KEY", "")
+        if not admin_key or body.get("admin_key") != admin_key:
+            return JSONResponse({"error": "unauthorized"}, status_code=401)
+        return JSONResponse(subscriptions.activate(
+            body.get("user", ""), body.get("plan", ""), body.get("days")))
+    except Exception as exc:
+        return JSONResponse({"error": f"{type(exc).__name__}: {exc}"}, status_code=500)
+
+
+# ── Fresh Jobs (sniper feed) ─────────────────────────────────────────────────
+
+@app.get("/api/jobs/fresh")
+async def api_jobs_fresh(query: str = "jobs", location: str = "",
+                         job_type: str = "", hours: float = 24,
+                         limit: int = 30):
+    """Newest-first job feed: only postings from the last `hours`, each stamped
+    with posted_iso / posted_ago / fresh."""
+    try:
+        from core import job_search
+        rs = await job_search.search(query, location, job_type,
+                                     since_hours=hours, sort="fresh",
+                                     limit=limit)
+        return JSONResponse(rs)
     except Exception as exc:
         return JSONResponse({"error": f"{type(exc).__name__}: {exc}"}, status_code=500)
 

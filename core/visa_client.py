@@ -62,14 +62,11 @@ async def _fetch_us_visa_bulletin(client: httpx.AsyncClient) -> List[Dict[str, A
         month_match = re.search(r'visa-bulletin-for-(\w+-\d{4})', latest_link, re.I)
         bulletin_period = month_match.group(1).replace('-', ' ').title() if month_match else "Latest"
 
-        # Extract table rows with priority dates (EB/FB categories)
-        rows = re.findall(r'<td[^>]*>\s*([A-Z]{1,2}\s*-?\s*\d+[A-Z]?)\s*</td>', content)
-        dates = re.findall(r'(\d{2}[A-Z]{3}\d{2}|C|U)', content)
-
+        now = datetime.utcnow().isoformat()
         results = [{
             "title": f"US Visa Bulletin — {bulletin_period}",
             "source_url": latest_link,
-            "description": f"US employment/family-based visa priority dates. {len(dates)} date entries found.",
+            "description": "US employment/family-based visa priority dates (Final Action Dates).",
             "location": "United States",
             "price": "",
             "metadata": {
@@ -77,10 +74,14 @@ async def _fetch_us_visa_bulletin(client: httpx.AsyncClient) -> List[Dict[str, A
                 "country": "US",
                 "period": bulletin_period,
                 "bulletin_url": latest_link,
-                "scraped_at": datetime.utcnow().isoformat(),
+                "scraped_at": now,
             }
         }]
-        logger.info("visa_client: US bulletin fetched period=%s", bulletin_period)
+        # Structured per-category records: parse each table into
+        # category (row head) x country (column head) -> cutoff date cells.
+        results += _parse_bulletin_tables(content, bulletin_period, latest_link, now)
+        logger.info("visa_client: US bulletin fetched period=%s records=%d",
+                    bulletin_period, len(results))
         return results
 
     except Exception as exc:
@@ -88,57 +89,137 @@ async def _fetch_us_visa_bulletin(client: httpx.AsyncClient) -> List[Dict[str, A
         return _us_bulletin_fallback()
 
 
+def _parse_bulletin_tables(html: str, period: str, url: str,
+                           now: str) -> List[Dict[str, Any]]:
+    """Parse bulletin HTML tables into per-category/per-country cutoff records.
+    Fail-soft: any parse problem just yields fewer records."""
+    records: List[Dict[str, Any]] = []
+    try:
+        cell_re = re.compile(r"<t[dh][^>]*>(.*?)</t[dh]>", re.DOTALL | re.I)
+        strip = lambda c: re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", c)).strip()
+        date_re = re.compile(r"^(\d{2}[A-Z]{3}\d{2}|C|U)$")
+
+        for table in re.findall(r"<table[^>]*>(.*?)</table>", html, re.DOTALL | re.I):
+            rows = re.findall(r"<tr[^>]*>(.*?)</tr>", table, re.DOTALL | re.I)
+            if len(rows) < 2:
+                continue
+            headers = [strip(c) for c in cell_re.findall(rows[0])]
+            if len(headers) < 2:
+                continue
+            countries = headers[1:]
+            for row in rows[1:]:
+                cells = [strip(c) for c in cell_re.findall(row)]
+                if len(cells) < 2:
+                    continue
+                category = cells[0][:60]
+                if not category:
+                    continue
+                for country, value in zip(countries, cells[1:]):
+                    if not date_re.match(value):
+                        continue
+                    label = {"C": "Current", "U": "Unavailable"}.get(value, value)
+                    records.append({
+                        "title": f"US Visa Bulletin {period} — {category} · {country[:40]}",
+                        "source_url": url,
+                        "description": (f"Final action date for {category} "
+                                        f"({country[:40]}): {label}"),
+                        "location": "United States",
+                        "price": "",
+                        "metadata": {
+                            "type": "visa_bulletin_entry", "country": "US",
+                            "period": period, "category": category,
+                            "chargeability": country[:40], "cutoff": value,
+                            "current": value == "C", "scraped_at": now,
+                        },
+                    })
+        # keep it digestible — bulletin has hundreds of cells
+        return records[:60]
+    except Exception as exc:
+        logger.warning("visa_client: bulletin table parse failed: %s", exc)
+        return []
+
+
 # ─────────────────────────────────────────────────────────────────────────────
-# Canada PR Processing Times  (kellywaldro/processing-times logic)
-# Source: ircc.canada.ca
+# Canada PR Processing Times — IRCC official JSON first, HTML regex fallback
 # ─────────────────────────────────────────────────────────────────────────────
 
 _CANADA_URL = "https://www.canada.ca/en/immigration-refugees-citizenship/services/application/check-processing-times.html"
+_IRCC_JSON_URL = "https://www.canada.ca/content/dam/ircc/documents/json/data-ptime-en.json"
+
+_TIME_VALUE_RE = re.compile(r"\d+\s*(?:day|week|month|year)s?", re.I)
+
+
+def _walk_ircc_json(node: Any, path: List[str], out: List[tuple]) -> None:
+    """Recursively collect (label-path, human time string) pairs from IRCC's
+    processing-times JSON — schema-agnostic so IRCC layout changes don't break us."""
+    if isinstance(node, dict):
+        for k, v in node.items():
+            _walk_ircc_json(v, path + [str(k)], out)
+    elif isinstance(node, list):
+        for v in node:
+            _walk_ircc_json(v, path, out)
+    elif isinstance(node, str) and _TIME_VALUE_RE.search(node):
+        label = " · ".join(p.replace("_", " ").replace("-", " ").title()
+                           for p in path[-2:] if p and not p.isdigit())
+        if label:
+            out.append((label, node.strip()))
 
 
 async def _fetch_canada_processing_times(client: httpx.AsyncClient) -> List[Dict[str, Any]]:
-    """Fetch Canada PR processing times from IRCC page."""
+    """Canada processing times — official IRCC JSON, then HTML, then static."""
+    now = datetime.utcnow().isoformat()
+    # 1) official JSON the IRCC widget itself uses
     try:
-        resp = await client.get(_CANADA_URL, timeout=20, headers={"Accept-Language": "en-CA,en;q=0.9"})
+        resp = await client.get(_IRCC_JSON_URL, timeout=20,
+                                headers={"Accept": "application/json"})
         resp.raise_for_status()
-        html = resp.text
+        pairs: List[tuple] = []
+        _walk_ircc_json(resp.json(), [], pairs)
+        # dedup by label, keep first
+        seen: Dict[str, str] = {}
+        for label, val in pairs:
+            seen.setdefault(label, val)
+        entries = [{
+            "title": f"Canada Processing Time — {label}: {val}",
+            "source_url": _CANADA_URL,
+            "description": f"IRCC official processing time for {label}: {val}.",
+            "location": "Canada",
+            "price": "",
+            "metadata": {"type": "processing_time", "country": "Canada",
+                         "program": label, "time_range": val,
+                         "data_source": "ircc_json", "scraped_at": now},
+        } for label, val in list(seen.items())[:25]]
+        if entries:
+            logger.info("visa_client: Canada IRCC JSON entries=%d", len(entries))
+            return entries
+    except Exception as exc:
+        logger.warning("visa_client: IRCC JSON failed: %s — trying HTML", exc)
 
-        # Extract processing time entries from text
-        times = re.findall(r'(\d+)\s+(?:to\s+(\d+)\s+)?months?', html, re.I)
+    # 2) HTML page regex (legacy path)
+    try:
+        resp = await client.get(_CANADA_URL, timeout=20,
+                                headers={"Accept-Language": "en-CA,en;q=0.9"})
+        resp.raise_for_status()
+        times = re.findall(r'(\d+)\s+(?:to\s+(\d+)\s+)?months?', resp.text, re.I)
         entries = []
-        for match in times[:10]:  # top 10
-            lo, hi = match
+        for lo, hi in times[:10]:
             time_str = f"{lo}–{hi} months" if hi else f"{lo} months"
             entries.append({
                 "title": f"Canada PR Processing Time: {time_str}",
                 "source_url": _CANADA_URL,
-                "description": f"Canada immigration processing time: {time_str}. Check IRCC for latest updates.",
-                "location": "Canada",
-                "price": "",
-                "metadata": {
-                    "type": "processing_time",
-                    "country": "Canada",
-                    "time_range": time_str,
-                    "scraped_at": datetime.utcnow().isoformat(),
-                }
+                "description": f"Canada immigration processing time: {time_str}. "
+                               "Check IRCC for latest updates.",
+                "location": "Canada", "price": "",
+                "metadata": {"type": "processing_time", "country": "Canada",
+                             "time_range": time_str, "data_source": "ircc_html",
+                             "scraped_at": now},
             })
-
-        if not entries:
-            entries = [{
-                "title": "Canada PR Processing Times",
-                "source_url": _CANADA_URL,
-                "description": "Canada immigration processing times — check IRCC portal for current data.",
-                "location": "Canada",
-                "price": "",
-                "metadata": {"type": "processing_time", "country": "Canada"}
-            }]
-
-        logger.info("visa_client: Canada times fetched entries=%d", len(entries))
-        return entries
-
+        if entries:
+            logger.info("visa_client: Canada HTML entries=%d", len(entries))
+            return entries
     except Exception as exc:
         logger.error("visa_client: Canada processing times error: %s", exc)
-        return _canada_fallback()
+    return _canada_fallback()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -180,6 +261,17 @@ async def _fetch_wiki_visa_requirements(
     targets = passports or ["pakistani", "indian"]
     results = []
 
+    # CSV rows are COUNTRY names ("Pakistan"); configs pass adjectives
+    # ("pakistani") — map adjective -> country so lookups actually hit.
+    _ADJ_TO_COUNTRY = {
+        "pakistani": "pakistan", "indian": "india", "emirati": "united arab emirates",
+        "saudi arabian": "saudi arabia", "saudi": "saudi arabia",
+        "bangladeshi": "bangladesh", "british": "united kingdom",
+        "american": "united states", "filipino": "philippines",
+        "nigerian": "nigeria", "egyptian": "egypt", "nepali": "nepal",
+        "sri lankan": "sri lanka", "chinese": "china", "canadian": "canada",
+    }
+
     # Try to load passport CSV for accurate counts
     csv_data: dict = {}
     try:
@@ -189,15 +281,17 @@ async def _fetch_wiki_visa_requirements(
             reader = csv.DictReader(io.StringIO(resp.text))
             for row in reader:
                 passport_name = (row.get("Passport") or "").strip().lower()
-                requirement = (row.get("Requirement") or "").strip()
+                req = (row.get("Requirement") or "").strip().lower()
                 if passport_name not in csv_data:
                     csv_data[passport_name] = {"VF": 0, "VOA": 0, "ETA": 0, "VR": 0, "total": 0}
                 csv_data[passport_name]["total"] += 1
-                if requirement in ("VF", "visa free", "Visa Free"):
+                # tidy-CSV values: number of visa-free days ("90"), "visa free",
+                # "visa on arrival", "e-visa", "eta", "visa required", "no admission"
+                if req.isdigit() or "visa free" in req or req == "vf":
                     csv_data[passport_name]["VF"] += 1
-                elif requirement in ("VOA", "visa on arrival"):
+                elif "arrival" in req or req == "voa":
                     csv_data[passport_name]["VOA"] += 1
-                elif requirement == "ETA":
+                elif "e-visa" in req or "eta" in req or "evisa" in req:
                     csv_data[passport_name]["ETA"] += 1
                 else:
                     csv_data[passport_name]["VR"] += 1
@@ -206,7 +300,8 @@ async def _fetch_wiki_visa_requirements(
 
     for passport in targets:
         label = passport.replace("_", " ").title()
-        passport_key = passport.lower().replace("_", " ")
+        adj_key = passport.lower().replace("_", " ")
+        passport_key = _ADJ_TO_COUNTRY.get(adj_key, adj_key)
 
         if passport_key in csv_data:
             d = csv_data[passport_key]
@@ -215,7 +310,7 @@ async def _fetch_wiki_visa_requirements(
             vr = d["VR"]
             source = "passport_index_csv"
         else:
-            fb = _PASSPORT_FALLBACK.get(passport_key, {"visa_free": 0, "voa": 0, "rank": 0})
+            fb = _PASSPORT_FALLBACK.get(adj_key, {"visa_free": 0, "voa": 0, "rank": 0})
             vf = fb["visa_free"]
             voa = fb["voa"]
             vr = 0

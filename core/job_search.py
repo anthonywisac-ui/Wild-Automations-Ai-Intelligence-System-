@@ -75,13 +75,16 @@ async def expand_terms(query: str) -> List[str]:
 
 async def search(query: str, location: str = "", job_type: str = "",
                  skills: Optional[List[str]] = None, worldwide: bool = False,
-                 limit: int = 30, alt_titles: Optional[List[str]] = None) -> Dict[str, Any]:
+                 limit: int = 30, alt_titles: Optional[List[str]] = None,
+                 since_hours: Optional[float] = None,
+                 sort: str = "match") -> Dict[str, Any]:
     query = (query or "").strip() or "jobs"
     skills = skills or []
     alt_titles = alt_titles or []
     jt = (job_type or "").lower().strip()
 
     from core import jobspy_client, gulftalent_client, job_intelligence
+    from core import freshness
 
     loc = location or ("Remote" if jt == "remote" else "")
     # Indeed is country-locked; for worldwide-remote (no country given) use a broad
@@ -173,12 +176,20 @@ async def search(query: str, location: str = "", job_type: str = "",
         overlap = want & toks
         score = round(min(1.0, 0.35 + len(overlap) / (len(want) or 1)), 2)
         nj = job_intelligence.normalize(rec)
+
+        # sniper freshness: WHEN was this posted + how fresh is it
+        posted_iso = freshness.parse(nj.get("posted"))
+        if since_hours and not freshness.is_fresh(posted_iso, hours=since_hours):
+            continue  # caller wants only-fresh; unknown/old posting dates drop
+
         out.append({
             "title": title, "company": nj["employer"]["name"], "location": loc_s or "Remote",
             "job_type": jt.title() or (nj.get("remote") and "Remote" or "—"),
             "remote": nj.get("remote"), "salary": nj["salary"]["display"],
             "salary_usd": nj["salary"].get("usd_annual"),
             "url": rec.get("source_url") or "", "posted": nj.get("posted") or "",
+            "posted_iso": posted_iso, "posted_ago": freshness.ago(posted_iso),
+            "fresh": freshness.is_fresh(posted_iso),
             "skills": nj.get("skills"), "source": md.get("source") or rec.get("_source") or "",
             "why_match": ("Matches on: " + ", ".join(sorted(overlap)[:6])) if overlap else "Relevant to your query",
             "match": score, "description": (rec.get("description") or "")[:400],
@@ -190,6 +201,17 @@ async def search(query: str, location: str = "", job_type: str = "",
         k = (j["title"].lower()[:60] + "|" + j["company"].lower())
         if k not in seen or j["match"] > seen[k]["match"]:
             seen[k] = j
-    jobs = sorted(seen.values(), key=lambda x: x["match"], reverse=True)[:limit]
+    if sort == "fresh":
+        # newest first; unknown posting dates sink to the bottom
+        jobs = sorted(seen.values(),
+                      key=lambda x: (x["posted_iso"] or "", x["match"]),
+                      reverse=True)[:limit]
+    else:
+        # match first, freshness breaks ties (fresh posting beats stale twin)
+        jobs = sorted(seen.values(),
+                      key=lambda x: (x["match"], x["posted_iso"] or ""),
+                      reverse=True)[:limit]
     return {"query": query, "job_type": jt, "location": location,
-            "count": len(jobs), "jobs": jobs}
+            "count": len(jobs), "jobs": jobs, "sort": sort,
+            "since_hours": since_hours,
+            "fresh_count": sum(1 for j in jobs if j.get("fresh"))}

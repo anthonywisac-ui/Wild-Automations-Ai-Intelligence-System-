@@ -65,12 +65,23 @@ async def _fetch_passport_csv(
         for row in reader:
             passport = row.get("Passport", "").strip()
             destination = row.get("Destination", "").strip()
-            req = row.get("Requirement", "").strip()
+            req = row.get("Requirement", "").strip().lower()
             if passport.lower() not in passport_set:
                 continue
             if passport not in grouped:
                 grouped[passport] = {"VF": [], "VOA": [], "ETA": [], "VR": [], "NA": []}
-            label = req if req in grouped[passport] else "VR"
+            # tidy-CSV values: visa-free day counts ("90"), "visa free",
+            # "visa on arrival", "e-visa"/"eta", "visa required", "no admission"
+            if req.isdigit() or "visa free" in req or req == "vf":
+                label = "VF"
+            elif "arrival" in req or req == "voa":
+                label = "VOA"
+            elif "e-visa" in req or "evisa" in req or "eta" in req:
+                label = "ETA"
+            elif "no admission" in req:
+                label = "NA"
+            else:
+                label = "VR"
             grouped[passport][label].append(destination)
 
         results = []
