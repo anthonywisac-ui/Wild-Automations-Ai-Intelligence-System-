@@ -134,11 +134,21 @@ async def rank(profile: Dict[str, Any], jobs: List[Dict[str, Any]],
                 "array [{\"i\":<index>,\"score\":<0-100>,\"skill_fit\":\"<..>\","
                 "\"seniority_fit\":\"<..>\",\"domain_fit\":\"<..>\"}]. Jobs:\n"
                 + "\n".join(lines))
-            out = await llm.complete(prompt, system="You output only a JSON array.",
-                                     max_tokens=1100)
-            m = re.search(r"\[.*\]", out, re.S)
-            if m:
-                scored = json.loads(m.group(0))
+            # up to 3 attempts: one malformed reply must NOT silently downgrade
+            # the whole system to keyword scoring while 4 healthy models exist
+            m, scored = None, None
+            for _attempt in range(3):
+                out = await llm.complete(prompt, system="You output only a JSON array.",
+                                         max_tokens=1100)
+                m = re.search(r"\[.*\]", out, re.S)
+                if m:
+                    try:
+                        scored = json.loads(m.group(0))
+                        break
+                    except Exception:
+                        m = None
+                logger.info("job_matcher.rank: bad JSON (attempt %d) — retrying", _attempt + 1)
+            if m and scored is not None:
                 by_i = {int(s["i"]): s for s in scored if "i" in s}
                 enriched = []
                 for i, j in enumerate(cand):
@@ -218,18 +228,27 @@ async def deep_rescore(profile: Dict[str, Any], ranked: List[Dict[str, Any]],
             lines.append(f"[{i}] {j.get('title','')} @ {j.get('company','')} — {desc[:1800]}")
         if not any_full:
             return ranked   # nothing new to judge — keep the snippet-based scores
-        out = await llm.complete(
+        _prompt = (
             f"Candidate: role={profile.get('role')}, domain={profile.get('domain')}, "
             f"seniority={profile.get('seniority')}, skills={profile.get('skills')}. "
             "These are the FULL job descriptions. Re-score each 0-100 for true fit "
             "and give skill_fit/seniority_fit/domain_fit (<=8 words each). Return ONLY "
             "a JSON array [{\"i\":<index>,\"score\":<0-100>,\"skill_fit\":\"..\","
-            "\"seniority_fit\":\"..\",\"domain_fit\":\"..\"}]. Jobs:\n" + "\n".join(lines),
-            system="You output only a JSON array.", max_tokens=700)
-        m = re.search(r"\[.*\]", out, re.S)
-        if not m:
+            "\"seniority_fit\":\"..\",\"domain_fit\":\"..\"}]. Jobs:\n" + "\n".join(lines))
+        scored = None
+        for _attempt in range(2):   # retry once on malformed JSON
+            out = await llm.complete(_prompt, system="You output only a JSON array.",
+                                     max_tokens=700)
+            m = re.search(r"\[.*\]", out, re.S)
+            if m:
+                try:
+                    scored = json.loads(m.group(0))
+                    break
+                except Exception:
+                    pass
+        if scored is None:
             return ranked
-        by_i = {int(s["i"]): s for s in json.loads(m.group(0)) if "i" in s}
+        by_i = {int(s["i"]): s for s in scored if "i" in s}
         rescored = []
         for i, j in enumerate(head):
             s = by_i.get(i)
