@@ -181,6 +181,8 @@ function bubble(t,cls){const el=document.createElement('div');el.className='bubb
   document.getElementById('chatlog').appendChild(el);el.scrollIntoView({behavior:'smooth'});}
 async function sendChat(){
   const inp=document.getElementById('chatin');const msg=inp.value.trim();if(!msg)return;
+  // CV flow: if we asked for a country, this message IS the country → search now
+  if(window.CVPREF&&CVPREF.awaitCountry){inp.value='';bubble(msg,'me');CVPREF.loc=msg;runCVMatch();return;}
   inp.value='';bubble(msg,'me');CHAT.push({role:'user',content:msg});
   const d=await j('/api/concierge/chat',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({message:msg,history:CHAT,context:CTX})});
@@ -217,15 +219,43 @@ async function uploadCV(input){
       (d.summary?'<br><span style="color:var(--muted)">'+esc(d.summary)+'</span>':'')+
       (d.skills&&d.skills.length?'<br><span style="color:var(--muted)">Skills: '+d.skills.slice(0,8).map(esc).join(', ')+'</span>':'')+
       (d.education?'<br><span style="color:var(--muted)">🎓 '+esc(d.education)+'</span>':'')+
-      (d.certifications&&d.certifications.length?'<br><span style="color:var(--muted)">📜 '+d.certifications.slice(0,5).map(esc).join(', ')+'</span>':'')+
-      '<br>Now matching roles that **truly fit your experience** (reading each job description)…','ai');
-    let m;
-    try{
-      m=await j('/api/cv/match',{method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({cv_text:d.cv_text||'',role:d.role||'',skills:d.skills||[]})});
-    }catch(e2){bubble('Search hit a snag — say "search '+(d.role||'jobs')+' remote" and I\'ll retry.','ai');return;}
-    try{renderCVJobs(m);}catch(e3){bubble('Got matches but couldn\'t render them — reload and try again.','ai');}
+      (d.certifications&&d.certifications.length?'<br><span style="color:var(--muted)">📜 '+d.certifications.slice(0,5).map(esc).join(', ')+'</span>':''),'ai');
+    window.CVPROF=d;
+    cvAskPrefs();
   }catch(e){bubble('Upload failed. Try pasting your CV text.','ai');}
+}
+// ── post-CV preference flow: ask job-type + location BEFORE searching ──
+window.CVPREF={mode:'',type:'',loc:'',awaitCountry:false};
+function chipB(label,fn){return '<button class="chip" style="cursor:pointer;border:0;margin:2px" onclick="'+fn+'">'+label+'</button>';}
+function cvAskPrefs(){
+  window.CVPREF={mode:'',type:'',loc:'',awaitCountry:false};
+  bubble('Kaisi job dhoondhun? Pehle <b>type</b> batayein:<br>'+
+    chipB('Full-time',"cvType('full-time')")+chipB('Part-time',"cvType('part-time')")+
+    chipB('Freelance/Contract',"cvType('freelance')")+chipB('Koi bhi',"cvType('')"),'ai');
+}
+window.cvType=function(t){CVPREF.type=t;bubble(t||'Koi bhi','me');
+  bubble('<b>Work mode</b> kya ho?<br>'+
+    chipB('🌍 Remote',"cvMode('remote')")+chipB('🏢 On-site',"cvMode('onsite')")+
+    chipB('🔀 Hybrid',"cvMode('hybrid')"),'ai');};
+window.cvMode=function(m2){CVPREF.mode=m2;bubble(m2,'me');
+  if(m2==='remote'){
+    bubble('<b>Worldwide</b> dhoondhun ya kisi <b>khaas country</b> mein?<br>'+
+      chipB('🌐 Worldwide',"cvLoc('')")+chipB('✍️ Country likhunga','cvCountry()'),'ai');
+  }else{cvCountry();}};
+window.cvCountry=function(){CVPREF.awaitCountry=true;
+  bubble('Country/city ka naam chat mein likh dein (e.g. UAE, Saudi Arabia, UK, Karachi)…','ai');};
+window.cvLoc=function(loc){CVPREF.loc=loc;runCVMatch();};
+async function runCVMatch(){
+  CVPREF.awaitCountry=false;
+  var jt=CVPREF.mode==='remote'?'remote':(CVPREF.type||'');
+  var ww=CVPREF.mode==='remote'&&!CVPREF.loc;
+  bubble('Searching '+(CVPREF.type||'all')+' · '+(CVPREF.mode||'any mode')+' · '+(CVPREF.loc||'worldwide')+' — matching against your CV (reading each job description)…','ai');
+  try{
+    var m=await j('/api/cv/match',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({cv_text:window.CVTEXT||'',role:(window.CVPROF||{}).role||'',
+        skills:(window.CVPROF||{}).skills||[],location:CVPREF.loc||'',job_type:jt,worldwide:ww})});
+    try{renderCVJobs(m);}catch(e3){bubble('Got matches but couldn\'t render them — reload and try again.','ai');}
+  }catch(e2){bubble('Search hit a snag — say "search '+((window.CVPROF||{}).role||'jobs')+'" and I\'ll retry.','ai');}
 }
 function renderCVJobs(m){
   const n=(m.jobs||[]).length;
@@ -275,7 +305,7 @@ async function gapJob(i){
   var box=document.getElementById('tool-'+i);box.innerHTML='<span style="color:var(--muted);font-size:12px">Analyzing gap…</span>';
   try{
     var d=await j('/api/cv/gap',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({cv_text:window.CVTEXT||'',job_description:x.description||'',job_title:x.title||''})});
+      body:JSON.stringify({cv_text:window.CVTEXT||'',job_description:x.description||'',job_url:x.url||'',job_title:x.title||''})});
     if(d.error||(!d.matched.length&&!d.missing.length)){box.innerHTML='<span style="color:var(--muted);font-size:12px">'+esc(d.note||'No gap data.')+'</span>';return;}
     box.innerHTML='<div style="font-size:12px;border-top:1px solid rgba(255,255,255,.06);padding-top:6px">'+
       (d.matched.length?'<div>✅ <b>You have:</b> '+d.matched.map(esc).join(', ')+'</div>':'')+
@@ -289,7 +319,7 @@ async function tailorJob(i){
   var box=document.getElementById('tool-'+i);box.innerHTML='<span style="color:var(--muted);font-size:12px">Tailoring your CV…</span>';
   try{
     var d=await j('/api/cv/tailor',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({cv_text:window.CVTEXT||'',job_description:x.description||'',job_title:x.title||''})});
+      body:JSON.stringify({cv_text:window.CVTEXT||'',job_description:x.description||'',job_url:x.url||'',job_title:x.title||''})});
     if(d.error||(!d.summary&&!(d.bullets||[]).length)){box.innerHTML='<span style="color:var(--muted);font-size:12px">'+esc(d.note||'No tailoring data.')+'</span>';return;}
     box.innerHTML='<div style="font-size:12px;border-top:1px solid rgba(255,255,255,.06);padding-top:6px">'+
       (d.summary?'<div><b>Summary:</b> '+esc(d.summary)+'</div>':'')+

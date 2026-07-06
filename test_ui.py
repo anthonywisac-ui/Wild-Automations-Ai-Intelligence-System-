@@ -920,9 +920,18 @@ async def cv_match(request: Request):
             visa = "Not stated in listing"
         return visa, restriction
 
+    def _clean_salary(v):
+        s = str(v or "").strip()
+        if s.lower() in ("nan", "none", "null", "0", "0.0", ""):
+            return "—"
+        # bare floats like "75000.0" → "75,000"
+        m2 = re.fullmatch(r"(\d+)(?:\.0+)?", s)
+        return f"{int(m2.group(1)):,}" if m2 else s
+
     jobs = []
     for x in ranked:
         visa, restriction = _eligibility(x)
+        x["salary"] = _clean_salary(x.get("salary"))
         jobs.append({"title": x["title"], "company": x["company"], "location": x["location"],
                      "remote_policy": ("Fully remote" if x.get("remote") else x.get("job_type", "—")),
                      "visa": visa, "restriction": restriction,
@@ -1080,6 +1089,22 @@ async def api_version():
     })
 
 
+async def _jd_or_fetch(b: dict) -> str:
+    """Use the given description, or deep-fetch the job page when it's missing
+    (board/NaukriGulf jobs often carry no snippet) so Gap/Tailor always work."""
+    desc = (b.get("job_description") or "").strip()
+    url = (b.get("job_url") or "").strip()
+    if len(desc) < 200 and url:
+        try:
+            from core.job_matcher import _full_desc
+            full = await _full_desc(url)
+            if len(full or "") > len(desc):
+                desc = full
+        except Exception:
+            pass
+    return desc
+
+
 @app.post("/api/cv/gap")
 async def cv_gap(request: Request):
     """On-demand ATS keyword-gap for ONE job (fired by the 'Gap' button)."""
@@ -1087,7 +1112,7 @@ async def cv_gap(request: Request):
         from core import cv_tools
         b = await request.json()
         return JSONResponse(await cv_tools.keyword_gap(
-            b.get("cv_text", ""), b.get("job_description", ""), b.get("job_title", "")))
+            b.get("cv_text", ""), await _jd_or_fetch(b), b.get("job_title", "")))
     except Exception as exc:
         return JSONResponse({"error": f"{type(exc).__name__}: {exc}"}, status_code=500)
 
@@ -1099,7 +1124,7 @@ async def cv_tailor(request: Request):
         from core import cv_tools
         b = await request.json()
         return JSONResponse(await cv_tools.tailor_cv(
-            b.get("cv_text", ""), b.get("job_description", ""), b.get("job_title", "")))
+            b.get("cv_text", ""), await _jd_or_fetch(b), b.get("job_title", "")))
     except Exception as exc:
         return JSONResponse({"error": f"{type(exc).__name__}: {exc}"}, status_code=500)
 
