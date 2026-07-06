@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 
 _MAX_PAGES = 4          # resumes are 1-3 pages; cap the vision cost
 _RENDER_SCALE = 2.0     # ~144 dpi — sharp enough for OCR, small enough to send
+LAST_ERROR = ""         # why the last OCR attempt failed (for diagnostics)
 
 
 def _pdf_to_pngs(data: bytes) -> list:
@@ -37,12 +38,19 @@ def _pdf_to_pngs(data: bytes) -> list:
 
 async def ocr_pdf(data: bytes) -> str:
     """Transcribe an image-based PDF via Gemini vision. '' on any failure."""
+    global LAST_ERROR
+    LAST_ERROR = ""
     key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
-    if not (key and data):
+    if not key:
+        LAST_ERROR = "no GEMINI_API_KEY in env"
+        return ""
+    if not data:
+        LAST_ERROR = "empty file"
         return ""
     try:
         pngs = _pdf_to_pngs(data)
         if not pngs:
+            LAST_ERROR = "pdf rendered 0 pages"
             return ""
         content = [{"type": "text", "text":
                     "Transcribe ALL text from this resume exactly as written "
@@ -60,13 +68,14 @@ async def ocr_pdf(data: bytes) -> str:
                       "messages": [{"role": "user", "content": content}],
                       "max_tokens": 4000})
             if r.status_code != 200:
-                logger.info("cv_ocr: gemini vision status=%s %s",
-                            r.status_code, r.text[:200])
+                LAST_ERROR = f"gemini vision http {r.status_code}: {r.text[:180]}"
+                logger.info("cv_ocr: %s", LAST_ERROR)
                 return ""
             text = (r.json()["choices"][0]["message"]["content"] or "").strip()
             logger.info("cv_ocr: extracted %d chars from %d page(s)",
                         len(text), len(pngs))
             return text
     except Exception as exc:
+        LAST_ERROR = f"{type(exc).__name__}: {exc}"
         logger.info("cv_ocr failed: %s", exc)
         return ""

@@ -867,7 +867,10 @@ async def cv_upload(file: UploadFile = File(...)):
             from core import cv_ocr
             text = await cv_ocr.ocr_pdf(data)
         if not text.strip():
-            return JSONResponse({"error": "could not read text (try a .txt or paste it)"}, status_code=400)
+            from core import cv_ocr
+            detail = f" [ocr: {cv_ocr.LAST_ERROR}]" if cv_ocr.LAST_ERROR else ""
+            return JSONResponse({"error": "could not read text (try a .txt or paste it)"
+                                          + detail}, status_code=400)
         # LLM reads the WHOLE CV → role, domain, seniority, years, skills, summary
         cv = await job_matcher.analyze_profile(text)
         cv["cv_text"] = text[:6000]
