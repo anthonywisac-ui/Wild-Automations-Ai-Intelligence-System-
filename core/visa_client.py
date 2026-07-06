@@ -95,8 +95,10 @@ def _parse_bulletin_tables(html: str, period: str, url: str,
     Fail-soft: any parse problem just yields fewer records."""
     records: List[Dict[str, Any]] = []
     try:
+        import html as _html
         cell_re = re.compile(r"<t[dh][^>]*>(.*?)</t[dh]>", re.DOTALL | re.I)
-        strip = lambda c: re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", c)).strip()
+        strip = lambda c: re.sub(
+            r"\s+", " ", _html.unescape(re.sub(r"<[^>]+>", " ", c))).strip()
         date_re = re.compile(r"^(\d{2}[A-Z]{3}\d{2}|C|U)$")
 
         for table in re.findall(r"<table[^>]*>(.*?)</table>", html, re.DOTALL | re.I):
