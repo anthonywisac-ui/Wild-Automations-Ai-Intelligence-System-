@@ -28,3 +28,5 @@ apify-client>=1.6.0
 # NOTE: crawl4ai and scrapling are intentionally omitted — they are heavy
 # (optional, guarded imports in core/scraper_engine.py) and the code falls back
 # to Playwright automatically. Add them only if you need those stealth fetchers.
+pypdfium2
+pillow

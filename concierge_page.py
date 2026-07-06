@@ -191,6 +191,19 @@ async function sendChat(){
 }
 async function runFromChat(action){
   bubble('🔎 Searching…','ai');
+  // CV uploaded + job search → use the CV-match engine so every result keeps
+  // AI fit-scoring (✦/🔬 chips, skill/level/domain breakdown) — never the
+  // plain renderer that hides the scoring basis
+  var ans=(action&&action.answers)||{};
+  if(window.CVTEXT&&(action.persona==='job_seeker'||!action.persona)){
+    try{
+      var m=await j('/api/cv/match',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({cv_text:window.CVTEXT,role:ans.role||ans.query||(window.CVPROF||{}).role||'',
+          skills:(window.CVPROF||{}).skills||[],location:ans.location||'',
+          job_type:ans.job_type||'',worldwide:ans.worldwide!==false&&!ans.location})});
+      renderCVJobs(m);return;
+    }catch(e){/* fall through to the generic engine */}
+  }
   const d=await j('/api/concierge/run',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify(action)});
   if(d.error){bubble('Sorry — '+d.error,'ai');return;}

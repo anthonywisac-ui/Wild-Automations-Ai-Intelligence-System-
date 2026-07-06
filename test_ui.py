@@ -862,6 +862,10 @@ async def cv_upload(file: UploadFile = File(...)):
         from core import job_matcher
         data = await file.read()
         text = _extract_cv_text(file.filename or "", data)
+        if len(text.strip()) < 80 and (file.filename or "").lower().endswith(".pdf"):
+            # image-based / scanned PDF (Canva exports etc.) — OCR via Gemini vision
+            from core import cv_ocr
+            text = await cv_ocr.ocr_pdf(data)
         if not text.strip():
             return JSONResponse({"error": "could not read text (try a .txt or paste it)"}, status_code=400)
         # LLM reads the WHOLE CV → role, domain, seniority, years, skills, summary
