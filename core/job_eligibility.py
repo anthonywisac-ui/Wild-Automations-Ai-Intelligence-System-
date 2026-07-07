@@ -106,8 +106,11 @@ _DOMAINS: Dict[str, Dict[str, List[str]]] = {
                  "security analytics"]},
     "sales_accounts": {
         "strong": ["quota", "consultative selling", "sales enablement",
-                   "commissions"],
-        "weak": ["account manager", "client success", "customer success",
+                   "commissions", "sales manager", "account manager",
+                   "account executive", "channel account",
+                   "relationship manager", "business development manager",
+                   "success manager"],
+        "weak": ["client success", "customer success",
                  "revenue target", "account growth", "strategic accounts"]},
     "nonprofit": {
         "strong": ["fundraising", "philanthropy", "donor"],
