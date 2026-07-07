@@ -985,14 +985,21 @@ async def cv_match(request: Request):
     # user searched for; a thin description must not bury it at 55%.
     # Profile extraction varies run to run (project vs program manager), so
     # the role AND every alternate role contribute a core phrase.
-    def _core_of(r):
-        c = re.sub(r"\b(senior|sr\.?|lead|principal|staff|junior|jr\.?|assistant)\b",
-                   "", (r or "").lower())
-        c = re.sub(r"[^a-z ]", " ", c)
-        return re.sub(r"\s+", " ", c).strip()
+    # role bigrams like "project manager" / "program manager" — phrase
+    # substrings are too brittle against profile-extraction variance
+    _ROLE_NOUN = (r"(\w{3,})\s+(manager|director|lead|engineer|consultant|"
+                  r"analyst|architect|developer|designer|producer|specialist|"
+                  r"coordinator|administrator)")
 
-    _cores = {c for c in map(_core_of, [role] + (profile.get("alternate_roles") or []))
-              if len(c) > 5}
+    def _bigrams(r):
+        c = re.sub(r"[^a-z ]", " ", (r or "").lower())
+        return {f"{a} {b}" for a, b in re.findall(_ROLE_NOUN, c)
+                if a not in ("senior", "junior", "principal", "staff",
+                             "assistant", "associate", "lead")}
+
+    _cores = set()
+    for r_ in [role] + (profile.get("alternate_roles") or []):
+        _cores |= _bigrams(r_)
     if _cores:
         for j in ranked:
             tl_ = (j.get("title") or "").lower()
