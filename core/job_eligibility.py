@@ -202,9 +202,12 @@ def assess(job: Dict[str, Any], user_country: str = "",
     # 3) domain mismatch (only when BOTH sides are confidently known).
     # No "adjacent domain" mercy: an IT candidate asked for IT jobs — a
     # pharmacy/dental org's PM role is not what they searched for.
+    # EXCEPTION: the TITLE wins over the employer's industry — an
+    # "IT Project Manager" at a healthcare company is still an IT job.
     job_domain = classify_domain(blob)
     u_dom = normalize_user_domain(user_domain)
-    if job_domain and u_dom and job_domain != u_dom:
+    title_domain = classify_domain(str(job.get("title") or ""))
+    if job_domain and u_dom and job_domain != u_dom and title_domain != u_dom:
         reasons.append(f"Domain: {job_domain.replace('_', ' ')} role, "
                        f"candidate is {u_dom.replace('_', ' ')}")
         cap = min(cap, 0.45)
