@@ -104,7 +104,9 @@ def _hydrate_from_supabase() -> None:
             if conn.execute("SELECT COUNT(*) FROM jobs_warehouse").fetchone()[0] > 0:
                 return  # local copy already has data
         import httpx
-        cutoff = (datetime.now(timezone.utc) - timedelta(days=_FRESH_DAYS)).isoformat()
+        # PostgREST: '+00:00' in the URL decodes to a space and 400s — use Z
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=_FRESH_DAYS)
+                  ).strftime("%Y-%m-%dT%H:%M:%SZ")
         r = httpx.get(
             f"{url}/rest/v1/jobs_found?last_seen=gte.{cutoff}"
             f"&order=last_seen.desc&limit=500",
