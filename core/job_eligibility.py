@@ -168,9 +168,12 @@ def normalize_user_domain(raw: str) -> Optional[str]:
 
 # ── the gate ─────────────────────────────────────────────────────────────────
 
+_JUNIOR_TITLE = re.compile(r"\b(intern(ship)?|junior|entry[- ]level|graduate|trainee|apprentice)\b", re.I)
+
+
 def assess(job: Dict[str, Any], user_country: str = "",
            user_languages: Optional[List[str]] = None,
-           user_domain: str = "") -> Dict[str, Any]:
+           user_domain: str = "", user_seniority: str = "") -> Dict[str, Any]:
     """Run all gates on one job. Returns status + reasons + score cap.
     Conservative on purpose: only flags what the listing TEXT actually says."""
     blob = " ".join(str(job.get(k) or "") for k in
@@ -219,6 +222,13 @@ def assess(job: Dict[str, Any], user_country: str = "",
         reasons.append(f"Domain: {job_domain.replace('_', ' ')} role, "
                        f"candidate is {u_dom.replace('_', ' ')}")
         cap = min(cap, 0.45)
+
+    # 4) seniority: an intern/junior/graduate posting is noise for a
+    # senior/lead candidate
+    if (user_seniority or "").lower() in ("senior", "lead") and \
+            _JUNIOR_TITLE.search(str(job.get("title") or "")):
+        reasons.append("Seniority: junior/intern-level posting")
+        cap = min(cap, 0.35)
 
     status = ("not_eligible" if cap <= 0.25 else
               "check" if reasons else "eligible")

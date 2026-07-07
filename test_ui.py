@@ -969,7 +969,8 @@ async def cv_match(request: Request):
         g = job_eligibility.assess(
             x, user_country=profile.get("location", "") or body.get("location", ""),
             user_languages=profile.get("languages") or ["english"],
-            user_domain=profile.get("domain", ""))
+            user_domain=profile.get("domain", ""),
+            user_seniority=profile.get("seniority", ""))
         return job_eligibility.apply_gate(x, g)
 
     ranked = [_gate(x) for x in ranked]
