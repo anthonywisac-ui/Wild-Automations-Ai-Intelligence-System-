@@ -980,6 +980,22 @@ async def cv_match(request: Request):
         return job_eligibility.apply_gate(x, g)
 
     ranked = [_gate(x) for x in ranked]
+    # EXACT-TITLE FLOOR: the title literally contains the candidate's core
+    # role ("project manager") and every gate passed -> this IS the job the
+    # user searched for; a thin description must not bury it at 55%
+    _core = re.sub(r"\b(senior|sr\.?|lead|principal|staff|junior|jr\.?|assistant)\b",
+                   "", (role or "").lower())
+    _core = re.sub(r"[^a-z ]", " ", _core)
+    _core = re.sub(r"\s+", " ", _core).strip()
+    if len(_core) > 5:
+        for j in ranked:
+            if (j.get("eligibility") == "eligible" and
+                    _core in (j.get("title") or "").lower() and
+                    float(j.get("match", 0)) < 0.80):
+                j["match"] = 0.80
+                j["match_type"] = "title_exact"
+                j["why_match"] = ("Exact role-title match — " +
+                                  (j.get("why_match") or "")).strip(" —")
     # HARD GUARANTEE: 30 matches whenever the pool has them — backfill the
     # ranker's output from the remaining fetched pool (gated the same way)
     _TARGET = 30
