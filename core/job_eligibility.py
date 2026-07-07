@@ -126,7 +126,8 @@ _DOMAINS: Dict[str, Dict[str, List[str]]] = {
                  "infrastructure project", "water treatment", "epc"]},
     "it_software": {
         "strong": ["sdlc", "devops", "it project", "software delivery",
-                   "digital transformation"],
+                   "digital transformation", "technical project manager",
+                   "software project manager", "it program manager"],
         "weak": ["software", "saas", "erp", "agile", "scrum", "cloud", "api",
                  "web development", "mobile app", "data platform", "crm system"]},
 }
