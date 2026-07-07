@@ -244,11 +244,16 @@ async def search(query: str, location: str = "", job_type: str = "",
                     "relaxed pass", len(raw))
         out = _pass(strict=False)
 
-    # dedup by title+company, keep best score
+    # dedup by title+company: best score wins; on a tie the copy WITH a
+    # posting date beats a dateless one (warehouse rows saved before date
+    # capture must not shadow the fresh dated fetch of the same job)
     seen: Dict[str, Dict[str, Any]] = {}
     for j in out:
         k = (j["title"].lower()[:60] + "|" + j["company"].lower())
-        if k not in seen or j["match"] > seen[k]["match"]:
+        prev = seen.get(k)
+        if (prev is None or j["match"] > prev["match"] or
+                (j["match"] == prev["match"] and j.get("posted_iso")
+                 and not prev.get("posted_iso"))):
             seen[k] = j
     if sort == "fresh":
         # newest first; unknown posting dates sink to the bottom
