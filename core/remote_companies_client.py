@@ -26,13 +26,15 @@ _UA = {"User-Agent": "Mozilla/5.0 (compatible; WildAutomations/1.0)",
        "Accept": "application/json"}
 
 
-def _rec(title, company, location, url, desc, salary="", src="Remote Aggregator"):
+def _rec(title, company, location, url, desc, salary="", src="Remote Aggregator",
+         posted=""):
     loc = location or "Remote"
     return {"title": (title or "").strip(), "source_url": url or "",
             "location": loc, "description": re.sub(r"<[^>]+>", " ", desc or "")[:600],
             "price": salary or "",
             "metadata": {"type": "job", "company": company or "", "source": src,
-                         "remote": True, "salary": salary or ""}}
+                         "remote": True, "salary": salary or "",
+                         "date_posted": str(posted or "")}}
 
 
 async def _remotive(client, q) -> List[Dict[str, Any]]:
@@ -41,7 +43,8 @@ async def _remotive(client, q) -> List[Dict[str, Any]]:
         r = await client.get(u, timeout=15)
         return [_rec(j.get("title"), j.get("company_name"),
                      j.get("candidate_required_location", "Remote"), j.get("url"),
-                     j.get("description"), j.get("salary", ""))
+                     j.get("description"), j.get("salary", ""),
+                     posted=j.get("publication_date", ""))
                 for j in (r.json().get("jobs") or [])] if r.status_code == 200 else []
     except Exception:
         return []
@@ -59,7 +62,8 @@ async def _remoteok(client, q) -> List[Dict[str, Any]]:
             out.append(_rec(j.get("position"), j.get("company"),
                             j.get("location") or "Remote", j.get("url") or j.get("apply_url"),
                             j.get("description"), (j.get("salary_min") and
-                            f"{j.get('salary_min')}-{j.get('salary_max')} USD") or ""))
+                            f"{j.get('salary_min')}-{j.get('salary_max')} USD") or "",
+                            posted=j.get("date") or j.get("epoch", "")))
         return out
     except Exception:
         return []
@@ -71,7 +75,8 @@ async def _jobicy(client, q) -> List[Dict[str, Any]]:
         r = await client.get(u, timeout=15)
         return [_rec(j.get("jobTitle"), j.get("companyName"), j.get("jobGeo", "Remote"),
                      j.get("url"), j.get("jobExcerpt"), (j.get("annualSalaryMin") and
-                     f"{j.get('annualSalaryMin')}-{j.get('annualSalaryMax')} {j.get('salaryCurrency','USD')}") or "")
+                     f"{j.get('annualSalaryMin')}-{j.get('annualSalaryMax')} {j.get('salaryCurrency','USD')}") or "",
+                     posted=j.get("pubDate", ""))
                 for j in (r.json().get("jobs") or [])] if r.status_code == 200 else []
     except Exception:
         return []
@@ -88,7 +93,8 @@ async def _themuse(client, q) -> List[Dict[str, Any]]:
             for j in (r.json().get("results") or []):
                 locs = ", ".join(l.get("name", "") for l in (j.get("locations") or [])) or "Flexible"
                 out.append(_rec(j.get("name"), (j.get("company") or {}).get("name"),
-                                locs, (j.get("refs") or {}).get("landing_page"), j.get("contents")))
+                                locs, (j.get("refs") or {}).get("landing_page"), j.get("contents"),
+                                posted=j.get("publication_date", "")))
         return out
     except Exception:
         return []
@@ -147,7 +153,8 @@ async def _jobspresso(client, q) -> List[Dict[str, Any]]:
                 return (m.group(1) if m else "").strip()
             out.append(_rec(_tag("title"), _tag("job_listing_company") or "via Jobspresso",
                             _tag("job_listing_location") or "Remote",
-                            _tag("link"), _tag("description")))
+                            _tag("link"), _tag("description"),
+                            posted=_tag("pubDate")))
         return out
     except Exception:
         return []
@@ -260,7 +267,8 @@ async def _wwr(client, q) -> List[Dict[str, Any]]:
             title = _tag("title")            # "Company: Job Title"
             comp, _, role = title.partition(":")
             out.append(_rec(role.strip() or title, comp.strip(),
-                            _tag("region") or "Remote", _tag("link"), _tag("description")))
+                            _tag("region") or "Remote", _tag("link"), _tag("description"),
+                            posted=_tag("pubDate")))
         return out
     except Exception:
         return []
@@ -445,7 +453,8 @@ async def _company_boards(client, q) -> List[Dict[str, Any]]:
                     out.append(_rec(j.get("title"), slug.title(),
                                     (j.get("location") or {}).get("name", "Remote"),
                                     j.get("absolute_url"), j.get("content", ""),
-                                    src="Company ATS"))
+                                    src="Company ATS",
+                                    posted=j.get("updated_at") or j.get("first_published", "")))
             except Exception:
                 pass
 
@@ -459,7 +468,8 @@ async def _company_boards(client, q) -> List[Dict[str, Any]]:
                     out.append(_rec(j.get("text"), slug.title(),
                                     (j.get("categories") or {}).get("location", "Remote"),
                                     j.get("hostedUrl"), j.get("descriptionPlain", ""),
-                                    src="Company ATS"))
+                                    src="Company ATS",
+                                    posted=j.get("createdAt", "")))
             except Exception:
                 pass
 
@@ -472,7 +482,8 @@ async def _company_boards(client, q) -> List[Dict[str, Any]]:
                     out.append(_rec(j.get("title"), slug.title(),
                                     j.get("location") or "Remote",
                                     j.get("jobUrl") or j.get("applyUrl") or "",
-                                    j.get("descriptionPlain") or "", src="Company ATS"))
+                                    j.get("descriptionPlain") or "", src="Company ATS",
+                                    posted=j.get("publishedAt") or j.get("publishedDate", "")))
             except Exception:
                 pass
 
@@ -536,7 +547,8 @@ async def _arbeitnow(client, q) -> List[Dict[str, Any]]:
         if r.status_code != 200:
             return []
         return [_rec(j.get("title"), j.get("company_name"), j.get("location", "Remote"),
-                     j.get("url"), j.get("description"))
+                     j.get("url"), j.get("description"),
+                     posted=j.get("created_at", ""))
                 for j in (r.json().get("data") or []) if j.get("remote")]
     except Exception:
         return []

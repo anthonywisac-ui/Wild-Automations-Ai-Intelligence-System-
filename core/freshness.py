@@ -40,6 +40,13 @@ def parse(raw: Any) -> str:
     s = str(raw).strip()
     if not s:
         return ""
+    # unix epoch (seconds or milliseconds) — Lever/Arbeitnow style
+    if re.fullmatch(r"\d{10}(\d{3})?", s):
+        try:
+            ts = int(s[:10])
+            return datetime.fromtimestamp(ts, tz=timezone.utc).isoformat()
+        except (ValueError, OSError):
+            return ""
     # relative: "3 days ago", "2 hours ago" (job boards love these)
     m = _REL_RE.search(s)
     if m:
