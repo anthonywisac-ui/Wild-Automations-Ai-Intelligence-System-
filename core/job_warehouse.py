@@ -135,23 +135,44 @@ def _hydrate_from_supabase() -> None:
         logger.info("job_warehouse hydrate skipped: %s", exc)
 
 
+_ROLE_BIGRAM = re.compile(
+    r"([a-z]{3,})\s+(manager|director|lead|engineer|consultant|analyst|"
+    r"architect|developer|designer|producer|specialist|coordinator)")
+
+
 def search(query: str, days: int = _FRESH_DAYS, limit: int = 40) -> List[Dict[str, Any]]:
-    """Recent warehouse jobs whose title matches the query tokens."""
+    """Recent warehouse jobs for the query — role PHRASES first ('project
+    manager' beats any 'senior ... manager' token soup), tokens as fallback."""
     _hydrate_from_supabase()
-    toks = [t for t in re.findall(r"[a-z]{3,}", (query or "").lower())
-            if t not in ("job", "jobs", "remote")]
+    q = (query or "").lower()
+    toks = [t for t in re.findall(r"[a-z]{3,}", q)
+            if t not in ("job", "jobs", "remote", "senior", "junior")]
     if not toks:
         return []
+    phrases = [f"{a} {b}" for a, b in _ROLE_BIGRAM.findall(q)
+               if a not in ("senior", "junior", "principal", "staff", "lead")]
     cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
-    like = " OR ".join(["lower(title) LIKE ?"] * len(toks))
+
+    def _q(conditions: str, params: List[str], n: int):
+        return conn.execute(
+            f"SELECT url,title,company,location,job_type,salary,salary_usd,"
+            f"description,source,posted_iso FROM jobs_warehouse "
+            f"WHERE last_seen >= ? AND ({conditions}) "
+            f"ORDER BY last_seen DESC LIMIT ?",
+            [cutoff] + params + [n]).fetchall()
+
     try:
         with _LOCK, sqlite3.connect(str(_DB), timeout=15) as conn:
-            rows = conn.execute(
-                f"SELECT url,title,company,location,job_type,salary,salary_usd,"
-                f"description,source,posted_iso FROM jobs_warehouse "
-                f"WHERE last_seen >= ? AND ({like}) "
-                f"ORDER BY last_seen DESC LIMIT ?",
-                [cutoff] + [f"%{t}%" for t in toks] + [limit]).fetchall()
+            rows: list = []
+            if phrases:
+                like_p = " OR ".join(["lower(title) LIKE ?"] * len(phrases))
+                rows = list(_q(like_p, [f"%{p}%" for p in phrases], limit))
+            if len(rows) < limit:
+                like_t = " OR ".join(["lower(title) LIKE ?"] * len(toks))
+                seen_u = {r[0] for r in rows}
+                rows += [r for r in _q(like_t, [f"%{t}%" for t in toks],
+                                       limit - len(rows) + 10)
+                         if r[0] not in seen_u][:limit - len(rows)]
     except Exception as exc:
         logger.info("job_warehouse search failed: %s", exc)
         return []

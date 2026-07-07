@@ -1000,27 +1000,31 @@ async def cv_match(request: Request):
     _cores = set()
     for r_ in [role] + (profile.get("alternate_roles") or []):
         _cores |= _bigrams(r_)
+
+    def _title_hit(x) -> bool:
+        tl_ = (x.get("title") or "").lower()
+        return any(c in tl_ for c in _cores)
+
+    # HARD GUARANTEE: 30 matches whenever the pool has them — backfill the
+    # ranker's output from the remaining fetched pool, ROLE-FAMILY TITLES
+    # FIRST (a 'Project Manager' left in the pool beats a 'Sales Engineer')
+    _TARGET = 30
+    if len(ranked) < _TARGET:
+        have = {(j.get("url") or "") for j in ranked}
+        rest = [x for x in rs["jobs"] if (x.get("url") or "") not in have]
+        rest.sort(key=lambda x: (_title_hit(x), float(x.get("match", 0))),
+                  reverse=True)
+        for x in rest[:_TARGET - len(ranked)]:
+            ranked.append(_gate(dict(x, match_type="keyword")))
+    # EXACT-TITLE FLOOR — after backfill so padded role-family jobs get it too
     if _cores:
         for j in ranked:
-            tl_ = (j.get("title") or "").lower()
-            if (j.get("eligibility") == "eligible" and
-                    any(c in tl_ for c in _cores) and
+            if (j.get("eligibility") == "eligible" and _title_hit(j) and
                     float(j.get("match", 0)) < 0.80):
                 j["match"] = 0.80
                 j["match_type"] = "title_exact"
                 j["why_match"] = ("Exact role-title match — " +
                                   (j.get("why_match") or "")).strip(" —")
-    # HARD GUARANTEE: 30 matches whenever the pool has them — backfill the
-    # ranker's output from the remaining fetched pool (gated the same way)
-    _TARGET = 30
-    if len(ranked) < _TARGET:
-        have = {(j.get("url") or "") for j in ranked}
-        for x in rs["jobs"]:
-            if len(ranked) >= _TARGET:
-                break
-            if (x.get("url") or "") in have:
-                continue
-            ranked.append(_gate(dict(x, match_type="keyword")))
     ranked.sort(key=lambda j: j.get("match", 0), reverse=True)
     ranked = ranked[:_TARGET]
 
