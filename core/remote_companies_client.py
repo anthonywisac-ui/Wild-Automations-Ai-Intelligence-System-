@@ -26,12 +26,12 @@ _UA = {"User-Agent": "Mozilla/5.0 (compatible; WildAutomations/1.0)",
        "Accept": "application/json"}
 
 
-def _rec(title, company, location, url, desc, salary=""):
+def _rec(title, company, location, url, desc, salary="", src="Remote Aggregator"):
     loc = location or "Remote"
     return {"title": (title or "").strip(), "source_url": url or "",
             "location": loc, "description": re.sub(r"<[^>]+>", " ", desc or "")[:600],
             "price": salary or "",
-            "metadata": {"type": "job", "company": company or "", "source": "Remote Aggregator",
+            "metadata": {"type": "job", "company": company or "", "source": src,
                          "remote": True, "salary": salary or ""}}
 
 
@@ -443,7 +443,8 @@ async def _company_boards(client, q) -> List[Dict[str, Any]]:
                 for j in (r.json().get("jobs") or [])[:15]:
                     out.append(_rec(j.get("title"), slug.title(),
                                     (j.get("location") or {}).get("name", "Remote"),
-                                    j.get("absolute_url"), j.get("content", "")))
+                                    j.get("absolute_url"), j.get("content", ""),
+                                    src="Company ATS"))
             except Exception:
                 pass
 
@@ -456,7 +457,8 @@ async def _company_boards(client, q) -> List[Dict[str, Any]]:
                 for j in (r.json() or []):
                     out.append(_rec(j.get("text"), slug.title(),
                                     (j.get("categories") or {}).get("location", "Remote"),
-                                    j.get("hostedUrl"), j.get("descriptionPlain", "")))
+                                    j.get("hostedUrl"), j.get("descriptionPlain", ""),
+                                    src="Company ATS"))
             except Exception:
                 pass
 
@@ -469,7 +471,7 @@ async def _company_boards(client, q) -> List[Dict[str, Any]]:
                     out.append(_rec(j.get("title"), slug.title(),
                                     j.get("location") or "Remote",
                                     j.get("jobUrl") or j.get("applyUrl") or "",
-                                    j.get("descriptionPlain") or ""))
+                                    j.get("descriptionPlain") or "", src="Company ATS"))
             except Exception:
                 pass
 
@@ -484,7 +486,7 @@ async def _company_boards(client, q) -> List[Dict[str, Any]]:
                     out.append(_rec(j.get("title"), slug.title(), loc,
                                     j.get("url") or
                                     f"https://apply.workable.com/{slug}/j/{j.get('shortcode','')}",
-                                    j.get("description") or ""))
+                                    j.get("description") or "", src="Company ATS"))
             except Exception:
                 pass
 
@@ -499,7 +501,7 @@ async def _company_boards(client, q) -> List[Dict[str, Any]]:
                     loc_s = ", ".join(x for x in (loc.get("city"), loc.get("country")) if x) or "Remote"
                     out.append(_rec(j.get("name"), slug.title(), loc_s,
                                     f"https://jobs.smartrecruiters.com/{slug}/{j.get('id','')}",
-                                    ""))
+                                    "", src="Company ATS"))
             except Exception:
                 pass
 
@@ -511,7 +513,8 @@ async def _company_boards(client, q) -> List[Dict[str, Any]]:
                     out.append(_rec(j.get("title"), slug.title(),
                                     j.get("location") or "Remote",
                                     j.get("careers_url") or "",
-                                    re.sub(r"<[^>]+>", " ", j.get("description") or "")[:400]))
+                                    re.sub(r"<[^>]+>", " ", j.get("description") or "")[:400],
+                                    src="Company ATS"))
             except Exception:
                 pass
 
@@ -545,10 +548,13 @@ async def fetch(query: str = "", limit: int = 80, companies: List[str] = None) -
     out, seen = [], set()
     try:
         async with httpx.AsyncClient(headers=_UA, verify=False, follow_redirects=True) as client:
+            # user's curated company boards FIRST — aggregators fill the limit
+            # fast, and whatever is first in this list wins the merge slots
             lists = await asyncio.gather(
+                _company_boards(client, q),
                 _remotive(client, q), _remoteok(client, q), _jobicy(client, q),
                 _arbeitnow(client, q), _themuse(client, q), _adzuna(client, q),
-                _wwr(client, q), _company_boards(client, q),
+                _wwr(client, q),
                 _himalayas(client, q), _jooble(client, q),
                 _usajobs(client, q), _careerjet(client, q),
                 _workingnomads(client, q), _jobspresso(client, q),
