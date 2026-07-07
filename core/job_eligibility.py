@@ -80,30 +80,48 @@ _LANG_REQ = re.compile(
 
 # ── domain classification (safety net under the LLM) ─────────────────────────
 
-_DOMAINS: Dict[str, List[str]] = {
-    "clinical_research": ["oncology", "clinical trial", "clinical study", "gcp",
-                          "ich guidelines", "ctms", "patient recruitment",
-                          "regulatory submission", "fda", "ema", "pharmacovigilance",
-                          "clinical data"],
-    "healthcare_ops": ["value-based care", "payer", "provider", "ehr", "emr",
-                       "patient care", "clinical workflow", "cardiology", "nurse"],
-    "tax_accounting": ["tax preparation", "tax manager", "tax compliance", "cpa",
-                       "tax advisory", "corporate tax", "bookkeeping", "audit senior"],
-    "security_engineering": ["siem", "incident response", "penetration test",
-                             "threat intelligence", "soc analyst", "forensics",
-                             "iam ", "identity & access", "identity and access",
-                             "zero trust", "vulnerability assessment"],
-    "sales_accounts": ["account manager", "client success", "customer success",
-                       "quota", "revenue target", "consultative selling",
-                       "account growth", "strategic accounts", "sales enablement",
-                       "commissions"],
-    "nonprofit": ["donor", "fundraising", "philanthropy", "volunteer management",
-                  "grassroots", "advocacy campaign", "nonprofit"],
-    "marketing": ["product marketing", "seo/sem", "go-to-market", "gtm strategy",
-                  "brand marketing", "content marketing", "demand generation"],
-    "it_software": ["software", "saas", "erp", "sdlc", "agile", "scrum", "devops",
-                    "cloud", "digital transformation", "it project", "api",
-                    "web development", "mobile app", "data platform", "crm system"],
+# strong = one hit alone identifies the domain (unambiguous words);
+# weak = needs company (2+ points total). strong counts 2 points, weak 1.
+_DOMAINS: Dict[str, Dict[str, List[str]]] = {
+    "clinical_research": {
+        "strong": ["oncology", "clinical trial", "clinical study", "gcp",
+                   "ich guidelines", "ctms", "pharmacovigilance"],
+        "weak": ["patient recruitment", "regulatory submission", "fda", "ema",
+                 "clinical data"]},
+    "healthcare_ops": {
+        "strong": ["pharmacy", "pharmacist", "dental", "cardiology", "nurse",
+                   "telehealth", "medicaid", "medicare"],
+        "weak": ["value-based care", "payer", "provider", "ehr", "emr",
+                 "patient care", "patient success", "clinical workflow",
+                 "hospital", "clinic", "medical center"]},
+    "tax_accounting": {
+        "strong": ["tax preparation", "tax manager", "tax compliance",
+                   "tax advisory", "corporate tax", "bookkeeping"],
+        "weak": ["cpa", "audit senior", "tax strategy"]},
+    "security_engineering": {
+        "strong": ["siem", "incident response", "penetration test",
+                   "threat intelligence", "soc analyst", "zero trust",
+                   "identity & access", "identity and access"],
+        "weak": ["forensics", "iam ", "vulnerability assessment",
+                 "security analytics"]},
+    "sales_accounts": {
+        "strong": ["quota", "consultative selling", "sales enablement",
+                   "commissions"],
+        "weak": ["account manager", "client success", "customer success",
+                 "revenue target", "account growth", "strategic accounts"]},
+    "nonprofit": {
+        "strong": ["fundraising", "philanthropy", "donor"],
+        "weak": ["volunteer management", "grassroots", "advocacy campaign",
+                 "nonprofit"]},
+    "marketing": {
+        "strong": ["product marketing", "go-to-market", "gtm strategy",
+                   "demand generation"],
+        "weak": ["seo/sem", "brand marketing", "content marketing"]},
+    "it_software": {
+        "strong": ["sdlc", "devops", "it project", "software delivery",
+                   "digital transformation"],
+        "weak": ["software", "saas", "erp", "agile", "scrum", "cloud", "api",
+                 "web development", "mobile app", "data platform", "crm system"]},
 }
 
 _USER_DOMAIN_ALIASES = {
@@ -117,14 +135,16 @@ _USER_DOMAIN_ALIASES = {
 
 
 def classify_domain(text: str) -> Optional[str]:
-    """Dominant domain of a job by keyword hits (None = unclear/general)."""
+    """Dominant domain of a job by weighted keyword hits (None = unclear).
+    A single 'strong' keyword (pharmacy, oncology, SIEM...) is enough."""
     t = (text or "").lower()
-    best, best_hits = None, 0
+    best, best_score = None, 0
     for domain, kws in _DOMAINS.items():
-        hits = sum(1 for k in kws if k in t)
-        if hits > best_hits:
-            best, best_hits = domain, hits
-    return best if best_hits >= 2 else None
+        score = sum(2 for k in kws["strong"] if k in t) + \
+                sum(1 for k in kws["weak"] if k in t)
+        if score > best_score:
+            best, best_score = domain, score
+    return best if best_score >= 2 else None
 
 
 def normalize_user_domain(raw: str) -> Optional[str]:
@@ -179,16 +199,15 @@ def assess(job: Dict[str, Any], user_country: str = "",
             reasons.append(f"Language: {need.title()} required")
             cap = min(cap, 0.25)
 
-    # 3) domain mismatch (only when BOTH sides are confidently known)
+    # 3) domain mismatch (only when BOTH sides are confidently known).
+    # No "adjacent domain" mercy: an IT candidate asked for IT jobs — a
+    # pharmacy/dental org's PM role is not what they searched for.
     job_domain = classify_domain(blob)
     u_dom = normalize_user_domain(user_domain)
     if job_domain and u_dom and job_domain != u_dom:
-        # adjacent pairs that are fine (IT PM can run healthcare-IT projects)
-        adjacent = {("it_software", "healthcare_ops"), ("healthcare_ops", "it_software")}
-        if (u_dom, job_domain) not in adjacent:
-            reasons.append(f"Domain: {job_domain.replace('_', ' ')} role, "
-                           f"candidate is {u_dom.replace('_', ' ')}")
-            cap = min(cap, 0.45)
+        reasons.append(f"Domain: {job_domain.replace('_', ' ')} role, "
+                       f"candidate is {u_dom.replace('_', ' ')}")
+        cap = min(cap, 0.45)
 
     status = ("not_eligible" if cap <= 0.25 else
               "check" if reasons else "eligible")
