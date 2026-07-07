@@ -982,15 +982,22 @@ async def cv_match(request: Request):
     ranked = [_gate(x) for x in ranked]
     # EXACT-TITLE FLOOR: the title literally contains the candidate's core
     # role ("project manager") and every gate passed -> this IS the job the
-    # user searched for; a thin description must not bury it at 55%
-    _core = re.sub(r"\b(senior|sr\.?|lead|principal|staff|junior|jr\.?|assistant)\b",
-                   "", (role or "").lower())
-    _core = re.sub(r"[^a-z ]", " ", _core)
-    _core = re.sub(r"\s+", " ", _core).strip()
-    if len(_core) > 5:
+    # user searched for; a thin description must not bury it at 55%.
+    # Profile extraction varies run to run (project vs program manager), so
+    # the role AND every alternate role contribute a core phrase.
+    def _core_of(r):
+        c = re.sub(r"\b(senior|sr\.?|lead|principal|staff|junior|jr\.?|assistant)\b",
+                   "", (r or "").lower())
+        c = re.sub(r"[^a-z ]", " ", c)
+        return re.sub(r"\s+", " ", c).strip()
+
+    _cores = {c for c in map(_core_of, [role] + (profile.get("alternate_roles") or []))
+              if len(c) > 5}
+    if _cores:
         for j in ranked:
+            tl_ = (j.get("title") or "").lower()
             if (j.get("eligibility") == "eligible" and
-                    _core in (j.get("title") or "").lower() and
+                    any(c in tl_ for c in _cores) and
                     float(j.get("match", 0)) < 0.80):
                 j["match"] = 0.80
                 j["match_type"] = "title_exact"
