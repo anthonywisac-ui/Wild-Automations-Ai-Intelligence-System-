@@ -926,7 +926,7 @@ async def cv_match(request: Request):
     #    titles widen the title-gate so synonym roles reach the semantic ranker
     rs = await job_search.search(role or "jobs", body.get("location", ""),
                                  body.get("job_type", "remote"), skills,
-                                 worldwide=body.get("worldwide", True), limit=40,
+                                 worldwide=body.get("worldwide", True), limit=60,
                                  alt_titles=profile.get("alternate_roles") or [])
 
     # 3. LLM semantic re-rank: reads each job DESCRIPTION, judges true domain/

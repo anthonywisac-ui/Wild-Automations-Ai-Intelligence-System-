@@ -111,20 +111,20 @@ async def analyze_profile(cv_text: str) -> Dict[str, Any]:
 
 
 async def rank(profile: Dict[str, Any], jobs: List[Dict[str, Any]],
-               keep_min: int = 35, top: int = 20) -> List[Dict[str, Any]]:
+               keep_min: int = 30, top: int = 20) -> List[Dict[str, Any]]:
     """LLM scores each job 0-100 for TRUE fit vs the profile (domain+seniority+skills
     aware, reading the description). Returns only genuinely-relevant jobs, each with
     a match% and a plain reason. Deterministic fallback if no LLM."""
     if not jobs:
         return []
-    cand = jobs[:24]
+    cand = jobs[:40]
     try:
         from core.llm_client import get_llm
         llm = get_llm()
         if llm:
             lines = []
             for i, j in enumerate(cand):
-                desc = (j.get("description") or "")[:280]
+                desc = (j.get("description") or "")[:200]
                 lines.append(f"[{i}] {j.get('title','')} @ {j.get('company','')} · "
                              f"{j.get('location','')} — {desc}")
             prompt = (
@@ -182,10 +182,10 @@ async def rank(profile: Dict[str, Any], jobs: List[Dict[str, Any]],
                     enriched.append(j)
                 enriched.sort(key=lambda x: x["match"], reverse=True)
                 strong = [j for j in enriched if j["match"] * 100 >= keep_min]
-                # never collapse to too few — show at least the 6 best even if the
-                # model was harsh, so the user always has options to react to
-                if len(strong) < 6:
-                    strong = enriched[:max(6, len(strong))]
+                # never collapse to too few — show at least the 10 best even if
+                # the model was harsh, so the user always has options
+                if len(strong) < 10:
+                    strong = enriched[:max(10, len(strong))]
                 return strong[:top]
     except Exception as exc:
         logger.info("job_matcher.rank fallback: %s", exc)
