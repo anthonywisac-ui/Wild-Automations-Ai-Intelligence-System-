@@ -80,8 +80,10 @@ async def analyze_profile(cv_text: str) -> Dict[str, Any]:
                 "seniority (junior/mid/senior/lead), years (number of years of experience), "
                 "skills (array of up to 8), education (highest degree + field, one string, "
                 "'' if none), certifications (array of up to 5 named certs, [] if none), "
+                "location (candidate's current city+country from the CV, '' if absent), "
+                "languages (array of languages the candidate speaks, default ['English']), "
                 "summary (one sentence). CV:\n" + text[:7000],
-                system="You output only compact valid JSON.", max_tokens=460)
+                system="You output only compact valid JSON.", max_tokens=500)
             m = re.search(r"\{.*\}", out, re.S)
             if m:
                 p = json.loads(m.group(0))
@@ -89,6 +91,8 @@ async def analyze_profile(cv_text: str) -> Dict[str, Any]:
                 p.setdefault("skills", [])
                 p.setdefault("education", "")
                 p.setdefault("certifications", [])
+                p.setdefault("location", "")
+                p.setdefault("languages", ["English"])
                 # regex safety-net: catch well-known certs the LLM missed
                 for c in _extract_certs(text):
                     if c not in p["certifications"]:
@@ -125,10 +129,16 @@ async def rank(profile: Dict[str, Any], jobs: List[Dict[str, Any]],
                              f"{j.get('location','')} — {desc}")
             prompt = (
                 f"Candidate: role={profile.get('role')}, domain={profile.get('domain')}, "
-                f"seniority={profile.get('seniority')}, skills={profile.get('skills')}. "
+                f"seniority={profile.get('seniority')}, skills={profile.get('skills')}, "
+                f"location={profile.get('location') or 'unknown'}, "
+                f"languages={profile.get('languages') or ['English']}. "
                 "Score each job 0-100 for TRUE fit. Same domain/industry AND seniority AND "
-                "skills = high; a different industry (e.g. manufacturing vs IT) or wrong "
-                "seniority = low, even if the job title is similar. For each job give three "
+                "skills = high; a different industry (e.g. manufacturing vs IT, oncology/"
+                "clinical-trials vs IT, tax/accounting vs IT) or wrong seniority = low, even "
+                "if the job title is similar. HARD RULE: if the listing restricts hiring to a "
+                "country/region the candidate is NOT in (e.g. 'remote from Argentina', "
+                "'US residents only') or requires a language the candidate does not speak, "
+                "score it 20 or less regardless of skills. For each job give three "
                 "short fit phrases (<=8 words each): skill_fit (which skills match/miss), "
                 "seniority_fit (level match), domain_fit (industry match). Return ONLY a JSON "
                 "array [{\"i\":<index>,\"score\":<0-100>,\"skill_fit\":\"<..>\","

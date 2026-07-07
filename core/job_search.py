@@ -102,8 +102,18 @@ async def search(query: str, location: str = "", job_type: str = "",
     gcfg = {"portal_name": "remote", "crawl_mode": "gulftalent",
             "gulftalent_params": {"category": query, "results_wanted": 40}}
 
-    tasks = [_safe(jobspy_client.fetch_jobspy, jcfg),
-             _safe(gulftalent_client.fetch_gulftalent, gcfg)]
+    # WAREHOUSE FIRST: jobs already found for similar queries are served from
+    # our own store before any external source is hit (and cost nothing)
+    async def _wh():
+        try:
+            from core import job_warehouse
+            return job_warehouse.search(query, limit=40)
+        except Exception as exc:
+            logger.info("job_warehouse source failed: %s", exc)
+            return []
+    named: List[tuple] = [("warehouse", _wh()),
+                          ("jobspy", _safe(jobspy_client.fetch_jobspy, jcfg)),
+                          ("gulftalent", _safe(gulftalent_client.fetch_gulftalent, gcfg))]
     # remote-first companies' own ATS (Greenhouse/Lever/Ashby) — global, unblocked
     async def _rc():
         try:
@@ -112,7 +122,7 @@ async def search(query: str, location: str = "", job_type: str = "",
         except Exception as exc:
             logger.info("remote_companies source failed: %s", exc)
             return []
-    tasks.append(_rc())
+    named.append(("aggregators+company_ats", _rc()))
     # web-wide human-style hunt: DDG+Bing SERP -> job-looking pages on ANY
     # site (lazyapply.com/jobs/... style) -> open + read + LLM extract
     async def _serp():
@@ -123,7 +133,7 @@ async def search(query: str, location: str = "", job_type: str = "",
         except Exception as exc:
             logger.info("serp_jobs source failed: %s", exc)
             return []
-    tasks.append(_serp())
+    named.append(("web_hunter", _serp()))
     # user's non-ATS companies: their careers_url pages, rotating batch + cache
     async def _cp():
         try:
@@ -133,7 +143,7 @@ async def search(query: str, location: str = "", job_type: str = "",
         except Exception as exc:
             logger.info("careers_pages source failed: %s", exc)
             return []
-    tasks.append(_cp())
+    named.append(("careers_pages", _cp()))
     # universal board scraper: HTML-only boards (NoDesk/JustRemote/DailyRemote/
     # Remote.co/Remoters) + IP-blocked boards routed via Jina Reader (Bayt/
     # NaukriGulf/Wellfound) — adaptive LLM extraction, 2h cache, fail-soft
@@ -144,15 +154,17 @@ async def search(query: str, location: str = "", job_type: str = "",
         except Exception as exc:
             logger.info("board_scraper source failed: %s", exc)
             return []
-    tasks.append(_bs())
+    named.append(("boards", _bs()))
     # multi-model coverage: also search related titles the LLM suggests
     for alt in await expand_terms(query):
         ac = {"portal_name": "search", "crawl_mode": "jobspy", "jobspy_params": {
             "site_names": ["indeed", "google"], "search_term": alt,
             "google_search_term": f"{alt} {jt} jobs {location}".strip(),
             "location": loc, "results_wanted": 20, "is_remote": jt == "remote"}}
-        tasks.append(_safe(jobspy_client.fetch_jobspy, ac))
-    lists = await asyncio.gather(*tasks)
+        named.append((f"jobspy_alt:{alt[:24]}", _safe(jobspy_client.fetch_jobspy, ac)))
+    lists = await asyncio.gather(*[c for _, c in named])
+    # per-source result counts — QA visibility ("WWR se kuch aya bhi?")
+    source_counts = {name: len(lst or []) for (name, _), lst in zip(named, lists)}
     raw = [r for lst in lists for r in (lst or [])]
 
     want = set(re.findall(r"[a-z]{3,}", (query + " " + " ".join(skills)).lower()))
@@ -246,7 +258,14 @@ async def search(query: str, location: str = "", job_type: str = "",
         else:
             tail.append(j)
     jobs = (head + tail)[:limit]
+    # WAREHOUSE SAVE: everything found this run is stored (SQLite + Supabase
+    # mirror) so the next similar search serves it instantly
+    try:
+        from core import job_warehouse
+        job_warehouse.save_jobs(jobs, query=query)
+    except Exception as exc:
+        logger.info("job_warehouse save skipped: %s", exc)
     return {"query": query, "job_type": jt, "location": location,
             "count": len(jobs), "jobs": jobs, "sort": sort,
-            "since_hours": since_hours,
+            "since_hours": since_hours, "source_counts": source_counts,
             "fresh_count": sum(1 for j in jobs if j.get("fresh"))}

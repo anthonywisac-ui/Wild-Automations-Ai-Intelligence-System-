@@ -41,3 +41,21 @@ create table if not exists qualified_leads (
 );
 create index if not exists idx_qleads_score on qualified_leads (qualification_score desc);
 create index if not exists idx_qleads_category on qualified_leads (category);
+
+-- ── jobs_found: every job the platform discovers (job warehouse mirror) ──────
+-- New searches check this table first (via local SQLite copy); Supabase copy
+-- survives Railway redeploys and becomes the growing proprietary jobs dataset.
+create table if not exists jobs_found (
+    url          text primary key,
+    title        text not null,
+    company      text,
+    location     text,
+    job_type     text,
+    salary       text,
+    source       text,
+    posted_iso   text,
+    query        text,
+    last_seen    timestamptz default now()
+);
+create index if not exists idx_jobs_found_seen  on jobs_found (last_seen desc);
+create index if not exists idx_jobs_found_title on jobs_found (title);

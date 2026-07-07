@@ -961,21 +961,50 @@ async def cv_match(request: Request):
         m2 = re.fullmatch(r"(\d+)(?:\.0+)?", s)
         return f"{int(m2.group(1)):,}" if m2 else s
 
+    # DETERMINISTIC ELIGIBILITY GATES — a 90% LLM score cannot survive an
+    # "Argentina-only" or "Spanish required" listing (3-layer: gates first)
+    from core import job_eligibility
+    gated = []
+    for x in ranked:
+        gate = job_eligibility.assess(
+            x, user_country=profile.get("location", "") or body.get("location", ""),
+            user_languages=profile.get("languages") or ["english"],
+            user_domain=profile.get("domain", ""))
+        gated.append(job_eligibility.apply_gate(x, gate))
+    gated.sort(key=lambda j: j.get("match", 0), reverse=True)
+    ranked = gated
+
     jobs = []
     for x in ranked:
         visa, restriction = _eligibility(x)
+        # gate reasons are more specific than the generic restriction scan
+        if x.get("eligibility_reasons"):
+            restriction = " · ".join(x["eligibility_reasons"])
         x["salary"] = _clean_salary(x.get("salary"))
         jobs.append({"title": x["title"], "company": x["company"], "location": x["location"],
                      "remote_policy": ("Fully remote" if x.get("remote") else x.get("job_type", "—")),
                      "visa": visa, "restriction": restriction,
+                     "eligibility": x.get("eligibility", "eligible"),
                      "salary": x["salary"], "url": x["url"], "posted": x["posted"],
                      "why_match": x["why_match"], "fit": x.get("fit") or {},
                      "match_type": x.get("match_type") or "keyword",
                      "deep": bool(x.get("deep")),
                      "description": (x.get("description") or "")[:600],
                      "match": x["match"], "source": x["source"]})
+    # QA log (cv_text excluded) — visible at GET /api/concierge/recent
+    try:
+        from core import concierge_log
+        concierge_log.log_run("cv_match", "job_seeker",
+                              {"role": role, "location": body.get("location", ""),
+                               "profile_location": profile.get("location", ""),
+                               "languages": profile.get("languages"),
+                               "domain": profile.get("domain", "")},
+                              rs.get("source_counts"), jobs, len(jobs))
+    except Exception:
+        pass
     return JSONResponse({"role": role, "skills": skills, "profile": profile,
-                         "count": len(jobs), "jobs": jobs})
+                         "count": len(jobs), "jobs": jobs,
+                         "source_counts": rs.get("source_counts")})
 
 
 @app.get("/api/jobs/search")
@@ -1225,9 +1254,16 @@ async def concierge_run(request: Request):
                 from core import subscriptions
                 sub = subscriptions.allowed_results(body["user"], len(matches))
                 matches = matches[:sub["allowed"]]
+            try:
+                from core import concierge_log
+                concierge_log.log_run("concierge", persona, answers,
+                                      rs.get("source_counts"), matches, rs["count"])
+            except Exception:
+                pass
             return JSONResponse({"persona": persona, "category": "Jobs",
                                  "requirement": answers, "total": rs["count"],
-                                 "matches": matches, "subscription": sub})
+                                 "matches": matches, "subscription": sub,
+                                 "source_counts": rs.get("source_counts")})
 
         targets = [{**s, "config": concierge.patch_config(s.get("config", {}), persona, answers)}
                    for s in SCRAPERS if s.get("category") == category]
@@ -1255,6 +1291,13 @@ async def concierge_run(request: Request):
             delivery = await concierge_delivery.deliver_matches(
                 persona, answers, top, to=body.get("to"))
 
+        try:
+            from core import concierge_log
+            concierge_log.log_run("concierge", persona, answers,
+                                  {s["name"]: s.get("count", 0) for s in sources},
+                                  top, len(ranked))
+        except Exception:
+            pass
         return JSONResponse({
             "persona": persona, "category": category,
             "requirement": answers, "sources": sources,
@@ -1352,6 +1395,17 @@ async def api_subscription_activate(request: Request):
             body.get("user", ""), body.get("plan", ""), body.get("days")))
     except Exception as exc:
         return JSONResponse({"error": f"{type(exc).__name__}: {exc}"}, status_code=500)
+
+
+# ── QA: recent concierge runs + warehouse stats ─────────────────────────────
+
+@app.get("/api/concierge/recent")
+async def api_concierge_recent(n: int = 20):
+    """Last N concierge/CV-match runs (answers minus CV text, per-source
+    counts, top matches with scores + eligibility) — match-quality audits."""
+    from core import concierge_log, job_warehouse
+    return JSONResponse({"runs": concierge_log.recent(n),
+                         "warehouse": job_warehouse.stats()})
 
 
 # ── Fresh Jobs (sniper feed) ─────────────────────────────────────────────────

@@ -145,11 +145,22 @@ async def _bing(client: httpx.AsyncClient, q: str) -> List[Tuple[str, str]]:
         return []
 
 
+# listing/category pages, NOT individual postings: search/sort/pagination
+# params or bare /jobs index paths — linking these as "a job" misleads users
+# (e.g. remoterocketship.com/jobs/...?page=1&sort=DateAdded)
+_LISTING_URL = re.compile(
+    r"[?&](?:page|sort|search|filter|seniority|jobTitle|q)=|"
+    r"/(?:jobs?|careers?|vacancies|remote-jobs?)/?$", re.I)
+
+
 def _job_links(results: List[Tuple[str, str]]) -> List[Tuple[str, str]]:
-    """Keep result links that look like job pages; dedup by URL and domain."""
+    """Keep result links that look like INDIVIDUAL job pages; dedup by URL
+    and domain; drop listing/category pages."""
     seen_urls, seen_domains, out = set(), {}, []
     for title, url in results:
         if _SKIP_DOMAINS.search(url) or url.lower().endswith((".pdf", ".doc", ".docx")):
+            continue
+        if _LISTING_URL.search(url):
             continue
         if not (_JOBLIKE_URL.search(url) or _JOBLIKE_TEXT.search(title)):
             continue
