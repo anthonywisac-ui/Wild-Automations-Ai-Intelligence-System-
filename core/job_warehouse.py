@@ -86,8 +86,56 @@ def save_jobs(jobs: List[Dict[str, Any]], query: str = "") -> int:
     return n
 
 
+_HYDRATED = False
+
+
+def _hydrate_from_supabase() -> None:
+    """Cold-start refill: Railway redeploys wipe the SQLite copy — pull the
+    recent rows back down from Supabase once per process (best-effort)."""
+    global _HYDRATED
+    if _HYDRATED:
+        return
+    _HYDRATED = True
+    url, key = os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_KEY")
+    if not (url and key):
+        return
+    try:
+        with _LOCK, sqlite3.connect(str(_DB), timeout=15) as conn:
+            if conn.execute("SELECT COUNT(*) FROM jobs_warehouse").fetchone()[0] > 0:
+                return  # local copy already has data
+        import httpx
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=_FRESH_DAYS)).isoformat()
+        r = httpx.get(
+            f"{url}/rest/v1/jobs_found?last_seen=gte.{cutoff}"
+            f"&order=last_seen.desc&limit=500",
+            headers={"apikey": key, "Authorization": f"Bearer {key}"}, timeout=15)
+        if r.status_code != 200:
+            return
+        now = _now()
+        with _LOCK, sqlite3.connect(str(_DB), timeout=15) as conn:
+            for row in r.json():
+                if not (row.get("url") and row.get("title")):
+                    continue
+                conn.execute(
+                    "INSERT OR IGNORE INTO jobs_warehouse (url,title,company,"
+                    "location,job_type,salary,salary_usd,description,source,"
+                    "posted_iso,query,first_seen,last_seen) "
+                    "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    (row["url"], row["title"], row.get("company") or "",
+                     row.get("location") or "", row.get("job_type") or "",
+                     row.get("salary") or "", None, "",
+                     row.get("source") or "", row.get("posted_iso") or "",
+                     row.get("query") or "", row.get("last_seen") or now,
+                     row.get("last_seen") or now))
+            conn.commit()
+        logger.info("job_warehouse: hydrated from Supabase")
+    except Exception as exc:
+        logger.info("job_warehouse hydrate skipped: %s", exc)
+
+
 def search(query: str, days: int = _FRESH_DAYS, limit: int = 40) -> List[Dict[str, Any]]:
     """Recent warehouse jobs whose title matches the query tokens."""
+    _hydrate_from_supabase()
     toks = [t for t in re.findall(r"[a-z]{3,}", (query or "").lower())
             if t not in ("job", "jobs", "remote")]
     if not toks:

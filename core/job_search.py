@@ -207,7 +207,13 @@ async def search(query: str, location: str = "", job_type: str = "",
 
         toks = set(re.findall(r"[a-z]{3,}", blob))
         overlap = want & toks
-        score = round(min(1.0, 0.35 + len(overlap) / (len(want) or 1)), 2)
+        # TITLE relevance carries real weight: "Senior Project Manager" must
+        # outrank "Senior Software Engineer" for a PM query — description
+        # token soup alone can't tell them apart
+        tl_low = title.lower()
+        title_hits = sum(1 for t in set(qtoks) if t in tl_low) if qtoks else 0
+        score = round(min(1.0, 0.30 + 0.08 * title_hits +
+                          len(overlap) / (len(want) or 1)), 2)
         nj = job_intelligence.normalize(rec)
 
         # sniper freshness: WHEN was this posted + how fresh is it
