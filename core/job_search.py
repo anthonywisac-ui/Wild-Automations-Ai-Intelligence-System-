@@ -224,14 +224,28 @@ async def search(query: str, location: str = "", job_type: str = "",
             seen[k] = j
     if sort == "fresh":
         # newest first; unknown posting dates sink to the bottom
-        jobs = sorted(seen.values(),
-                      key=lambda x: (x["posted_iso"] or "", x["match"]),
-                      reverse=True)[:limit]
+        ranked = sorted(seen.values(),
+                        key=lambda x: (x["posted_iso"] or "", x["match"]),
+                        reverse=True)
     else:
         # match first, freshness breaks ties (fresh posting beats stale twin)
-        jobs = sorted(seen.values(),
-                      key=lambda x: (x["match"], x["posted_iso"] or ""),
-                      reverse=True)[:limit]
+        ranked = sorted(seen.values(),
+                        key=lambda x: (x["match"], x["posted_iso"] or ""),
+                        reverse=True)
+    # source diversity: one source (usually jobspy) must not monopolize the
+    # page when other sources also matched — cap it at 60% and backfill
+    cap = max(1, int(limit * 0.6))
+    per_src: Dict[str, int] = {}
+    head: List[Dict[str, Any]] = []
+    tail: List[Dict[str, Any]] = []
+    for j in ranked:
+        s = j.get("source") or "?"
+        if per_src.get(s, 0) < cap:
+            per_src[s] = per_src.get(s, 0) + 1
+            head.append(j)
+        else:
+            tail.append(j)
+    jobs = (head + tail)[:limit]
     return {"query": query, "job_type": jt, "location": location,
             "count": len(jobs), "jobs": jobs, "sort": sort,
             "since_hours": since_hours,
