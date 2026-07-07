@@ -178,61 +178,71 @@ async def search(query: str, location: str = "", job_type: str = "",
         qtoks = []
     spec = _TYPE.get(jt)
 
-    out: List[Dict[str, Any]] = []
-    for rec in raw:
-        md = rec.get("metadata") or {}
-        title = (rec.get("title") or "")
-        if not title or md.get("type") == "uk_sponsor" or "Licensed Sponsor" in title:
-            continue
-        loc_s = (rec.get("location") or "")
-        blob = f"{title} {loc_s} {rec.get('description','')}".lower()
-
-        # job-type gate
-        if spec:
-            if spec["need"] and not any(n in blob for n in spec["need"]):
+    def _pass(strict: bool) -> List[Dict[str, Any]]:
+        res: List[Dict[str, Any]] = []
+        for rec in raw:
+            md = rec.get("metadata") or {}
+            title = (rec.get("title") or "")
+            if not title or md.get("type") == "uk_sponsor" or "Licensed Sponsor" in title:
                 continue
-            if any(x in blob for x in spec["excl"]):
+            loc_s = (rec.get("location") or "")
+            blob = f"{title} {loc_s} {rec.get('description','')}".lower()
+
+            # job-type gate (strict pass only)
+            if strict and spec:
+                if spec["need"] and not any(n in blob for n in spec["need"]):
+                    continue
+                if any(x in blob for x in spec["excl"]):
+                    continue
+            # worldwide-remote: drop country-restricted / visa-required listings
+            if strict and worldwide and any(x in blob for x in _RESTRICT):
                 continue
-        # worldwide-remote: drop country-restricted / visa-required listings
-        if worldwide and any(x in blob for x in _RESTRICT):
-            continue
-        # relevance: query token in the TITLE, or (looser) ≥2 distinct query
-        # tokens anywhere in the blob — so a "Delivery Lead (project management)"
-        # style post still reaches the semantic ranker instead of dying here
-        if qtoks:
-            tl = title.lower()
-            if not any(t in tl for t in qtoks) and \
-               sum(1 for t in set(qtoks) if t in blob) < 2:
-                continue
+            # relevance: query token in the TITLE, or (looser) ≥2 distinct query
+            # tokens anywhere in the blob — so a "Delivery Lead (project management)"
+            # style post still reaches the semantic ranker instead of dying here
+            if qtoks:
+                tl = title.lower()
+                if not any(t in tl for t in qtoks) and \
+                   sum(1 for t in set(qtoks) if t in blob) < 2:
+                    continue
 
-        toks = set(re.findall(r"[a-z]{3,}", blob))
-        overlap = want & toks
-        # TITLE relevance carries real weight: "Senior Project Manager" must
-        # outrank "Senior Software Engineer" for a PM query — description
-        # token soup alone can't tell them apart
-        tl_low = title.lower()
-        title_hits = sum(1 for t in set(qtoks) if t in tl_low) if qtoks else 0
-        score = round(min(1.0, 0.30 + 0.08 * title_hits +
-                          len(overlap) / (len(want) or 1)), 2)
-        nj = job_intelligence.normalize(rec)
+            toks = set(re.findall(r"[a-z]{3,}", blob))
+            overlap = want & toks
+            # TITLE relevance carries real weight: "Senior Project Manager" must
+            # outrank "Senior Software Engineer" for a PM query — description
+            # token soup alone can't tell them apart
+            tl_low = title.lower()
+            title_hits = sum(1 for t in set(qtoks) if t in tl_low) if qtoks else 0
+            score = round(min(1.0, 0.30 + 0.08 * title_hits +
+                              len(overlap) / (len(want) or 1)), 2)
+            nj = job_intelligence.normalize(rec)
 
-        # sniper freshness: WHEN was this posted + how fresh is it
-        posted_iso = freshness.parse(nj.get("posted"))
-        if since_hours and not freshness.is_fresh(posted_iso, hours=since_hours):
-            continue  # caller wants only-fresh; unknown/old posting dates drop
+            # sniper freshness: WHEN was this posted + how fresh is it
+            posted_iso = freshness.parse(nj.get("posted"))
+            if since_hours and not freshness.is_fresh(posted_iso, hours=since_hours):
+                continue  # caller wants only-fresh; unknown/old posting dates drop
 
-        out.append({
-            "title": title, "company": nj["employer"]["name"], "location": loc_s or "Remote",
-            "job_type": jt.title() or (nj.get("remote") and "Remote" or "—"),
-            "remote": nj.get("remote"), "salary": nj["salary"]["display"],
-            "salary_usd": nj["salary"].get("usd_annual"),
-            "url": rec.get("source_url") or "", "posted": nj.get("posted") or "",
-            "posted_iso": posted_iso, "posted_ago": freshness.ago(posted_iso),
-            "fresh": freshness.is_fresh(posted_iso),
-            "skills": nj.get("skills"), "source": md.get("source") or rec.get("_source") or "",
-            "why_match": ("Matches on: " + ", ".join(sorted(overlap)[:6])) if overlap else "Relevant to your query",
-            "match": score, "description": (rec.get("description") or "")[:400],
-        })
+            res.append({
+                "title": title, "company": nj["employer"]["name"], "location": loc_s or "Remote",
+                "job_type": jt.title() or (nj.get("remote") and "Remote" or "—"),
+                "remote": nj.get("remote"), "salary": nj["salary"]["display"],
+                "salary_usd": nj["salary"].get("usd_annual"),
+                "url": rec.get("source_url") or "", "posted": nj.get("posted") or "",
+                "posted_iso": posted_iso, "posted_ago": freshness.ago(posted_iso),
+                "fresh": freshness.is_fresh(posted_iso),
+                "skills": nj.get("skills"), "source": md.get("source") or rec.get("_source") or "",
+                "why_match": ("Matches on: " + ", ".join(sorted(overlap)[:6])) if overlap else "Relevant to your query",
+                "match": score, "description": (rec.get("description") or "")[:400],
+            })
+        return res
+
+    out = _pass(strict=True)
+    if not out and raw:
+        # NEVER return zero when sources delivered: strict job-type/worldwide
+        # gates can wipe the pool on odd runs — relax them and keep relevance
+        logger.info("job_search: strict gates emptied the pool (%d raw) — "
+                    "relaxed pass", len(raw))
+        out = _pass(strict=False)
 
     # dedup by title+company, keep best score
     seen: Dict[str, Dict[str, Any]] = {}

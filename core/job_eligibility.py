@@ -117,6 +117,13 @@ _DOMAINS: Dict[str, Dict[str, List[str]]] = {
         "strong": ["product marketing", "go-to-market", "gtm strategy",
                    "demand generation"],
         "weak": ["seo/sem", "brand marketing", "content marketing"]},
+    "construction_engineering": {
+        "strong": ["construction", "general contractor", "preconstruction",
+                   "subcontractor", "jobsite", "civil engineering",
+                   "structural engineering", "design-build"],
+        "weak": ["renovation", "hvac", "electrical contractor", "plumbing",
+                 "commercial building", "ground-up", "site development",
+                 "infrastructure project", "water treatment", "epc"]},
     "it_software": {
         "strong": ["sdlc", "devops", "it project", "software delivery",
                    "digital transformation"],
