@@ -111,7 +111,7 @@ async def analyze_profile(cv_text: str) -> Dict[str, Any]:
 
 
 async def rank(profile: Dict[str, Any], jobs: List[Dict[str, Any]],
-               keep_min: int = 30, top: int = 20) -> List[Dict[str, Any]]:
+               keep_min: int = 30, top: int = 30) -> List[Dict[str, Any]]:
     """LLM scores each job 0-100 for TRUE fit vs the profile (domain+seniority+skills
     aware, reading the description). Returns only genuinely-relevant jobs, each with
     a match% and a plain reason. Deterministic fallback if no LLM."""
@@ -182,10 +182,10 @@ async def rank(profile: Dict[str, Any], jobs: List[Dict[str, Any]],
                     enriched.append(j)
                 enriched.sort(key=lambda x: x["match"], reverse=True)
                 strong = [j for j in enriched if j["match"] * 100 >= keep_min]
-                # never collapse to too few — show at least the 10 best even if
-                # the model was harsh, so the user always has options
-                if len(strong) < 10:
-                    strong = enriched[:max(10, len(strong))]
+                # GUARANTEE: never fewer than `top` when candidates exist —
+                # a harsh model pads from the best of the rest
+                if len(strong) < top:
+                    strong = enriched[:top]
                 return strong[:top]
     except Exception as exc:
         logger.info("job_matcher.rank fallback: %s", exc)

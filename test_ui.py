@@ -926,7 +926,7 @@ async def cv_match(request: Request):
     #    titles widen the title-gate so synonym roles reach the semantic ranker
     rs = await job_search.search(role or "jobs", body.get("location", ""),
                                  body.get("job_type", "remote"), skills,
-                                 worldwide=body.get("worldwide", True), limit=60,
+                                 worldwide=body.get("worldwide", True), limit=80,
                                  alt_titles=profile.get("alternate_roles") or [])
 
     # 3. LLM semantic re-rank: reads each job DESCRIPTION, judges true domain/
@@ -964,15 +964,28 @@ async def cv_match(request: Request):
     # DETERMINISTIC ELIGIBILITY GATES — a 90% LLM score cannot survive an
     # "Argentina-only" or "Spanish required" listing (3-layer: gates first)
     from core import job_eligibility
-    gated = []
-    for x in ranked:
-        gate = job_eligibility.assess(
+
+    def _gate(x):
+        g = job_eligibility.assess(
             x, user_country=profile.get("location", "") or body.get("location", ""),
             user_languages=profile.get("languages") or ["english"],
             user_domain=profile.get("domain", ""))
-        gated.append(job_eligibility.apply_gate(x, gate))
-    gated.sort(key=lambda j: j.get("match", 0), reverse=True)
-    ranked = gated
+        return job_eligibility.apply_gate(x, g)
+
+    ranked = [_gate(x) for x in ranked]
+    # HARD GUARANTEE: 30 matches whenever the pool has them — backfill the
+    # ranker's output from the remaining fetched pool (gated the same way)
+    _TARGET = 30
+    if len(ranked) < _TARGET:
+        have = {(j.get("url") or "") for j in ranked}
+        for x in rs["jobs"]:
+            if len(ranked) >= _TARGET:
+                break
+            if (x.get("url") or "") in have:
+                continue
+            ranked.append(_gate(dict(x, match_type="keyword")))
+    ranked.sort(key=lambda j: j.get("match", 0), reverse=True)
+    ranked = ranked[:_TARGET]
 
     jobs = []
     for x in ranked:
