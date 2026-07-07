@@ -421,11 +421,11 @@ async def _run_one(s: Dict) -> Dict:
 
 # ── FastAPI ───────────────────────────────────────────────────────────────────
 
-app = FastAPI(title="WildAutomations CRM", docs_url=None, redoc_url=None)
+from contextlib import asynccontextmanager
 
 
-@app.on_event("startup")
-async def _warmup():
+@asynccontextmanager
+async def _lifespan(_app):
     """Warm the job-source caches right after deploy so the FIRST user search
     is already fast and complete: company-ATS-board probe + board-scraper
     pre-fetch, then a refresh every 6 h (cache-miss problem gone)."""
@@ -445,7 +445,13 @@ async def _warmup():
             except Exception as exc:
                 logging.getLogger(__name__).info("warmup cycle failed: %s", exc)
             await asyncio.sleep(6 * 3600)
-    asyncio.create_task(_cycle())
+    task = asyncio.create_task(_cycle())
+    yield
+    task.cancel()
+
+
+app = FastAPI(title="WildAutomations CRM", docs_url=None, redoc_url=None,
+              lifespan=_lifespan)
 
 _images_dir = Path(__file__).resolve().parent / "images"
 if _images_dir.exists():
