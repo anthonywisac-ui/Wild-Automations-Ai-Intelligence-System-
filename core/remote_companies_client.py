@@ -113,7 +113,8 @@ async def _adzuna(client, q) -> List[Dict[str, Any]]:
                        if j.get("salary_min") else "")
                 out.append(_rec(j.get("title"), (j.get("company") or {}).get("display_name"),
                                 (j.get("location") or {}).get("display_name"),
-                                j.get("redirect_url"), j.get("description"), sal))
+                                j.get("redirect_url"), j.get("description"), sal,
+                                src="Adzuna"))
         except Exception:
             continue
     return out
