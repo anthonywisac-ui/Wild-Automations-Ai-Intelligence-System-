@@ -113,6 +113,27 @@ async def search(query: str, location: str = "", job_type: str = "",
             logger.info("remote_companies source failed: %s", exc)
             return []
     tasks.append(_rc())
+    # web-wide human-style hunt: DDG+Bing SERP -> job-looking pages on ANY
+    # site (lazyapply.com/jobs/... style) -> open + read + LLM extract
+    async def _serp():
+        try:
+            from core import serp_jobs
+            return await asyncio.wait_for(
+                serp_jobs.fetch(query, location, jt, limit=20), timeout=55)
+        except Exception as exc:
+            logger.info("serp_jobs source failed: %s", exc)
+            return []
+    tasks.append(_serp())
+    # user's non-ATS companies: their careers_url pages, rotating batch + cache
+    async def _cp():
+        try:
+            from core import careers_pages
+            return await asyncio.wait_for(careers_pages.fetch(query, limit=40),
+                                          timeout=45)
+        except Exception as exc:
+            logger.info("careers_pages source failed: %s", exc)
+            return []
+    tasks.append(_cp())
     # universal board scraper: HTML-only boards (NoDesk/JustRemote/DailyRemote/
     # Remote.co/Remoters) + IP-blocked boards routed via Jina Reader (Bayt/
     # NaukriGulf/Wellfound) — adaptive LLM extraction, 2h cache, fail-soft

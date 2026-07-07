@@ -104,6 +104,19 @@ SCRAPERS = [
             "uk_jobs_params": {"keywords": "software engineer", "max_pages": 1, "results_wanted": 5},
         },
     },
+    {
+        "name": "AI Web Hunter · Any Site",
+        "bot": "SERP + Page Reader",
+        "emoji": "🕵️",
+        "category": "Jobs",
+        "mode": "Human-style",
+        "module": "core.serp_jobs",
+        "fn": "fetch_serp_jobs",
+        "config": {
+            "portal_name": "Web Hunter", "crawl_mode": "serp_jobs",
+            "serp_params": {"query": "software engineer", "location": "", "limit": 15},
+        },
+    },
 
     # ── UNIVERSITY ────────────────────────────────────────────────────────────
     {
