@@ -38,7 +38,8 @@ _UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.
        "Accept": "text/html,application/xhtml+xml"}
 
 _CACHE: Dict[str, Tuple[float, List[Dict[str, Any]]]] = {}
-_TTL = 7200          # 2 h per query
+_TTL_HIT = 7200      # 2 h per query with results
+_TTL_MISS = 600      # empty results retry after 10 min (transient blocks)
 _MAX_PAGES = 8       # job pages opened ("clicked") per search
 _PAGE_CHARS = 3500   # how much of each page the extractor reads
 
@@ -68,17 +69,13 @@ def _rec(title, company, location, url, desc="", posted="") -> Dict[str, Any]:
 
 # ── step 1+2: search engines -> candidate job links ──────────────────────────
 
-async def _ddg(client: httpx.AsyncClient, q: str) -> List[Tuple[str, str]]:
-    """DuckDuckGo HTML endpoint — (title, url) results."""
-    try:
-        r = await client.post("https://html.duckduckgo.com/html/",
-                              data={"q": q}, timeout=15)
-        if r.status_code != 200:
-            return []
-        out = []
-        for m in re.finditer(
-                r'(?is)<a[^>]+class="result__a"[^>]+href="([^"]+)"[^>]*>(.*?)</a>',
-                r.text):
+def _parse_ddg(html: str) -> List[Tuple[str, str]]:
+    out = []
+    # html endpoint: class="result__a"; lite endpoint: plain <a> in result table
+    pats = (r'(?is)<a[^>]+class="result__a"[^>]+href="([^"]+)"[^>]*>(.*?)</a>',
+            r'(?is)<a[^>]+rel="nofollow"[^>]+href="([^"]+)"[^>]*>(.*?)</a>')
+    for pat in pats:
+        for m in re.finditer(pat, html):
             href = m.group(1)
             # ddg wraps targets: //duckduckgo.com/l/?uddg=<encoded>&...
             um = re.search(r"[?&]uddg=([^&]+)", href)
@@ -88,10 +85,45 @@ async def _ddg(client: httpx.AsyncClient, q: str) -> List[Tuple[str, str]]:
             title = re.sub(r"\s+", " ", title).strip()
             if href.startswith("http") and title:
                 out.append((title, href))
-        return out
+        if out:
+            break
+    return out
+
+
+async def _ddg(client: httpx.AsyncClient, q: str) -> List[Tuple[str, str]]:
+    """DuckDuckGo — direct html endpoint, lite endpoint, then Jina Reader
+    (datacenter IPs are sometimes walled; Jina fetches from ITS infra)."""
+    import os as _o
+    try:
+        r = await client.post("https://html.duckduckgo.com/html/",
+                              data={"q": q}, timeout=15)
+        if r.status_code == 200:
+            hits = _parse_ddg(r.text)
+            if hits:
+                return hits
     except Exception as exc:
-        logger.info("serp_jobs ddg failed: %s", exc)
-        return []
+        logger.info("serp_jobs ddg direct failed: %s", exc)
+    try:
+        r = await client.get(
+            f"https://lite.duckduckgo.com/lite/?q={quote_plus(q)}", timeout=15)
+        if r.status_code == 200:
+            hits = _parse_ddg(r.text)
+            if hits:
+                return hits
+    except Exception as exc:
+        logger.info("serp_jobs ddg lite failed: %s", exc)
+    try:
+        jheads = {"X-Return-Format": "html"}
+        if _o.getenv("JINA_API_KEY"):
+            jheads["Authorization"] = f"Bearer {_o.getenv('JINA_API_KEY')}"
+        r = await client.get(
+            "https://r.jina.ai/https://html.duckduckgo.com/html/?q=" + quote_plus(q),
+            headers=jheads, timeout=25)
+        if r.status_code == 200:
+            return _parse_ddg(r.content.decode("utf-8", errors="ignore"))
+    except Exception as exc:
+        logger.info("serp_jobs ddg jina failed: %s", exc)
+    return []
 
 
 async def _bing(client: httpx.AsyncClient, q: str) -> List[Tuple[str, str]]:
@@ -221,7 +253,7 @@ async def fetch(query: str, location: str = "", job_type: str = "",
                              (location or "").strip()) if x)
     key = q.lower()
     hit = _CACHE.get(key)
-    if hit and time.time() - hit[0] < _TTL:
+    if hit and time.time() - hit[0] < (_TTL_HIT if hit[1] else _TTL_MISS):
         return hit[1][:limit]
     try:
         async with httpx.AsyncClient(headers=_UA, verify=False,

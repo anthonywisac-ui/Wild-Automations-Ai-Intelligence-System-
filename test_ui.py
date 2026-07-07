@@ -1216,7 +1216,8 @@ async def concierge_run(request: Request):
                         "metadata": {"company": x["company"], "why": x["why_match"],
                                      "job_type": x["job_type"], "salary": x["salary"],
                                      "posted_ago": x.get("posted_ago", ""),
-                                     "fresh": x.get("fresh", False)}}
+                                     "fresh": x.get("fresh", False),
+                                     "source": x.get("source", "")}}
                        for x in rs["jobs"]]
             # trial/plan gate (only when a user id is sent — dashboard stays open)
             sub = None
