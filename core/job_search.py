@@ -75,9 +75,9 @@ async def expand_terms(query: str) -> List[str]:
 
 async def search(query: str, location: str = "", job_type: str = "",
                  skills: Optional[List[str]] = None, worldwide: bool = False,
-                 limit: int = 30, alt_titles: Optional[List[str]] = None,
+                 limit: int = 150, alt_titles: Optional[List[str]] = None,
                  since_hours: Optional[float] = None,
-                 sort: str = "match") -> Dict[str, Any]:
+                 sort: str = "match", expand: bool = True) -> Dict[str, Any]:
     query = (query or "").strip() or "jobs"
     skills = skills or []
     alt_titles = alt_titles or []
@@ -94,20 +94,24 @@ async def search(query: str, location: str = "", job_type: str = "",
            "germany": "germany", "india": "india", "uae": "united arab emirates",
            "dubai": "united arab emirates", "pakistan": "pakistan"}
     country_indeed = _CC.get(location.lower(), "usa" if (worldwide or jt == "remote") else "usa")
+    # SNIPER: when the caller wants only-fresh, ask the SOURCE for only-fresh
+    # (jobspy filters Indeed/LinkedIn/Google by posting age server-side)
+    _hours_old = max(1, int(since_hours)) if since_hours else 168  # 1 week default
     jcfg = {"portal_name": "search", "crawl_mode": "jobspy", "jobspy_params": {
-        "site_names": ["indeed", "google", "linkedin"], "search_term": query,
+        "site_name": ["indeed", "google", "linkedin"], "search_term": query,
         "google_search_term": f"{query} {jt} jobs {location or 'worldwide'}".strip(),
-        "country_indeed": country_indeed,
-        "location": loc, "results_wanted": 30, "is_remote": jt == "remote"}}
+        "country_indeed": country_indeed, "hours_old": _hours_old,
+        "location": loc, "results_wanted": 75, "is_remote": jt == "remote",
+        "linkedin_fetch_description": True}}
     gcfg = {"portal_name": "remote", "crawl_mode": "gulftalent",
-            "gulftalent_params": {"category": query, "results_wanted": 40}}
+            "gulftalent_params": {"category": query, "results_wanted": 80}}
 
     # WAREHOUSE FIRST: jobs already found for similar queries are served from
     # our own store before any external source is hit (and cost nothing)
     async def _wh():
         try:
             from core import job_warehouse
-            return job_warehouse.search(query, limit=40)
+            return job_warehouse.search(query, limit=80)
         except Exception as exc:
             logger.info("job_warehouse source failed: %s", exc)
             return []
@@ -118,7 +122,7 @@ async def search(query: str, location: str = "", job_type: str = "",
     async def _rc():
         try:
             from core import remote_companies_client
-            return await asyncio.wait_for(remote_companies_client.fetch(query, limit=120), timeout=40)
+            return await asyncio.wait_for(remote_companies_client.fetch(query, limit=200), timeout=55)
         except Exception as exc:
             logger.info("remote_companies source failed: %s", exc)
             return []
@@ -129,7 +133,7 @@ async def search(query: str, location: str = "", job_type: str = "",
         try:
             from core import serp_jobs
             return await asyncio.wait_for(
-                serp_jobs.fetch(query, location, jt, limit=20), timeout=55)
+                serp_jobs.fetch(query, location, jt, limit=60), timeout=75)
         except Exception as exc:
             logger.info("serp_jobs source failed: %s", exc)
             return []
@@ -138,8 +142,8 @@ async def search(query: str, location: str = "", job_type: str = "",
     async def _cp():
         try:
             from core import careers_pages
-            return await asyncio.wait_for(careers_pages.fetch(query, limit=40),
-                                          timeout=45)
+            return await asyncio.wait_for(careers_pages.fetch(query, limit=80),
+                                          timeout=60)
         except Exception as exc:
             logger.info("careers_pages source failed: %s", exc)
             return []
@@ -150,17 +154,18 @@ async def search(query: str, location: str = "", job_type: str = "",
     async def _bs():
         try:
             from core import board_scraper
-            return await asyncio.wait_for(board_scraper.fetch_all(query, limit=50), timeout=48)
+            return await asyncio.wait_for(board_scraper.fetch_all(query, limit=100), timeout=65)
         except Exception as exc:
             logger.info("board_scraper source failed: %s", exc)
             return []
     named.append(("boards", _bs()))
     # multi-model coverage: also search related titles the LLM suggests
-    for alt in await expand_terms(query):
+    for alt in (await expand_terms(query) if expand else []):
         ac = {"portal_name": "search", "crawl_mode": "jobspy", "jobspy_params": {
-            "site_names": ["indeed", "google"], "search_term": alt,
+            "site_name": ["indeed", "google"], "search_term": alt,
             "google_search_term": f"{alt} {jt} jobs {location}".strip(),
-            "location": loc, "results_wanted": 20, "is_remote": jt == "remote"}}
+            "hours_old": _hours_old,
+            "location": loc, "results_wanted": 40, "is_remote": jt == "remote"}}
         named.append((f"jobspy_alt:{alt[:24]}", _safe(jobspy_client.fetch_jobspy, ac)))
     lists = await asyncio.gather(*[c for _, c in named])
     # per-source result counts — QA visibility ("WWR se kuch aya bhi?")

@@ -724,9 +724,9 @@ async def jobs_page():
     return HTMLResponse(JOBS_HTML)
 
 
-def _bump_limits(cfg, want=30):
+def _bump_limits(cfg, want=100):
     """Deep-copy a scraper config and raise its result limits so /api/jobs/all
-    can return up to ~100 merged jobs (was ~5 each)."""
+    can return up to ~1000 merged jobs."""
     import copy
     c = copy.deepcopy(cfg or {})
 
@@ -739,7 +739,7 @@ def _bump_limits(cfg, want=30):
             elif k in ("results_wanted", "limit", "results", "num_pages"):
                 d[k] = want
             elif k == "max_pages":
-                d[k] = 4
+                d[k] = 10
     walk(c)
     return c
 
@@ -806,7 +806,7 @@ async def jobs_all():
     """Run every Jobs-category scraper, then normalize → dedup → sponsor-verify →
     score through the Job Intelligence engine. Returns enterprise-grade jobs with
     gov-verified visa sponsorship + evidence + confidence."""
-    targets = [{**s, "config": _bump_limits(s.get("config"), 30)}
+    targets = [{**s, "config": _bump_limits(s.get("config"), 100)}
                for s in SCRAPERS if s.get("category") == "Jobs"]
     results = await asyncio.gather(*[_run_one(t) for t in targets], return_exceptions=True)
     raw, sources = [], []
@@ -1065,7 +1065,7 @@ async def cv_match(request: Request):
 
 
 @app.get("/api/jobs/search")
-async def jobs_search(q: str = "", country: str = "", type: str = "", limit: int = 30):
+async def jobs_search(q: str = "", country: str = "", type: str = "", limit: int = 200):
     """Live filtered search for the /jobs dashboard: when the user applies
     filters, fetch FRESH jobs matching them (not just re-filter the cache)."""
     try:
