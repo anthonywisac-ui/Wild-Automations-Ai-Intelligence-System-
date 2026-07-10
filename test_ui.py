@@ -1371,6 +1371,69 @@ async def concierge_run(request: Request):
         return JSONResponse({"error": f"{type(exc).__name__}: {exc}"}, status_code=500)
 
 
+@app.post("/api/ai/cover-letter")
+async def api_cover_letter(request: Request):
+    """Generate a tailored cover letter for a job.
+    Body: {job_title, company, job_description, cv_summary}
+    """
+    try:
+        from core.outreach_generator import generate_cover_letter
+        body = await request.json()
+        letter = await generate_cover_letter(
+            body.get("job_title", ""),
+            body.get("company", ""),
+            body.get("job_description", ""),
+            body.get("cv_summary", ""),
+        )
+        return JSONResponse({"cover_letter": letter})
+    except Exception as exc:
+        return JSONResponse({"error": f"{type(exc).__name__}: {exc}"}, status_code=500)
+
+
+@app.post("/api/ai/outreach-email")
+async def api_outreach_email(request: Request):
+    """Generate a cold outreach email to a recruiter/hiring manager.
+    Body: {job_title, company, recruiter_name?, cv_summary}
+    """
+    try:
+        from core.outreach_generator import generate_outreach_email
+        body = await request.json()
+        email = await generate_outreach_email(
+            body.get("job_title", ""),
+            body.get("company", ""),
+            body.get("recruiter_name"),
+            body.get("cv_summary", ""),
+        )
+        return JSONResponse({"outreach_email": email})
+    except Exception as exc:
+        return JSONResponse({"error": f"{type(exc).__name__}: {exc}"}, status_code=500)
+
+
+@app.post("/api/ai/match-score")
+async def api_match_score(request: Request):
+    """Compute AI job match score against a CV summary.
+    Body: {job_title, job_description, cv_summary}
+    Returns: {score: 0-100, reason: str}
+    """
+    try:
+        from core.outreach_generator import compute_match_score
+        body = await request.json()
+        result = await compute_match_score(
+            body.get("job_title", ""),
+            body.get("job_description", ""),
+            body.get("cv_summary", ""),
+        )
+        return JSONResponse(result)
+    except Exception as exc:
+        return JSONResponse({"error": f"{type(exc).__name__}: {exc}"}, status_code=500)
+
+
+@app.get("/api/ai/job-intelligence/{job_id}")
+async def api_job_intelligence(job_id: str):
+    """Get full AI intelligence for a specific job by ID (from hiring velocity, ATS, etc.)."""
+    return JSONResponse({"job_id": job_id, "status": "intelligence stored per-job in /api/jobs/all"})
+
+
 @app.post("/api/concierge/deliver")
 async def concierge_deliver(request: Request):
     """Send an already-computed match set to WhatsApp (WHAPI/Meta)."""

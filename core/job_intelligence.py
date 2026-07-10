@@ -5,6 +5,12 @@ One engine that turns raw scraper output (any source) into a unified,
 deduplicated, sponsor-verified, scored job. Reuses:
   - ai_analyzer._extract_salary_usd / _tax_for / _score_job  (salary + appeal)
   - sponsor_index.lookup                                     (gov visa verification)
+  - ats_detector.detect_ats / ats_score                     (ATS platform quality)
+  - scam_detector.scam_score                                (fraud detection)
+  - remote_scorer.remote_score                              (WFH probability)
+  - salary_estimator.estimate_salary                        (salary when missing)
+  - hiring_velocity.batch_record / get_velocity             (company hiring speed)
+  - ai_dedup.deduplicate_jobs                               (cross-source dedup)
 
 Public:
     normalize(record)              -> unified job dict            (Step 1 + 2)
@@ -81,8 +87,8 @@ def normalize(record: Dict[str, Any]) -> Dict[str, Any]:
     company = (md.get("company") or "").strip()
     location = record.get("location") or md.get("location") or ""
     desc = record.get("description") or ""
+    url = record.get("source_url") or record.get("apply_url") or record.get("url") or ""
     iso, city = _country_city(location)
-    remote = bool(md.get("remote")) or "remote" in (location + " " + title).lower()
 
     # salary via existing analyzer (reuse)
     usd = take = None
@@ -93,6 +99,43 @@ def normalize(record: Dict[str, Any]) -> Dict[str, Any]:
             take = round(usd * (1 - _tax_for(location)))
     except Exception:
         pass
+
+    # ATS detection
+    ats_platform = "unknown"
+    try:
+        from core.ats_detector import detect_ats
+        ats_platform = detect_ats(url)
+    except Exception:
+        pass
+
+    # Remote score
+    r_score = 0.15
+    r_label = "On-site"
+    try:
+        from core.remote_scorer import remote_score, remote_label
+        r_score = remote_score(title, location, desc)
+        r_label = remote_label(r_score)
+    except Exception:
+        pass
+    remote = bool(md.get("remote")) or r_score >= 0.7
+
+    # Scam detection
+    scam = 0.0
+    scam_signals: list = []
+    try:
+        from core.scam_detector import scam_score as _scam
+        scam, scam_signals = _scam(title, desc, url)
+    except Exception:
+        pass
+
+    # Salary estimation when missing
+    salary_est = None
+    if not usd:
+        try:
+            from core.salary_estimator import estimate_salary
+            salary_est = estimate_salary(title, location, desc)
+        except Exception:
+            pass
 
     norm_title = re.sub(r"\s+", " ", re.sub(r"[^a-z0-9 ]", " ",
                         re.sub(r"\b(senior|junior|lead|sr|jr|principal|staff|intern|graduate)\b",
@@ -106,14 +149,22 @@ def normalize(record: Dict[str, Any]) -> Dict[str, Any]:
         "country_iso": iso, "city": city, "location": location, "remote": remote,
         "salary": {"raw": md.get("salary") or record.get("price") or "",
                    "usd_annual": usd, "take_home_usd": take,
-                   "display": (md.get("salary") or record.get("price") or "").strip() or "—"},
+                   "display": (md.get("salary") or record.get("price") or "").strip() or "—",
+                   "estimated": salary_est},
         "skills": _skills(f"{title} {desc}"),
         "visa_flag": bool(md.get("visa_sponsorship")) or ("visa" in desc.lower() or "sponsor" in desc.lower()),
         "source": md.get("source") or record.get("_source") or "",
-        "url": record.get("source_url") or "",
+        "url": url,
         "posted": md.get("created_at") or record.get("created_at") or md.get("date_posted") or "",
         "employees": md.get("employees") or md.get("company_size") or "",
         "description": desc,
+        # AI enrichment
+        "ats_platform": ats_platform,
+        "remote_score": round(r_score, 2),
+        "remote_label": r_label,
+        "scam_score": round(scam, 3),
+        "scam_signals": scam_signals[:3],
+        "is_likely_scam": scam >= 0.5,
     }
 
 
@@ -178,16 +229,28 @@ def score(job: Dict[str, Any], sponsor: Optional[Dict[str, Any]] = None) -> Dict
 async def process(records: List[Dict[str, Any]]) -> Dict[str, Any]:
     """Normalize + dedup + sponsor-join + score a batch (ties Steps 1-4)."""
     from core import sponsor_index
+    from core.ai_dedup import deduplicate_jobs
+    from core.hiring_velocity import batch_record
     await sponsor_index.ensure_loaded()
 
     seen: Dict[str, Dict[str, Any]] = {}
+    normalized = []
     for r in records:
         job = normalize(r)
+        # Skip likely scams early
+        if job.get("is_likely_scam"):
+            logger.debug("skipping scam job: %s", job.get("title"))
+            continue
+        normalized.append(job)
+
+    # AI deduplication (cross-source)
+    deduped = deduplicate_jobs(normalized)
+
+    for job in deduped:
         sponsor = sponsor_index.lookup(job["employer"]["name"])
         job["sponsor"] = sponsor
         job["intelligence"] = score(job, sponsor)
         key = job["job_id"]
-        # dedup: keep the richer / verified one
         prev = seen.get(key)
         if prev is None or (job["intelligence"]["confidence"] > prev["intelligence"]["confidence"]):
             if prev:
@@ -196,6 +259,16 @@ async def process(records: List[Dict[str, Any]]) -> Dict[str, Any]:
 
     jobs = sorted(seen.values(), key=lambda j: (j["intelligence"]["sponsor_verified"],
                                                 j["intelligence"]["ai_score"]), reverse=True)
+
+    # Record hiring velocity for all companies found
+    batch_record(jobs)
+
     verified = sum(1 for j in jobs if j["intelligence"]["sponsor_verified"])
-    return {"jobs": jobs, "total": len(jobs), "verified_sponsors": verified,
-            "sponsor_index": sponsor_index.stats()}
+    scams_filtered = len(records) - len(normalized)
+    return {
+        "jobs": jobs,
+        "total": len(jobs),
+        "verified_sponsors": verified,
+        "scams_filtered": scams_filtered,
+        "sponsor_index": sponsor_index.stats(),
+    }
