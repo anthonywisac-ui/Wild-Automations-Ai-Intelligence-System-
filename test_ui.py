@@ -401,7 +401,7 @@ async def _run_one(s: Dict) -> Dict:
             "name": s["name"], "bot": s["bot"], "emoji": s["emoji"],
             "category": s.get("category", ""), "mode": s.get("mode", ""),
             "status": "ok", "count": len(results), "elapsed": round(time.time() - t0, 1),
-            "results": results[:8], "error": None,
+            "results": results, "error": None,
         }
     except asyncio.TimeoutError:
         return {
