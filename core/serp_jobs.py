@@ -1,17 +1,15 @@
 """
-SERP Jobs Hunter — searches the web LIKE A HUMAN and reads what it finds.
+SERP Jobs Hunter v2 — multi-source parallel search + LLM extraction.
 
-Flow (mirrors a person googling "software engineer jobs dubai"):
-  1. Query DuckDuckGo-HTML + Bing (both serve plain HTML to datacenter IPs —
-     no CAPTCHA wall like google.com).
-  2. From the results, keep links that LOOK like job pages (/jobs/, /careers/,
-     greenhouse.io, lever.co, workable, "apply", ...) on ANY website — this is
-     how pages like lazyapply.com/jobs/... get discovered without a per-site
-     scraper.
-  3. Open the top pages (direct fetch → Jina Reader fallback for JS/blocked
-     sites) and extract the actual job: title, company, location, description.
-  4. LLM cleans/filters to REAL postings relevant to the query; heuristic
-     fallback keeps it working with no key.
+Search layer (Railway-safe):
+  Tier 1 — ATS direct APIs (Greenhouse / Lever / Ashby, no auth):
+      Highest quality, structured, no CAPTCHA.
+  Tier 2 — Jina Search (s.jina.ai):
+      Works from datacenter IPs. Primary SERP source on Railway.
+  Tier 3 — Tavily / Serper (optional, via env keys):
+      Broader web coverage when API keys are set.
+  Tier 4 — DDG / Bing:
+      Local/home IP fallback only. Blocked on Railway.
 
 Every step is fail-soft and cached (2 h per query).
 
@@ -426,65 +424,98 @@ async def fetch(query: str, location: str = "", job_type: str = "",
                 limit: int = 20) -> List[Dict[str, Any]]:
     """Web-wide human-style job hunt. Never raises; [] on any failure.
 
-    Three parallel paths:
-    1. ATS-targeted search: site:greenhouse.io/lever.co/ashby/workable to get
-       CAPTCHA-free individual job postings (best quality)
-    2. General SERP page-visit: open top individual job pages found via DDG+Bing
-    3. SERP-direct: extract from SERP snippets/titles without page visits (fast fallback)
-    All results merged and deduped by URL.
+    Search layer (v2 — multi-source, Railway-safe):
+      ATS direct APIs (Greenhouse/Lever/Ashby) + Jina Search + Tavily + Serper
+      + DDG/Bing as local-only fallback.
+    All results merged, deduped, then LLM-extracted.
     """
     q_base = query.strip()
     loc = (location or "").strip()
     jt = (job_type or "").strip()
-    q = " ".join(x for x in (q_base, jt, "jobs", loc) if x)
-    key = q.lower()
-    hit = _CACHE.get(key)
+    cache_key = f"{q_base}|{loc}|{jt}".lower()
+    hit = _CACHE.get(cache_key)
     if hit and time.time() - hit[0] < (_TTL_HIT if hit[1] else _TTL_MISS):
         return hit[1][:limit]
+
     try:
+        # ── TIER 1: new multi-source orchestrator ──────────────────────────────
+        # Greenhouse + Lever + Ashby APIs + Jina + Tavily + Serper all in parallel
+        try:
+            from search.orchestrator import search_all as _orch_search
+            orch_results = await asyncio.wait_for(
+                _orch_search(q_base, loc, jt), timeout=30)
+        except Exception as oe:
+            logger.info("serp_jobs orchestrator failed (%s), falling back to Jina-only", oe)
+            orch_results = []
+
+        # Convert orchestrator SearchResult → (title, url, snippet) tuples for
+        # compatibility with existing _job_links / _jobs_from_serp / _page_text
+        orch_tuples: List[Tuple[str, str, str]] = [
+            (r.title, r.url, r.snippet) for r in orch_results]
+
+        # ── TIER 2: ATS direct-structured jobs (score >= 0.95, no page visit) ──
+        ats_sources = {"greenhouse", "lever", "ashby"}
+        ats_direct_jobs: List[Dict[str, Any]] = []
+        for r in orch_results:
+            if r.source in ats_sources and r.url:
+                rd = r.raw or {}
+                ats_direct_jobs.append(_rec(
+                    r.title,
+                    rd.get("company", r.source),
+                    rd.get("location", ""),
+                    r.url,
+                    r.snippet,
+                    str(rd.get("updated_at") or rd.get("created_at") or ""),
+                ))
+
+        # ── TIER 3: Jina-only fallback queries (always run alongside orchestrator)
         async with httpx.AsyncClient(headers=_UA, verify=False,
                                      follow_redirects=True) as client:
-
-            # --- Query variants ---
             q_general = " ".join(x for x in (q_base, "jobs", loc) if x)
-            # ATS-targeted: greenhouse/lever/ashby pages — CAPTCHA-free individual job postings
-            ats_sites = "site:boards.greenhouse.io OR site:jobs.lever.co OR site:jobs.ashby.com OR site:apply.workable.com"
+            ats_sites = ("site:boards.greenhouse.io OR site:jobs.lever.co "
+                         "OR site:jobs.ashby.com OR site:apply.workable.com")
             q_ats = f'"{q_base}" {loc} {ats_sites}'.strip()
-            q_ats2 = f'"{q_base}" {loc} (site:teamtailor.com OR site:recruitee.com OR site:jobs.eu.lever.co OR site:boards.eu.greenhouse.io)'.strip()
-            q_careers = f'"{q_base}" "apply now" {loc} -site:linkedin.com -site:indeed.com -site:glassdoor.com'.strip()
+            q_ats2 = (f'"{q_base}" {loc} (site:teamtailor.com OR site:recruitee.com '
+                      f'OR site:jobs.eu.lever.co OR site:boards.eu.greenhouse.io)').strip()
+            q_careers = (f'"{q_base}" "apply now" {loc} '
+                         f'-site:linkedin.com -site:indeed.com').strip()
 
-            # TIER 1 (Railway-safe — use their own infra, not blocked):
-            #   Jina Search (s.jina.ai, needs JINA_API_KEY)
-            #   Brave Search (api.search.brave.com, needs BRAVE_SEARCH_API_KEY)
-            # TIER 2 (local only — blocked on Railway datacenter IPs):
-            #   DDG, Bing
-            serps_all_raw = await asyncio.gather(
-                _jina_search(client, q_ats),      # Jina: ATS individual job pages
-                _jina_search(client, q_ats2),     # Jina: more ATS
-                _jina_search(client, q_general),  # Jina: general
-                _jina_search(client, q_careers),  # Jina: career pages
-                _brave_search(client, q_ats),     # Brave: ATS job pages
-                _brave_search(client, q_general), # Brave: general
-                _ddg(client, q_general),           # DDG (local fallback)
-                _bing(client, q_general),          # Bing (local fallback)
-                _bing(client, q_ats),              # Bing ATS (local fallback)
+            serp_raw = await asyncio.gather(
+                _jina_search(client, q_ats),
+                _jina_search(client, q_ats2),
+                _jina_search(client, q_general),
+                _jina_search(client, q_careers),
+                _brave_search(client, q_ats),
+                _brave_search(client, q_general),
+                _ddg(client, q_general),
+                _bing(client, q_general),
+                _bing(client, q_ats),
             )
-            all_results = [r for lst in serps_all_raw for r in lst]
+            jina_tuples: List[Tuple[str, str, str]] = [
+                r for lst in serp_raw for r in lst]
 
-            # PATH 1: SERP-direct extraction (fast, works from snippets)
-            serp_direct = _jobs_from_serp(all_results, query)
+            # Merge orchestrator results + Jina-only results, dedup by URL
+            seen_serp: set = set()
+            all_serp: List[Tuple[str, str, str]] = []
+            for tup in orch_tuples + jina_tuples:
+                if tup[1] not in seen_serp:
+                    seen_serp.add(tup[1])
+                    all_serp.append(tup)
 
-            # PATH 2: Page-visit extraction (ATS pages first, then general)
-            links = _job_links(all_results)[:_MAX_PAGES]
+            # PATH A: SERP-direct (fast, no page visit needed)
+            serp_direct = _jobs_from_serp(all_serp, query)
+
+            # PATH B: Page-visit (top individual job pages → LLM extract)
+            links = _job_links(all_serp)[:_MAX_PAGES]
             texts = await asyncio.gather(
                 *[_page_text(client, u) for _, u, _ in links])
             pages = [(t, u, txt) for (t, u, _), txt in zip(links, texts) if txt]
             page_jobs = await _extract(query, pages)
 
-        # merge: page-visit results first (higher quality), then SERP-direct
+        # Merge all three paths: ATS-direct > page-visit > SERP-snippet
         seen_urls: set = set()
         rows: List[Dict[str, Any]] = []
-        for j in page_jobs + serp_direct:
+        for j in ats_direct_jobs + page_jobs + serp_direct:
             u = j.get("source_url", "")
             if u and u in seen_urls:
                 continue
@@ -492,10 +523,12 @@ async def fetch(query: str, location: str = "", job_type: str = "",
                 seen_urls.add(u)
             rows.append(j)
 
-        _CACHE[key] = (time.time(), rows)
+        _CACHE[cache_key] = (time.time(), rows)
         logger.info(
-            "serp_jobs: '%s' -> %d serp results, %d page jobs, %d serp-direct, %d total",
-            q, len(all_results), len(page_jobs), len(serp_direct), len(rows))
+            "serp_jobs v2: '%s' → %d ats-direct, %d page-jobs, "
+            "%d serp-direct | %d total unique",
+            q_base, len(ats_direct_jobs), len(page_jobs),
+            len(serp_direct), len(rows))
         return rows[:limit]
     except Exception as exc:
         logger.info("serp_jobs fetch failed: %s", exc)
