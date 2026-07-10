@@ -753,11 +753,17 @@ async def llm_status():
         "groq": "GROQ_API_KEY", "openrouter": "OPENROUTER_API_KEY",
         "gemini": "GEMINI_API_KEY", "mistral": "MISTRAL_API_KEY",
         "cerebras": "CEREBRAS_API_KEY", "perplexity": "PERPLEXITY_API_KEY",
-        "openai": "OPENAI_API_KEY", "ollama_host": "OLLAMA_HOST"}.items()}
-    # also show ALL env var names that look like keys (helps spot typos/quotes)
+        "openai": "OPENAI_API_KEY", "ollama_host": "OLLAMA_HOST",
+        "github_token": "GITHUB_TOKEN", "github_token_2": "GITHUB_TOKEN_2",
+        "github_token_3": "GITHUB_TOKEN_3", "tavily": "TAVILY_API_KEY",
+        "serper": "SERPER_API_KEY", "adzuna_id": "ADZUNA_APP_ID",
+        "jina": "JINA_API_KEY"}.items()}
+    # show ALL env vars that look like keys — helps catch typos
     keylike = sorted([k for k in _os.environ
                       if any(t in k.upper() for t in ("API_KEY", "GEMINI", "MISTRAL",
-                                                      "CEREBRAS", "GROQ", "PERPLEX", "OPENROUTER"))])
+                                                      "CEREBRAS", "GROQ", "PERPLEX",
+                                                      "OPENROUTER", "TOKEN", "SERPER",
+                                                      "TAVILY", "JINA", "ADZUNA"))])
     try:
         from core.llm_client import get_llm
         llm = get_llm()
