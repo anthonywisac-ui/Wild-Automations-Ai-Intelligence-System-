@@ -202,7 +202,7 @@ class MultiLLM:
 
     def __init__(self, clients: List["LLMClient"]):
         self.clients = clients
-        self.provider = "+".join(c.provider for c in clients[:4]) or "none"
+        self.provider = "+".join(c.provider for c in clients) or "none"
         self.model = clients[0].model if clients else ""
 
     async def complete(self, *args, **kwargs) -> str:
