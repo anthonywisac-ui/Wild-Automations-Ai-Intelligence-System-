@@ -832,13 +832,19 @@ async def jobs_all():
 
     # flatten to the table shape the /jobs UI consumes (+ intelligence)
     jobs = []
+    from core import freshness as _fresh
     for j in intel["jobs"]:
         sp = j.get("sponsor") or {}
         ig = j.get("intelligence") or {}
+        posted_raw = j.get("posted") or ""
+        posted_iso = _fresh.parse(posted_raw)
         jobs.append({
             "company": j["employer"]["name"], "position": j["title"],
             "location": j["location"], "salary": j["salary"]["display"],
-            "posted": j.get("posted") or "", "employees": j.get("employees") or "",
+            "posted": posted_raw, "posted_iso": posted_iso,
+            "posted_ago": _fresh.ago(posted_iso),
+            "fresh": _fresh.is_fresh(posted_iso, hours=2),
+            "employees": j.get("employees") or "",
             "source": j.get("source"), "url": j.get("url"),
             "description": j.get("description"),
             "seniority": j.get("seniority"), "skills": j.get("skills"),
@@ -848,6 +854,10 @@ async def jobs_all():
             "visa_routes": sp.get("routes", []) if sp.get("matched") else [],
             "sponsor_status": sp.get("status", "Not Verified"),
             "intelligence": ig,
+            # AI enrichment fields
+            "ats_platform": j.get("ats_platform", "unknown"),
+            "remote_score": j.get("remote_score", 0),
+            "remote_label": j.get("remote_label", ""),
         })
     return JSONResponse({"total": intel["total"], "verified_sponsors": intel["verified_sponsors"],
                          "sponsor_index": intel["sponsor_index"], "jobs": jobs, "sources": sources})
@@ -937,7 +947,7 @@ async def cv_match(request: Request):
     # 2. broad candidate fetch (with descriptions) across role + APIs; alternate
     #    titles widen the title-gate so synonym roles reach the semantic ranker
     rs = await job_search.search(role or "jobs", body.get("location", ""),
-                                 body.get("job_type", "remote"), skills,
+                                 body.get("job_type", ""), skills,
                                  worldwide=body.get("worldwide", True), limit=80,
                                  alt_titles=profile.get("alternate_roles") or [])
 

@@ -168,7 +168,9 @@ button{font-family:var(--font);cursor:pointer}
   transition:all var(--transition);white-space:nowrap;
 }
 .chip:hover{border-color:rgba(255,255,255,.12);color:var(--text)}
+.chip.on{background:rgba(245,200,66,.12);border-color:rgba(245,200,66,.4);color:var(--primary)}
 .chip-sort{margin-left:auto}
+.chip-sort.on{background:rgba(59,130,246,.12);border-color:rgba(59,130,246,.4);color:var(--info)}
 
 /* ── KPI Cards ── */
 .kpis{
@@ -242,6 +244,10 @@ button{font-family:var(--font);cursor:pointer}
 .tag-visa{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:var(--success);background:rgba(34,197,94,.1);border-radius:var(--radius-tag);padding:2px 8px}
 .tag-remote{font-size:11px;font-weight:600;color:var(--info);background:rgba(59,130,246,.1);border-radius:var(--radius-tag);padding:2px 8px}
 .tag-ai{font-size:11px;font-weight:600;color:var(--primary);background:rgba(245,200,66,.1);border-radius:var(--radius-tag);padding:2px 8px}
+.tag-new{font-size:11px;font-weight:700;color:#ff4444;background:rgba(255,68,68,.12);border-radius:var(--radius-tag);padding:2px 8px;animation:pulse-red 1.5s ease-in-out infinite}
+.tag-fresh{font-size:11px;font-weight:600;color:#F59E0B;background:rgba(245,158,11,.1);border-radius:var(--radius-tag);padding:2px 8px}
+.job-time svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2}
+@keyframes pulse-red{0%,100%{opacity:1}50%{opacity:.6}}
 .job-title{font-size:15px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .job-meta{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
 .job-meta-item{display:flex;align-items:center;gap:5px;font-size:13px;color:var(--text-secondary)}
@@ -536,12 +542,11 @@ body.jnav .mob-scrim{opacity:1;pointer-events:auto}
 
     <!-- Filter chips -->
     <div class="chips">
-      <span class="chip">Easy apply</span>
-      <span class="chip">Salary Range ▾</span>
-      <span class="chip">Company Rating ▾</span>
-      <span class="chip">Date posted ▾</span>
-      <span class="chip">All Filters</span>
-      <span class="chip chip-sort">Most Relevant ▾</span>
+      <span class="chip" id="chip-latest" onclick="toggleLatest(this)">⚡ Latest (2h)</span>
+      <span class="chip" id="chip-remote" onclick="toggleChipFilter('remote',this)">Remote Only</span>
+      <span class="chip" id="chip-verified" onclick="toggleChipFilter('verified',this)">✓ Visa Verified</span>
+      <span class="chip" id="chip-salary" onclick="toggleChipFilter('salary',this)">Has Salary</span>
+      <span class="chip chip-sort" id="chip-sort" onclick="toggleSort(this)">Most Relevant ▾</span>
     </div>
 
     <!-- KPI cards -->
@@ -774,6 +779,56 @@ body.jnav .mob-scrim{opacity:1;pointer-events:auto}
     }).catch(function(){b.innerHTML='Run Jobs';b.disabled=false;});
   };
 
+  /* ── Sort & freshness helpers ── */
+  var _sortMode='relevant'; // 'relevant' | 'newest'
+  var _latestOnly=false;
+
+  function _agoHours(iso){
+    if(!iso)return null;
+    try{var dt=new Date(iso);var h=(Date.now()-dt.getTime())/3600000;return h>=0?h:null;}catch(e){return null;}
+  }
+  window._agoHours=_agoHours;
+
+  window.toggleSort=function(el){
+    _sortMode=_sortMode==='relevant'?'newest':'relevant';
+    el.textContent=_sortMode==='newest'?'Newest First ▾':'Most Relevant ▾';
+    el.classList.toggle('on',_sortMode==='newest');
+    _sortAndRender();
+  };
+
+  window.toggleLatest=function(el){
+    _latestOnly=!_latestOnly;
+    el.classList.toggle('on',_latestOnly);
+    _sortAndRender();
+  };
+
+  window.toggleChipFilter=function(type,el){
+    el.classList.toggle('on');
+    if(type==='remote')FILT.type=el.classList.contains('on')?'remote':'';
+    if(type==='verified')FILT.verified=el.classList.contains('on');
+    if(type==='salary')FILT.salary=el.classList.contains('on');
+    applyFilter();
+  };
+
+  function _sortAndRender(){
+    if(_sortMode==='newest'){
+      VIEW.sort(function(a,b){
+        var ai=a.posted_iso||'',bi=b.posted_iso||'';
+        if(!ai&&!bi)return 0;if(!ai)return 1;if(!bi)return -1;
+        return bi.localeCompare(ai);
+      });
+    }
+    // latest only: max 2 hours old, min 5 min
+    if(_latestOnly){
+      VIEW=VIEW.filter(function(j){
+        var h=_agoHours(j.posted_iso);
+        return h!==null&&h>=0.083&&h<=2; // 5min to 2h
+      });
+    }
+    page=1;render();
+    var jc=document.getElementById('jcount-n');if(jc)jc.textContent=VIEW.length;
+  }
+
   /* ── Filters ── */
   var FILT={q:'',country:'',type:'',verified:false,salary:false};
 
@@ -797,7 +852,7 @@ body.jnav .mob-scrim{opacity:1;pointer-events:auto}
       if(FILT.salary&&(!j.salary||j.salary==='—'))return false;
       return true;
     });
-    page=1;render();
+    _sortAndRender();
   };
 
   window.jNav=function(open){document.body.classList.toggle('jnav',open);};
@@ -852,24 +907,35 @@ body.jnav .mob-scrim{opacity:1;pointer-events:auto}
       if(j.sponsor_verified)tags+='<span class="tag-visa">✓ Visa Verified</span>';
       if(isRemote)tags+='<span class="tag-remote">Remote</span>';
       if(j.intelligence&&j.intelligence.ai_score>0.7)tags+='<span class="tag-ai">⚡ AI Match</span>';
+      // Freshness badge
+      var agoStr=j.posted_ago||'';
+      var freshBadge='';
+      if(agoStr){
+        var hrsOld=_agoHours(j.posted_iso);
+        if(hrsOld!==null&&hrsOld<1){
+          freshBadge='<span class="tag-new">🔴 Just Posted</span>';
+        }else if(hrsOld!==null&&hrsOld<2){
+          freshBadge='<span class="tag-fresh">🟡 '+agoStr+'</span>';
+        }
+      }
       return '<div class="job-card'+(sel===idx?' sel':'')+'" onclick="openJob('+idx+',this)" data-idx="'+idx+'">'+
         logo(j.company,idx,'job-logo')+
         '<div class="job-body">'+
           '<div class="job-top">'+
             '<span class="job-company">'+esc(j.company||'—')+'</span>'+
             '<span class="job-source">'+esc(j.source||'')+'</span>'+
-            tags+
+            freshBadge+tags+
           '</div>'+
           '<div class="job-title">'+esc((j.position||'').slice(0,70))+'</div>'+
           '<div class="job-meta">'+
             (j.location?'<span class="job-meta-item"><svg viewBox="0 0 24 24"><path d="M12 21s-7-6-7-11a7 7 0 0 1 14 0c0 5-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>'+esc(j.location)+'</span>':'')+
             (j.salary&&j.salary!=='—'?'<span class="job-meta-item"><svg viewBox="0 0 24 24"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 1 0 0 7h5a3.5 3.5 0 1 1 0 7H6"/></svg>'+esc(j.salary)+'</span>':'')+
-            (j.employees&&j.employees!=='—'?'<span class="job-meta-item"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>'+esc(j.employees)+'</span>':'')+
+            (agoStr?'<span class="job-meta-item job-time"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>'+esc(agoStr)+'</span>':'')+
           '</div>'+
         '</div>'+
         '<div class="job-right">'+
           '<button class="bookmark-btn'+(saved[idx]?' on':'')+'" onclick="event.stopPropagation();toggleSave('+idx+',this)">'+(saved[idx]?'★':'☆')+'</button>'+
-          '<span class="job-posted">'+esc(j.posted||'')+'</span>'+
+          '<span class="job-posted">'+esc(agoStr||j.posted||'')+'</span>'+
           (j.salary&&j.salary!=='—'?'<span class="job-salary">'+esc(j.salary)+'</span>':'')+
         '</div>'+
       '</div>';
