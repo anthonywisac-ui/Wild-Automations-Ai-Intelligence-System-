@@ -83,6 +83,18 @@ _PROVIDERS = {
         "meta/Llama-4-Scout-17B-16E-Instruct",
         True,
     ),
+    "github2": (
+        ["GITHUB_TOKEN_2"],
+        "https://models.inference.ai.azure.com",
+        "deepseek/DeepSeek-V3-0324",
+        True,
+    ),
+    "github3": (
+        ["GITHUB_TOKEN_3"],
+        "https://models.inference.ai.azure.com",
+        "openai/gpt-4o",
+        True,
+    ),
     "ollama": (
         ["OLLAMA_HOST", "OLLAMA"],
         None,  # resolved from env or localhost default
@@ -138,7 +150,8 @@ def detect_provider() -> Optional[LLMClient]:
     LLM_PROVIDER env forces a specific one (groq/openrouter/perplexity/gemini/…)."""
     forced = (os.getenv("LLM_PROVIDER") or "").lower().strip()
     order = ([forced] if forced in _PROVIDERS else []) + \
-        ["groq", "openrouter", "gemini", "cerebras", "mistral", "perplexity", "github", "openai", "ollama"]
+        ["groq", "openrouter", "gemini", "cerebras", "mistral", "perplexity",
+         "github", "github2", "github3", "openai", "ollama"]
     seen = set()
     for prov in order:
         if prov in seen or prov not in _PROVIDERS:
@@ -163,7 +176,8 @@ def _all_clients() -> List["LLMClient"]:
     """Every configured provider, in priority order — used for fallback."""
     forced = (os.getenv("LLM_PROVIDER") or "").lower().strip()
     order = ([forced] if forced in _PROVIDERS else []) + \
-        ["groq", "openrouter", "gemini", "cerebras", "mistral", "perplexity", "github", "openai", "ollama"]
+        ["groq", "openrouter", "gemini", "cerebras", "mistral", "perplexity",
+         "github", "github2", "github3", "openai", "ollama"]
     seen, clients = set(), []
     for prov in order:
         if prov in seen or prov not in _PROVIDERS:
