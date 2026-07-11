@@ -40,6 +40,28 @@ _RESTRICT = ["us only", "usa only", "u.s. only", "must be based", "within the us
              "cannot sponsor", "not able to sponsor", "us-based", "based in the us",
              "select locations", "must reside"]
 
+# SERP/aggregator landing pages — these are search results pages, not job postings
+_BAD_URL_PATTERNS = [
+    r"indeed\.com/q-",          # indeed search: /q-wordpress-developer-l-remote-jobs.html
+    r"indeed\.com/jobs\?",      # indeed search: /jobs?q=...
+    r"linkedin\.com/jobs/[a-z-]+-jobs",   # linkedin search: /jobs/wordpress-developer-jobs
+    r"linkedin\.com/jobs/search",
+    r"glassdoor\.com/Job/jobs\.htm",
+    r"monster\.com/jobs/search",
+    r"ziprecruiter\.com/jobs/search",
+    r"simplyhired\.com/search",
+    r"careerjet\.com/search",
+    r"reed\.co\.uk/jobs\?",
+    r"totaljobs\.com/jobs\?",
+]
+_BAD_URL_RE = re.compile("|".join(_BAD_URL_PATTERNS), re.I)
+
+# Titles that indicate the listing is not a real paid job
+_UNPAID_TITLE = re.compile(
+    r"\b(unpaid|volunteer|no\s+pay|pro\s+bono|honorary|non[-\s]?paid|without\s+pay)\b",
+    re.I
+)
+
 
 async def _safe(fn, cfg, timeout: int = 40) -> List[Dict[str, Any]]:
     try:
@@ -189,6 +211,13 @@ async def search(query: str, location: str = "", job_type: str = "",
             md = rec.get("metadata") or {}
             title = (rec.get("title") or "")
             if not title or md.get("type") == "uk_sponsor" or "Licensed Sponsor" in title:
+                continue
+            # Drop SERP / aggregator search-result pages (not real job postings)
+            url = rec.get("source_url") or rec.get("url") or ""
+            if url and _BAD_URL_RE.search(url):
+                continue
+            # Drop unpaid / volunteer listings
+            if _UNPAID_TITLE.search(title):
                 continue
             loc_s = (rec.get("location") or "")
             blob = f"{title} {loc_s} {rec.get('description','')}".lower()
