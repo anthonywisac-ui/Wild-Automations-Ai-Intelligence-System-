@@ -55,6 +55,15 @@ BOARDS: List[Dict[str, Any]] = [
      "link_pat": r"/[a-z0-9-]+-jobs?-"},
     {"name": "Wellfound",    "url": "https://wellfound.com/role/r/{q}",            "via": "jina",
      "link_pat": r"/jobs/\d+"},
+    # Remotive — well-structured, stable links, no auth needed
+    {"name": "Remotive",     "url": "https://remotive.com/remote-jobs/{q}",        "via": "jina",
+     "link_pat": r"remotive\.com/remote-jobs/[a-z-]+/[a-z0-9-]+-\d+"},
+    # WeWorkRemotely — large volume, stable HTML
+    {"name": "WeWorkRemotely", "url": "https://weworkremotely.com/remote-{q}-jobs", "via": "jina",
+     "link_pat": r"weworkremotely\.com/remote-jobs/[a-z0-9-]+"},
+    # BuiltIn — strong for tech roles, company-branded pages
+    {"name": "BuiltIn",      "url": "https://builtin.com/jobs/remote/{q}",         "via": "jina",
+     "link_pat": r"builtin\.com/job/[a-z0-9/-]+/\d+"},
 ]
 
 _CACHE: Dict[Tuple[str, str], Tuple[float, List[Dict[str, Any]]]] = {}

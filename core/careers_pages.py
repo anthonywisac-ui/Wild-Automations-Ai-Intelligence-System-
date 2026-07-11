@@ -191,9 +191,10 @@ async def fetch(query: str = "", limit: int = 40) -> List[Dict[str, Any]]:
     for t in warm:
         out += _CACHE[t["name"]][1]
 
-    # query relevance filter (loose — title match on any token)
+    # query relevance filter — only apply when we have enough results so the
+    # cold-cache first call doesn't return zero from a bad random batch draw
     qtoks = [t for t in re.split(r"\s+", (query or "").lower()) if len(t) > 2]
-    if qtoks:
-        out = [j for j in out
-               if any(t in j["title"].lower() for t in qtoks)] or out[:10]
+    if qtoks and len(out) > 10:
+        filtered = [j for j in out if any(t in j["title"].lower() for t in qtoks)]
+        out = filtered if filtered else out
     return out[:limit]

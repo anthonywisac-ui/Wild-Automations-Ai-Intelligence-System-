@@ -177,6 +177,7 @@ async function deliverIt(){
 let CHAT=[];  // conversation history so the assistant never re-asks a known answer
 let CTX='';   // profile + jobs already shown → so follow-ups ('why is this good for me') work
 function esc(s){return String(s==null?'':s).replace(/[<>&]/g,function(c){return {'<':'&lt;','>':'&gt;','&':'&amp;'}[c];});}
+function _agoHrs(iso){if(!iso)return null;var d=new Date(iso);if(isNaN(d.getTime()))return null;return(Date.now()-d.getTime())/3600000;}
 function bubble(t,cls){const el=document.createElement('div');el.className='bubble '+cls;el.innerHTML=(t||'').replace(/\*\*(.+?)\*\*/g,'<b>$1</b>');
   document.getElementById('chatlog').appendChild(el);el.scrollIntoView({behavior:'smooth'});}
 async function sendChat(){
@@ -279,6 +280,16 @@ function renderCVJobs(m){
   const R=document.getElementById('results');
   var card=function(x,i){
     var f=x.fit||{};
+    // freshness badge
+    var freshBadge='';
+    if(x.posted_iso){
+      var hrs=_agoHrs(x.posted_iso);
+      if(hrs!==null&&hrs<1)freshBadge='<span class="chip" style="background:rgba(255,68,68,.15);color:#ff6666">🔴 Just Posted</span> ';
+      else if(hrs!==null&&hrs<2)freshBadge='<span class="chip" style="background:rgba(245,158,11,.15);color:#F59E0B">🟡 '+(x.posted_ago||'Recent')+'</span> ';
+      else if(x.posted_ago)freshBadge='<span class="chip" style="opacity:.7">🕐 '+esc(x.posted_ago)+'</span> ';
+    }else if(x.posted_ago){
+      freshBadge='<span class="chip" style="opacity:.7">🕐 '+esc(x.posted_ago)+'</span> ';
+    }
     var fitRow=(f.skill||f.seniority||f.domain)?
       '<div style="font-size:12px;margin-top:6px;display:flex;flex-wrap:wrap;gap:6px">'+
       (f.skill?'<span class="chip" title="Skills fit">🧩 '+esc(f.skill)+'</span>':'')+
@@ -293,7 +304,7 @@ function renderCVJobs(m){
       '<button class="chip" style="cursor:pointer;border:0" onclick="tailorJob('+i+')">✍️ Tailor CV</button>':'')+
       '</div>';
     return '<div class="res"><div class="t">'+esc(x.title)+'</div>'+
-      '<div class="m"><span class="chip" title="'+(x.deep?'AI read the FULL job description page for this score':(x.match_type==='ai'?'AI judged this score from your CV + job description':'Approximate keyword score (AI ranking unavailable)'))+'">'+(x.deep?'🔬 ':(x.match_type==='ai'?'✦ ':'≈ '))+Math.round(x.match*100)+'% match</span> '+esc(x.company)+' · 📍 '+esc(x.location)+'</div>'+
+      '<div class="m">'+freshBadge+'<span class="chip" title="'+(x.deep?'AI read the FULL job description page for this score':(x.match_type==='ai'?'AI judged this score from your CV + job description':'Approximate keyword score (AI ranking unavailable)'))+'">'+(x.deep?'🔬 ':(x.match_type==='ai'?'✦ ':'≈ '))+Math.round(x.match*100)+'% match</span> '+esc(x.company)+' · 📍 '+esc(x.location)+'</div>'+
       '<div style="font-size:12px;color:var(--muted);margin-top:6px">🌍 '+esc(x.remote_policy)+' · ✅ '+esc(x.visa)+(x.salary&&x.salary!=='—'?' · 💰 '+esc(x.salary):'')+'</div>'+
       fitRow+
       (x.url?'<div style="margin-top:6px"><a class="chip" style="text-decoration:none" href="'+x.url+'" target="_blank">Apply ↗</a></div>':'')+

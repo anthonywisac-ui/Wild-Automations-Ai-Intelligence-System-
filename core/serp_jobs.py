@@ -53,6 +53,26 @@ _SKIP_DOMAINS = re.compile(
     r"(google\.|bing\.com|duckduckgo\.com|youtube\.|facebook\.|instagram\.|"
     r"twitter\.com|x\.com|reddit\.com|wikipedia\.org|glassdoor\.)", re.I)
 
+# Aggregator search result pages (not individual jobs) — we crawl these to
+# extract individual job links rather than treating them as job records
+_AGGREGATOR_SERP_RE = re.compile(
+    r"indeed\.com/(?:q-[^?#\s]+\.html|jobs\?)|"
+    r"linkedin\.com/jobs/(?:[a-z0-9-]+-jobs/?(?:\?|$)|search/?(?:\?|$))|"
+    r"glassdoor\.com/Job/jobs\.htm|"
+    r"monster\.com/jobs/search|ziprecruiter\.com/jobs/search|"
+    r"reed\.co\.uk/jobs\?|totaljobs\.com/jobs\?|"
+    r"simplyhired\.com/search|careerjet\.com/search",
+    re.I
+)
+
+# Job-title modifiers that appear between dashes but are NOT company names
+_TITLE_MODIFIERS = re.compile(
+    r"^(part[-\s]?time|full[-\s]?time|remote|hybrid|contract|freelance|"
+    r"permanent|temporary|casual|internship?|senior|junior|mid|lead|staff|"
+    r"principal|volunteer|unpaid|fixed[-\s]?term|zero[-\s]?hours)\b",
+    re.I
+)
+
 
 def _rec(title, company, location, url, desc="", posted="") -> Dict[str, Any]:
     from core import freshness
@@ -271,11 +291,22 @@ def _jobs_from_serp(results: List[Tuple[str, str, str]], query: str) -> List[Dic
             continue
         dom = urlparse(url).netloc.replace("www.", "")
         # parse "Job Title - Company - Location | Site" pattern
-        clean = re.sub(r"\s*[|—]\s*.*$", "", title).strip()  # strip "| site" suffix
-        parts = re.split(r"\s*[-–]\s*", clean, maxsplit=2)
-        job_title = parts[0].strip() if parts else title
-        company = parts[1].strip() if len(parts) > 1 else f"via {dom}"
-        location = parts[2].strip() if len(parts) > 2 else ""
+        # strip "| site" suffix, then split on " - " or " – "
+        clean = re.sub(r"\s*[|—]\s*.*$", "", title).strip()
+        parts = [p.strip() for p in re.split(r"\s*[-–]\s*", clean) if p.strip()]
+        job_title = parts[0] if parts else title
+        # skip modifier-only parts (Part Time, Full Time, Remote, etc.)
+        # to find the real company name
+        company = ""
+        location = ""
+        for part in parts[1:]:
+            if not company and not _TITLE_MODIFIERS.match(part):
+                company = part
+            elif company:
+                location = part
+                break
+        if not company:
+            company = f"via {dom}"
         # skip if job_title looks generic (just the site name or "jobs")
         if not job_title or len(job_title) < 4:
             continue
@@ -364,6 +395,55 @@ async def _page_text(client: httpx.AsyncClient, url: str) -> str:
     except Exception:
         pass
     return ""
+
+
+# ── step 3b: crawl aggregator search pages → extract individual job links ────
+
+async def _crawl_aggregator_page(client: httpx.AsyncClient,
+                                  url: str, query: str) -> List[Tuple[str, str, str]]:
+    """Visit an Indeed/LinkedIn search result page via Jina Reader and extract
+    the individual job page URLs embedded in it. These are then added to the
+    normal page-visit pipeline and extracted like any other job page."""
+    import os as _o
+    jheads = {"Accept": "text/plain", "X-Return-Format": "text"}
+    if _o.getenv("JINA_API_KEY"):
+        jheads["Authorization"] = f"Bearer {_o.getenv('JINA_API_KEY')}"
+    try:
+        r = await client.get(f"https://r.jina.ai/{url}", headers=jheads, timeout=25)
+        if r.status_code != 200:
+            return []
+        text = r.content.decode("utf-8", errors="ignore")
+        out: List[Tuple[str, str, str]] = []
+        seen: set = set()
+        # Extract individual job page URLs (not search pages)
+        individual_patterns = [
+            r'https?://[a-z.]*indeed\.com/(?:viewjob|rc/clk|company/[^/]+/jobs)[^\s"<>)]+',
+            r'https?://[a-z.]*linkedin\.com/jobs/view/[\w%-]+/?(?:[^\s"<>)]*)?',
+            r'https?://[a-z.]*linkedin\.com/jobs/collections/[^\s"<>)]+',
+        ]
+        for pat in individual_patterns:
+            for m in re.finditer(pat, text, re.I):
+                link = m.group(0).rstrip('.,;)"\'')
+                # strip tracking params for dedup but keep jk= for indeed
+                if link not in seen:
+                    seen.add(link)
+                    out.append(("", link, ""))
+        # Also parse markdown job entries: lines with title + company · location + link
+        for bm in re.finditer(
+                r'\n(?:\#+\s*|\*\*?)([^\n*#]{10,80})\*?\*?\n([^\n]{0,80})\n[^\n]*'
+                r'(https?://[^\s"<>)]+(?:viewjob|jobs/view)[^\s"<>)]*)',
+                text, re.M):
+            link = bm.group(3).rstrip('.,;)"\'')
+            title = bm.group(1).strip().strip('*#[] ')
+            company_loc = bm.group(2).strip()
+            if link not in seen and len(title) > 5:
+                seen.add(link)
+                out.append((title, link, company_loc))
+        logger.info("_crawl_aggregator_page: %s → %d individual links", url[:70], len(out))
+        return out[:30]
+    except Exception as exc:
+        logger.info("_crawl_aggregator_page failed for %s: %s", url[:60], exc)
+        return []
 
 
 # ── step 4: turn pages into structured jobs ──────────────────────────────────
@@ -479,14 +559,20 @@ async def fetch(query: str, location: str = "", job_type: str = "",
                       f'OR site:jobs.eu.lever.co OR site:boards.eu.greenhouse.io)').strip()
             q_careers = (f'"{q_base}" "apply now" {loc} '
                          f'-site:linkedin.com -site:indeed.com').strip()
+            # Direct individual job page queries — return real job URLs not search pages
+            q_indeed_jobs = f'"{q_base}" {loc} site:indeed.com/viewjob'.strip()
+            q_linkedin_jobs = f'"{q_base}" {loc} site:linkedin.com/jobs/view'.strip()
 
             serp_raw = await asyncio.gather(
                 _jina_search(client, q_ats),
                 _jina_search(client, q_ats2),
                 _jina_search(client, q_general),
                 _jina_search(client, q_careers),
+                _jina_search(client, q_indeed_jobs),
+                _jina_search(client, q_linkedin_jobs),
                 _brave_search(client, q_ats),
                 _brave_search(client, q_general),
+                _brave_search(client, q_indeed_jobs),
                 _ddg(client, q_general),
                 _bing(client, q_general),
                 _bing(client, q_ats),
@@ -501,6 +587,28 @@ async def fetch(query: str, location: str = "", job_type: str = "",
                 if tup[1] not in seen_serp:
                     seen_serp.add(tup[1])
                     all_serp.append(tup)
+
+            # PATH C: Crawl aggregator SERP pages (Indeed/LinkedIn search pages)
+            # to extract individual job links, then fold them into all_serp so
+            # PATH B visits them like any other job page
+            agg_pages = [(t, u, s) for t, u, s in all_serp
+                         if _AGGREGATOR_SERP_RE.search(u)]
+            if agg_pages:
+                agg_results = await asyncio.gather(
+                    *[_crawl_aggregator_page(client, u, query)
+                      for _, u, _ in agg_pages[:6]],
+                    return_exceptions=True)
+                for lst in agg_results:
+                    if isinstance(lst, list):
+                        for tup in lst:
+                            if tup[1] not in seen_serp:
+                                seen_serp.add(tup[1])
+                                all_serp.append(tup)
+                logger.info(
+                    "serp_jobs: crawled %d aggregator pages, added %d individual links",
+                    len(agg_pages),
+                    sum(len(lst) for lst in agg_results
+                        if isinstance(lst, list)))
 
             # PATH A: SERP-direct (fast, no page visit needed)
             serp_direct = _jobs_from_serp(all_serp, query)
