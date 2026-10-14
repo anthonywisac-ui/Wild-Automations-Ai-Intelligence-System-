@@ -1,0 +1,13 @@
+services:
+  - type: web_service
+    name: wild-automations-backend
+    env: python
+    plan: free
+    region: oregon
+    branch: feature/gemini-qa
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "uvicorn app:app --host 0.0.0.0 --port $PORT"
+    envGroups:
+      - name: "Wild Automations"
+    autoDeploy: true
+    pullRequestPreviews: false
