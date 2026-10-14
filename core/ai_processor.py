@@ -1,10 +1,10 @@
 import asyncio
 import json
 import logging
-import random
+import os
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Callable, Awaitable
 from string import Template
-from dataclasses import dataclass
 
 import httpx
 
@@ -17,6 +17,8 @@ class AIConfig:
     openai_model: str = "gpt-4o-mini"
     anthropic_api_key: Optional[str] = None
     anthropic_model: str = "claude-haiku-4-5-20251001"
+    gemini_api_key: Optional[str] = None
+    gemini_model: str = "gemini-2.0-flash"
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "llama3"
     default_provider: str = "passthrough"
@@ -36,7 +38,7 @@ class PromptTemplate:
         self.variables = variables
 
     def render(self, context: Dict[str, Any]) -> str:
-        """Inject dynamic values into the template."""
+        """"Inject dynamic values into the template."""
         return self.template.safe_substitute(context)
 
 
@@ -160,7 +162,7 @@ class AIProcessor:
                 return await self._call_llm(prompt)
             except Exception as e:
                 last_exception = e
-                wait = 2 ** attempt + random.uniform(0, 1)
+                wait = 2 ** attempt + __import__("random").uniform(0, 1)
                 logger.warning(f"LLM call failed (attempt {attempt+1}): {e}. Retry in {wait:.2f}s")
                 await asyncio.sleep(wait)
         raise RuntimeError(f"All LLM retries failed: {last_exception}")
@@ -174,6 +176,8 @@ class AIProcessor:
             return await self._call_openai(prompt)
         elif provider == "anthropic":
             return await self._call_anthropic(prompt)
+        elif provider == "gemini":
+            return await self._call_gemini(prompt)
         elif provider == "ollama":
             return await self._call_ollama(prompt)
         else:
@@ -238,6 +242,46 @@ class AIProcessor:
             except Exception as e:
                 raise RuntimeError(f"Anthropic error: {e}") from e
 
+    async def _call_gemini(self, prompt: str) -> str:
+        """Call Gemini via the Google Generative AI REST API."""
+        api_key = (
+            self.config.gemini_api_key
+            or os.getenv("GEMINI_API_KEY")
+            or os.getenv("GOOGLE_API_KEY")
+        )
+        if not api_key:
+            raise RuntimeError("GEMINI_API_KEY or GOOGLE_API_KEY is not set")
+
+        model = self.config.gemini_model or os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+        payload = {
+            "contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {
+                "temperature": self.config.temperature,
+                "maxOutputTokens": 1024,
+            },
+        }
+
+        async with httpx.AsyncClient(timeout=self.config.timeout, verify=False) as client:
+            try:
+                resp = await client.post(
+                    f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+                    params={"key": api_key},
+                    json=payload,
+                )
+                resp.raise_for_status()
+                data = resp.json()
+
+                if "candidates" not in data or not data["candidates"]:
+                    raise RuntimeError(f"Gemini returned no candidates: {data}")
+
+                parts = data["candidates"][0].get("content", {}).get("parts", [])
+                text = "".join(part.get("text", "") for part in parts if isinstance(part, dict))
+                if not text:
+                    raise RuntimeError(f"Gemini returned empty content: {data}")
+                return text.strip()
+            except Exception as e:
+                raise RuntimeError(f"Gemini error: {e}") from e
+
     async def _call_ollama(self, prompt: str) -> str:
         """Call Ollama generate endpoint."""
         async with httpx.AsyncClient(timeout=self.config.timeout, verify=False) as client:
@@ -263,8 +307,7 @@ class AIProcessor:
             # Extract content between first and last triple backticks
             parts = text.split("```")
             if len(parts) >= 3:
-                text = parts[1]  # Take content inside the first block
-                # Remove language spec if present
+                text = parts[1]
                 if "\n" in text:
                     text = text.split("\n", 1)[1]
 
@@ -283,3 +326,6 @@ class AIProcessor:
 
         # If not dict, wrap in body
         return {"subject": "", "body": str(text)}
+
+
+__all__ = ["AIConfig", "PromptTemplate", "AIProcessor"]

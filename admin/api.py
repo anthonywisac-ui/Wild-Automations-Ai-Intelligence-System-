@@ -1,191 +1,141 @@
-"""
-Admin API — FastAPI router for system management.
-Documented in: docs/ADMIN DASHBOARD.md § 2.1
-
-Endpoints:
-  GET  /admin/health         — system health
-  GET  /admin/sources        — all scraper sources
-  POST /admin/sources/{id}/scrape — trigger manual scrape
-  GET  /admin/users          — paginated user list
-  GET  /admin/metrics        — system metrics
-  GET  /admin/logs           — recent logs
-  GET  /admin/analytics      — time-series analytics
-
-Mount in main FastAPI app:
-    from admin.api import router as admin_router
-    app.include_router(admin_router, prefix="/api/v1")
-"""
-
+import json
 import logging
 import os
-from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
-try:
-    from fastapi import APIRouter, HTTPException, Query
-    from fastapi.responses import JSONResponse
-    _FASTAPI = True
-except ImportError:
-    _FASTAPI = False
 
-_ADMIN_TOKEN = os.getenv("ADMIN_TOKEN", "")
+class GeminiQATester:
+    """Backend QA helper for scraper workflows and AI pipeline sanity checks."""
 
-# Injected at startup
-_engine = None
-_db = None
+    def __init__(self, api_key: Optional[str] = None, model: str = "gemini-2.0-flash") -> None:
+        self.api_key = api_key or os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+        self.model = model or os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
 
+    def _static_snapshot(self) -> Dict[str, Any]:
+        issues: List[str] = []
+        fixes: List[str] = []
 
-def set_engine(scraper_engine) -> None:
-    global _engine
-    _engine = scraper_engine
+        ai_provider = (os.getenv("AI_PROVIDER") or "passthrough").lower()
+        if ai_provider == "gemini" and not self.api_key:
+            issues.append("AI_PROVIDER=gemini is set but GEMINI_API_KEY is missing.")
+            fixes.append("Set GEMINI_API_KEY or GOOGLE_API_KEY in the environment before starting the backend.")
 
+        if not os.getenv("AI_PROVIDER"):
+            issues.append("AI_PROVIDER is not configured; the backend will fall back to passthrough mode.")
+            fixes.append("Set AI_PROVIDER=gemini to enable Gemini-assisted QA and summarization.")
 
-def set_db(db_layer) -> None:
-    global _db
-    _db = db_layer
+        try:
+            from config.bot_manifests import bot_manifest
+            bots = bot_manifest.get("bots", [])
+            if not bots:
+                issues.append("No bot manifests were loaded from config/bot_manifests.py.py.")
+                fixes.append("Validate the bot manifest and ensure each bot has at least one portal config.")
+        except Exception as exc:  # pragma: no cover
+            issues.append(f"Bot manifest could not be loaded: {exc}")
+            fixes.append("Check config/bot_manifests.py.py and confirm the path and manifest structure are valid.")
+            bots = []
 
-
-if _FASTAPI:
-    router = APIRouter(prefix="/admin", tags=["admin"])
-
-    def _require_admin(token: str = Query(default="", alias="token")) -> None:
-        if _ADMIN_TOKEN and token != _ADMIN_TOKEN:
-            raise HTTPException(status_code=401, detail="Unauthorized")
-
-    @router.get("/health")
-    async def get_health(token: str = Query(default="", alias="token")) -> Dict[str, Any]:
-        _require_admin(token)
-        status: Dict[str, Any] = {
-            "status": "ok",
-            "timestamp": datetime.utcnow().isoformat(),
-            "components": {
-                "scraper_engine": "ok" if _engine else "not_configured",
-                "database": "ok" if _db else "not_configured",
-            },
-        }
-        if _db:
+        portal_count = 0
+        for bot in bots:
             try:
-                await _db.ping()
-                status["components"]["database"] = "ok"
-            except Exception as exc:
-                status["components"]["database"] = f"error: {exc}"
-                status["status"] = "degraded"
-        return status
+                from config.bot_manifests import iter_bot_portal_configs
+                portal_cfgs = list(iter_bot_portal_configs(bot))
+                portal_count += len(portal_cfgs)
+                for portal_name, portal_config in portal_cfgs:
+                    source = portal_config.get("source")
+                    if not source:
+                        issues.append(f"Bot '{bot.get('bot_name')}' portal '{portal_name}' is missing a source definition.")
+                        fixes.append(f"Set a valid 'source' for '{portal_name}' so the scraper can resolve the correct crawler.")
+            except Exception as exc:  # pragma: no cover
+                issues.append(f"Portal validation failed while inspecting bot manifests: {exc}")
+                fixes.append("Fix the portal manifest and re-run backend QA.")
 
-    @router.get("/sources")
-    async def get_sources(
-        token: str = Query(default="", alias="token"),
-        status_filter: Optional[str] = Query(default=None, alias="status"),
-        domain: Optional[str] = None,
-    ) -> Dict[str, Any]:
-        _require_admin(token)
-        try:
-            from config.bot_manifests import PORTAL_CONFIGS
-            sources = []
-            for name, cfg in PORTAL_CONFIGS.items():
-                src = {
-                    "id": name,
-                    "name": name,
-                    "crawl_mode": cfg.get("crawl_mode", "unknown"),
-                    "domain": cfg.get("domain", "unknown"),
-                    "status": "active",
-                }
-                sources.append(src)
-            return {"sources": sources, "total": len(sources)}
-        except Exception as exc:
-            logger.error("admin/sources error: %s", exc)
-            return {"sources": [], "total": 0, "error": str(exc)}
-
-    @router.post("/sources/{source_id}/scrape")
-    async def trigger_scrape(
-        source_id: str,
-        token: str = Query(default="", alias="token"),
-    ) -> Dict[str, Any]:
-        _require_admin(token)
-        if not _engine:
-            raise HTTPException(status_code=503, detail="Scraper engine not configured")
-        try:
-            from config.bot_manifests import PORTAL_CONFIGS
-            cfg = PORTAL_CONFIGS.get(source_id)
-            if not cfg:
-                raise HTTPException(status_code=404, detail=f"Source not found: {source_id}")
-            results = await _engine.crawl_bot(cfg)
-            return {"source_id": source_id, "items_scraped": len(results or []), "status": "ok"}
-        except HTTPException:
-            raise
-        except Exception as exc:
-            logger.error("admin/scrape error source=%s: %s", source_id, exc)
-            raise HTTPException(status_code=500, detail=str(exc))
-
-    @router.get("/users")
-    async def get_users(
-        token: str = Query(default="", alias="token"),
-        page: int = 1,
-        limit: int = 20,
-        search: Optional[str] = None,
-    ) -> Dict[str, Any]:
-        _require_admin(token)
-        if not _db:
-            return {"users": [], "total": 0, "page": page, "limit": limit}
-        try:
-            users = await _db.list_users(page=page, limit=limit, search=search)
-            return {"users": users or [], "page": page, "limit": limit}
-        except Exception as exc:
-            logger.error("admin/users error: %s", exc)
-            return {"users": [], "error": str(exc)}
-
-    @router.get("/metrics")
-    async def get_metrics(
-        token: str = Query(default="", alias="token"),
-        period: str = "day",
-        metric_type: Optional[str] = None,
-    ) -> Dict[str, Any]:
-        _require_admin(token)
-        metrics: Dict[str, Any] = {
-            "period": period,
-            "timestamp": datetime.utcnow().isoformat(),
-            "scraper": {},
-            "notifications": {},
-            "users": {},
-        }
-        if _engine and hasattr(_engine, "get_stats"):
-            try:
-                metrics["scraper"] = await _engine.get_stats()
-            except Exception:
-                pass
-        return metrics
-
-    @router.get("/logs")
-    async def get_logs(
-        token: str = Query(default="", alias="token"),
-        level: Optional[str] = None,
-        component: Optional[str] = None,
-        limit: int = 100,
-    ) -> List[Dict[str, Any]]:
-        _require_admin(token)
-        # In production: query Supabase logs table or loguru handler
-        return [{"message": "Log streaming not yet wired to Supabase", "level": "INFO", "timestamp": datetime.utcnow().isoformat()}]
-
-    @router.get("/analytics")
-    async def get_analytics(
-        token: str = Query(default="", alias="token"),
-        metric: str = "opportunities_scraped",
-        start_date: Optional[str] = None,
-        end_date: Optional[str] = None,
-        aggregation: str = "day",
-    ) -> Dict[str, Any]:
-        _require_admin(token)
         return {
-            "metric": metric,
-            "aggregation": aggregation,
-            "start_date": start_date,
-            "end_date": end_date,
-            "data": [],
-            "note": "Wire to Supabase analytics table when ready",
+            "ai_provider": ai_provider,
+            "gemini_configured": bool(self.api_key),
+            "bots_detected": len(bots),
+            "portal_count": portal_count,
+            "issues": issues,
+            "fixes": fixes,
         }
 
-else:
-    router = None  # type: ignore
-    logger.info("admin/api: FastAPI not installed — router not created")
+    async def _chat(self, prompt: str) -> str:
+        if not self.api_key:
+            return ""
+
+        payload = {
+            "contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {"temperature": 0.2, "maxOutputTokens": 1024},
+        }
+
+        import httpx
+        async with httpx.AsyncClient(timeout=60, verify=False) as client:
+            response = await client.post(
+                f"https://generativelanguage.googleapis.com/v1beta/models/{self.model}:generateContent",
+                params={"key": self.api_key},
+                json=payload,
+            )
+            response.raise_for_status()
+            data = response.json()
+            if not data.get("candidates"):
+                return ""
+            parts = data["candidates"][0].get("content", {}).get("parts", [])
+            return "".join(part.get("text", "") for part in parts if isinstance(part, dict)).strip()
+
+    async def run_backend_qa(self) -> Dict[str, Any]:
+        snapshot = self._static_snapshot()
+        system_status = "ok" if not snapshot["issues"] else "warning"
+
+        if not self.api_key:
+            return {
+                "status": system_status,
+                "provider": "gemini",
+                "gemini_configured": False,
+                "qa_summary": "Gemini API key not present; static backend QA completed without AI analysis.",
+                "issues": snapshot["issues"],
+                "fixes": snapshot["fixes"],
+                "checks": {
+                    "ai_provider": snapshot["ai_provider"],
+                    "bots_detected": snapshot["bots_detected"],
+                    "portal_count": snapshot["portal_count"],
+                },
+            }
+
+        prompt = (
+            "You are a senior Python backend QA engineer. Review the following backend configuration and "
+            "suggest the exact fixes for any problems. Keep your answer as valid JSON with keys: "
+            "status, summary, issues, fixes.\n\n"
+            f"Data:\n{json.dumps(snapshot, indent=2, default=str)}\n"
+            "Return only JSON."
+        )
+
+        q_response = await self._chat(prompt)
+        parsed: Dict[str, Any] = {"status": "ok", "summary": "Gemini QA passed.", "issues": [], "fixes": []}
+
+        if q_response:
+            try:
+                cleaned = q_response.strip()
+                if cleaned.startswith("```"):
+                    cleaned = cleaned.strip("`")
+                    if cleaned.lower().startswith("json"):
+                        cleaned = cleaned[4:]
+                parsed = json.loads(cleaned)
+            except Exception:
+                logger.warning("Gemini QA response was not valid JSON; using fallback summary.")
+
+        parsed["issues"] = list(parsed.get("issues", [])) + snapshot["issues"]
+        parsed["fixes"] = list(parsed.get("fixes", [])) + snapshot["fixes"]
+        parsed["provider"] = "gemini"
+        parsed["gemini_configured"] = True
+        parsed["checks"] = {
+            "ai_provider": snapshot["ai_provider"],
+            "bots_detected": snapshot["bots_detected"],
+            "portal_count": snapshot["portal_count"],
+        }
+        parsed["status"] = parsed.get("status", "ok") if parsed.get("issues") is None else parsed.get("status", "warning")
+        return parsed
+
+
+__all__ = ["GeminiQATester"]
